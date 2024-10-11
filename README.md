@@ -19,7 +19,7 @@ Create an account with just a username and password—no email or personal infor
 View up to 128 of the latest posts, create your own posts, and "Flip" a post—FlipSocial’s version of liking or favoriting a post.
 
 **Customizable Pre-Saves**
-The biggest challenge with a social media app on the Flipper Zero is using only the directional pad for input. As a solution, I implemented a pre-saved text system. The pre-saves are stored in a `pre_saved_messages.txt` file on your SD card. You can edit the pre-saves by opening qFlipper, downloading the file from the `/apps_data/flip_social/` folder, adding your pre-saves (separated by new lines), and then copying it back to your SD card. You can also create the pre-saves directly within the app.
+The biggest challenge with a social media app on the Flipper Zero is using only the directional pad for input. As a solution, I implemented a pre-saved text system. The pre-saves are stored in a pre_saved_messages.txt file on your SD card. You can edit the pre-saves by opening qFlipper, downloading the file from the /apps_data/flip_social/ folder, adding your pre-saves (separated by new lines), and then copying it back to your SD card. You can also create the pre-saves directly within the app.
 
 ## Roadmap
 **v0.2**
