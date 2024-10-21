@@ -3,7 +3,7 @@
 
 static FlipSocialApp *app_instance = NULL;
 
-#define MAX_TOKENS 128 // Adjust based on expected JSON tokens
+#define MAX_TOKENS 512 // Adjust based on expected JSON tokens
 
 typedef struct
 {
@@ -46,170 +46,55 @@ bool flip_social_get_feed()
     fhttp.state = RECEIVING;
     return true;
 }
-
 bool flip_social_parse_json_feed()
 {
-    // Parse the JSON feed
-    if (fhttp.received_data != NULL)
-    {
-        jsmn_parser parser;
-        jsmn_init(&parser);
-
-        // Allocate tokens array on the heap
-        jsmntok_t *tokens = malloc(sizeof(jsmntok_t) * MAX_TOKENS);
-        if (tokens == NULL)
-        {
-            FURI_LOG_E(TAG, "Failed to allocate memory for JSON tokens.");
-            return false;
-        }
-
-        int ret = jsmn_parse(&parser, fhttp.received_data, strlen(fhttp.received_data), tokens, MAX_TOKENS);
-
-        if (ret < 0)
-        {
-            // Handle parsing errors
-            FURI_LOG_E(TAG, "Failed to parse JSON: %d", ret);
-            free(tokens);
-            return false;
-        }
-
-        // Ensure that the root element is an object
-        if (ret < 1 || tokens[0].type != JSMN_OBJECT)
-        {
-            FURI_LOG_E(TAG, "Root element is not an object.");
-            free(tokens);
-            return false;
-        }
-
-        // Initialize feed count
-        flip_social_feed.count = 0;
-
-        // Loop over all keys in the root object
-        int i = 0;
-        for (i = 1; i < ret; i++)
-        {
-            if (jsoneq(fhttp.received_data, &tokens[i], "feed") == 0)
-            {
-                // Found "feed" key
-                jsmntok_t *feed_array = &tokens[i + 1];
-
-                if (feed_array->type != JSMN_ARRAY)
-                {
-                    FURI_LOG_E(TAG, "'feed' is not an array.");
-                    break;
-                }
-
-                int j, k;
-                int feed_index = 0;
-
-                // Iterate over the feed array
-                for (j = 0; j < feed_array->size; j++)
-                {
-                    int idx = i + 2; // Position of the first feed item
-                    for (k = 0; k < j; k++)
-                    {
-                        // Skip tokens of previous feed items
-                        idx += tokens[idx].size * 2 + 1;
-                    }
-
-                    if (idx >= ret)
-                    {
-                        FURI_LOG_E(TAG, "Index out of bounds while accessing feed items.");
-                        break;
-                    }
-
-                    jsmntok_t *item = &tokens[idx];
-                    if (item->type != JSMN_OBJECT)
-                    {
-                        FURI_LOG_E(TAG, "Feed item is not an object.");
-                        continue;
-                    }
-
-                    // Variables to hold item data
-                    char *username = NULL;
-                    char *message = NULL;
-                    int flipped = 0;
-                    int id = 0;
-
-                    // Iterate over keys in the feed item
-                    int l;
-                    int item_size = item->size;
-                    int item_idx = idx + 1; // Position of the first key in the item
-
-                    for (l = 0; l < item_size; l++)
-                    {
-                        if (item_idx + 1 >= ret)
-                        {
-                            FURI_LOG_E(TAG, "Index out of bounds while accessing item properties.");
-                            break;
-                        }
-
-                        jsmntok_t *key = &tokens[item_idx];
-                        jsmntok_t *val = &tokens[item_idx + 1];
-
-                        if (jsoneq(fhttp.received_data, key, "username") == 0)
-                        {
-                            username = strndup(fhttp.received_data + val->start, val->end - val->start);
-                        }
-                        else if (jsoneq(fhttp.received_data, key, "message") == 0)
-                        {
-                            message = strndup(fhttp.received_data + val->start, val->end - val->start);
-                        }
-                        else if (jsoneq(fhttp.received_data, key, "flipped") == 0)
-                        {
-                            if (val->type == JSMN_PRIMITIVE)
-                            {
-                                if (strncmp(fhttp.received_data + val->start, "true", val->end - val->start) == 0)
-                                    flipped = 1;
-                                else
-                                    flipped = 0;
-                            }
-                        }
-                        else if (jsoneq(fhttp.received_data, key, "id") == 0)
-                        {
-                            if (val->type == JSMN_PRIMITIVE)
-                            {
-                                char id_str[16] = {0};
-                                uint32_t id_len = val->end - val->start;
-                                if (id_len >= sizeof(id_str))
-                                    id_len = sizeof(id_str) - 1;
-                                strncpy(id_str, fhttp.received_data + val->start, id_len);
-                                id = atoi(id_str);
-                            }
-                        }
-
-                        item_idx += 2; // Move to the next key-value pair
-                    }
-
-                    // Store the data in flip_social_feed
-                    if (username && message && feed_index < MAX_FEED_ITEMS)
-                    {
-                        flip_social_feed.usernames[feed_index] = username;
-                        flip_social_feed.messages[feed_index] = message;
-                        flip_social_feed.is_flipped[feed_index] = flipped;
-                        flip_social_feed.ids[feed_index] = id;
-                        feed_index++;
-                        flip_social_feed.count = feed_index;
-                    }
-                    else
-                    {
-                        // Free allocated memory if not stored
-                        if (username)
-                            free(username);
-                        if (message)
-                            free(message);
-                    }
-                }
-                break; // Feed processed
-            }
-        }
-
-        free(tokens); // Free the allocated tokens array
-    }
-    else
+    if (fhttp.received_data == NULL)
     {
         FURI_LOG_E(TAG, "No data received.");
         return false;
+    }
+
+    // Remove newlines
+    char *pos = fhttp.received_data;
+    while ((pos = strchr(pos, '\n')) != NULL)
+    {
+        *pos = ' ';
+    }
+
+    // Initialize feed count
+    flip_social_feed.count = 0;
+
+    // Iterate through the feed array
+    for (int i = 0; i < MAX_FEED_ITEMS; i++)
+    {
+        // Parse each item in the array
+        char *item = get_json_array_value("feed", i, fhttp.received_data, MAX_TOKENS);
+        if (item == NULL)
+        {
+            break;
+        }
+
+        // Extract individual fields from the JSON object
+        char *username = get_json_value("username", item, MAX_TOKENS);
+        char *message = get_json_value("message", item, MAX_TOKENS);
+        char *flipped = get_json_value("flipped", item, MAX_TOKENS);
+        char *id = get_json_value("id", item, MAX_TOKENS);
+
+        if (username == NULL || message == NULL || flipped == NULL || id == NULL)
+        {
+            FURI_LOG_E(TAG, "Failed to parse item fields.");
+            free(item);
+            continue;
+        }
+
+        // Store parsed values
+        flip_social_feed.usernames[i] = username;
+        flip_social_feed.messages[i] = message;
+        flip_social_feed.is_flipped[i] = strstr(flipped, "true") != NULL;
+        flip_social_feed.ids[i] = atoi(id);
+        flip_social_feed.count++;
+
+        free(item);
     }
 
     return true;
