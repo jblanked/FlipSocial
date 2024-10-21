@@ -302,7 +302,7 @@ bool flipper_http_init(FlipperHTTP_Callback callback, void *context)
     // Set the timer thread priority if needed
     furi_timer_set_thread_priority(FuriTimerThreadPriorityElevated);
 
-    FURI_LOG_I(HTTP_TAG, "UART initialized successfully.");
+    // FURI_LOG_I(HTTP_TAG, "UART initialized successfully.");
     return true;
 }
 
@@ -358,7 +358,7 @@ void flipper_http_deinit()
         fhttp.last_response = NULL;
     }
 
-    FURI_LOG_I("FlipperHTTP", "UART deinitialized successfully.");
+    // FURI_LOG_I("FlipperHTTP", "UART deinitialized successfully.");
 }
 
 // Function to send data over UART with newline termination
@@ -977,7 +977,7 @@ void flipper_http_rx_callback(const char *line, void *context)
     // Handle different types of responses
     if (strstr(line, "[SUCCESS]") != NULL || strstr(line, "[CONNECTED]") != NULL)
     {
-        FURI_LOG_I(HTTP_TAG, "Operation succeeded.");
+        // FURI_LOG_I(HTTP_TAG, "Operation succeeded.");
     }
     else if (strstr(line, "[INFO]") != NULL)
     {

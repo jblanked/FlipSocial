@@ -1,6 +1,10 @@
 # FlipSocial
 The first social media app for Flipper Zero. Connect with other users directly on your device through WiFi. The highlight of this app is customizable pre-saves, which, as explained below, aim to solve the dissatisfaction of typing with the directional pad. FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
 
+## Requirements
+- WiFi Dev Board for Flipper Zero with FlipperHTTP Flash: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
+- WiFi Access Point
+
 ## Features
 - Login/Logout
 - Registration
@@ -24,7 +28,6 @@ The biggest challenge with a social media app on the Flipper Zero is using only 
 ## Roadmap
 **v0.2**
 - Stability Patch
-- LED options
 
 **v0.3**
 - Explore Page

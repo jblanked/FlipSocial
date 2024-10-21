@@ -1,18 +1,7 @@
 // flip_social_e.h
 #ifndef FLIP_SOCIAL_E
 #define FLIP_SOCIAL_E
-#include <furi.h>
-#include <furi_hal.h>
-#include <gui/gui.h>
-#include <gui/icon_i.h>
-#include <gui/view.h>
-#include <gui/view_dispatcher.h>
-#include <gui/modules/submenu.h>
-#include <gui/modules/widget.h>
-#include <gui/modules/text_input.h>
-#include <gui/modules/text_box.h>
-#include <gui/modules/variable_item_list.h>
-#include <malloc.h>
+#include <easy_flipper.h>
 #include <dialogs/dialogs.h>
 #include <storage/storage.h>
 #include <flipper_http.h>
@@ -207,4 +196,21 @@ typedef struct
     uint32_t wifi_password_logged_in_temp_buffer_size; // Size of the wifi_password temporary buffer
 
 } FlipSocialApp;
+
+// include strndup (otherwise NULL pointer dereference)
+char *strndup(const char *s, size_t n)
+{
+    char *result;
+    size_t len = strlen(s);
+
+    if (n < len)
+        len = n;
+
+    result = (char *)malloc(len + 1);
+    if (!result)
+        return NULL;
+
+    result[len] = '\0';
+    return (char *)memcpy(result, s, len);
+}
 #endif

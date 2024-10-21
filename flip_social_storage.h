@@ -139,8 +139,6 @@ bool load_playlist(PreSavedPlaylist *playlist)
         }
     }
 
-    FURI_LOG_I(TAG, "Playlist loaded: playlist_count=%zu", playlist->count);
-
     // Close the file and storage
     storage_file_close(file);
     storage_file_free(file);
