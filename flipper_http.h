@@ -724,7 +724,7 @@ void flipper_http_rx_callback(const char *line, void *context)
     }
 
     // Uncomment below line to log the data received over UART
-    //(HTTP_TAG, "Received UART line: %s", line);
+    // FURI_LOG_I(HTTP_TAG, "Received UART line: %s", line);
 
     // Check if we've started receiving data from a GET request
     if (fhttp.started_receiving_get)

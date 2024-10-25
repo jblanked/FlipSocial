@@ -719,4 +719,132 @@ char *get_json_array_value(char *key, uint32_t index, char *json_data, uint32_t 
 
   return value;
 }
+
+// Revised get_json_array_values function with correct token skipping
+char **get_json_array_values(char *key, char *json_data, uint32_t max_tokens, int *num_values)
+{
+  // Retrieve the array string for the given key
+  char *array_str = get_json_value(key, json_data, max_tokens);
+  if (array_str == NULL)
+  {
+    FURI_LOG_E("JSMM.H", "Failed to get array for key: %s", key);
+    return NULL;
+  }
+
+  // Initialize the JSON parser
+  jsmn_parser parser;
+  jsmn_init(&parser);
+
+  // Allocate memory for JSON tokens
+  jsmntok_t *tokens = malloc(sizeof(jsmntok_t) * max_tokens); // Allocate on the heap
+  if (tokens == NULL)
+  {
+    FURI_LOG_E("JSMM.H", "Failed to allocate memory for JSON tokens.");
+    free(array_str);
+    return NULL;
+  }
+
+  // Parse the JSON array
+  int ret = jsmn_parse(&parser, array_str, strlen(array_str), tokens, max_tokens);
+  if (ret < 0)
+  {
+    FURI_LOG_E("JSMM.H", "Failed to parse JSON array: %d", ret);
+    free(tokens);
+    free(array_str);
+    return NULL;
+  }
+
+  // Ensure the root element is an array
+  if (tokens[0].type != JSMN_ARRAY)
+  {
+    FURI_LOG_E("JSMM.H", "Value for key '%s' is not an array.", key);
+    free(tokens);
+    free(array_str);
+    return NULL;
+  }
+
+  // Allocate memory for the array of values (maximum possible)
+  int array_size = tokens[0].size;
+  char **values = malloc(array_size * sizeof(char *));
+  if (values == NULL)
+  {
+    FURI_LOG_E("JSMM.H", "Failed to allocate memory for array of values.");
+    free(tokens);
+    free(array_str);
+    return NULL;
+  }
+
+  int actual_num_values = 0;
+
+  // Traverse the array and extract all object values
+  int current_token = 1; // Start after the array token
+  for (int i = 0; i < array_size; i++)
+  {
+    if (current_token >= ret)
+    {
+      FURI_LOG_E("JSMM.H", "Unexpected end of tokens while traversing array.");
+      break;
+    }
+
+    jsmntok_t element = tokens[current_token];
+
+    if (element.type != JSMN_OBJECT)
+    {
+      FURI_LOG_E("JSMM.H", "Array element %d is not an object, skipping.", i);
+      // Skip this element
+      current_token += 1;
+      continue;
+    }
+
+    int length = element.end - element.start;
+
+    // Allocate a new string for the value and copy the data
+    char *value = malloc(length + 1);
+    if (value == NULL)
+    {
+      FURI_LOG_E("JSMM.H", "Failed to allocate memory for array element.");
+      for (int j = 0; j < actual_num_values; j++)
+      {
+        free(values[j]);
+      }
+      free(values);
+      free(tokens);
+      free(array_str);
+      return NULL;
+    }
+
+    strncpy(value, array_str + element.start, length);
+    value[length] = '\0'; // Null-terminate the string
+
+    values[actual_num_values] = value;
+    actual_num_values++;
+
+    // Skip all tokens related to this object to avoid misparsing
+    current_token += 1 + (2 * element.size); // Each key-value pair consumes two tokens
+  }
+
+  *num_values = actual_num_values;
+
+  // Reallocate the values array to actual_num_values if necessary
+  if (actual_num_values < array_size)
+  {
+    char **reduced_values = realloc(values, actual_num_values * sizeof(char *));
+    if (reduced_values != NULL)
+    {
+      values = reduced_values;
+    }
+
+    // Free the remaining values
+    for (int i = actual_num_values; i < array_size; i++)
+    {
+      free(values[i]);
+    }
+  }
+
+  // Clean up
+  free(tokens);
+  free(array_str);
+  return values;
+}
+
 #endif /* JB_JSMN_EDIT */

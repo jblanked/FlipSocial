@@ -1,32 +1,6 @@
 #ifndef FLIP_SOCIAL_FEED_H
 #define FLIP_SOCIAL_FEED_H
 
-static FlipSocialApp *app_instance = NULL;
-
-#define MAX_TOKENS 512 // Adjust based on expected JSON tokens
-
-typedef struct
-{
-    char *usernames[128];
-    char *messages[128];
-    bool is_flipped[128];
-    uint32_t ids[128];
-    size_t count;
-    size_t index;
-} FlipSocialFeed;
-
-#define MAX_FEED_ITEMS 128
-#define MAX_LINE_LENGTH 30
-
-// temporary FlipSocialFeed object
-static FlipSocialFeed flip_social_feed = {
-    .usernames = {"JBlanked", "FlipperKing", "FlipperQueen"},
-    .messages = {"Welcome. This is a temp message. Either the feed didn't load or there was a server error.", "I am the Chosen Flipper.", "No one can flip like me."},
-    .is_flipped = {false, false, true},
-    .ids = {0, 1, 2},
-    .count = 3,
-    .index = 0};
-
 bool flip_social_get_feed()
 {
     // Get the feed from the server
@@ -98,54 +72,6 @@ bool flip_social_parse_json_feed()
     }
 
     return true;
-}
-
-bool flip_social_board_is_active(Canvas *canvas)
-{
-    if (fhttp.state == INACTIVE)
-    {
-        canvas_draw_str(canvas, 0, 7, "Wifi Dev Board disconnected.");
-        canvas_draw_str(canvas, 0, 17, "Please connect to the board.");
-        canvas_draw_str(canvas, 0, 32, "If your board is connected,");
-        canvas_draw_str(canvas, 0, 42, "make sure you have flashed");
-        canvas_draw_str(canvas, 0, 52, "your WiFi Devboard with the");
-        canvas_draw_str(canvas, 0, 62, "latest FlipperHTTP flash.");
-        return false;
-    }
-    return true;
-}
-
-void flip_social_handle_error(Canvas *canvas)
-{
-    if (fhttp.received_data != NULL)
-    {
-        if (strstr(fhttp.received_data, "[ERROR] Not connected to Wifi. Failed to reconnect.") != NULL)
-        {
-            canvas_clear(canvas);
-            canvas_draw_str(canvas, 0, 10, "[ERROR] Not connected to Wifi.");
-            canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
-            canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
-        }
-        else if (strstr(fhttp.received_data, "[ERROR] Failed to connect to Wifi.") != NULL)
-        {
-            canvas_clear(canvas);
-            canvas_draw_str(canvas, 0, 10, "[ERROR] Not connected to Wifi.");
-            canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
-            canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
-        }
-        else
-        {
-            canvas_draw_str(canvas, 0, 42, "Failed...");
-            canvas_draw_str(canvas, 0, 52, "Update your credentials.");
-            canvas_draw_str(canvas, 0, 62, "Press BACK to return.");
-        }
-    }
-    else
-    {
-        canvas_draw_str(canvas, 0, 42, "Failed...");
-        canvas_draw_str(canvas, 0, 52, "Update your credentials.");
-        canvas_draw_str(canvas, 0, 62, "Press BACK to return.");
-    }
 }
 
 #endif // FLIP_SOCIAL_FEED_H

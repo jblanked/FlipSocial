@@ -11,6 +11,11 @@
 
 #define MAX_PRE_SAVED_MESSAGES 25 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
+#define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
+#define MAX_FRIENDS 50            // Maximum number of friends
+#define MAX_TOKENS 512            // Adjust based on expected JSON tokens
+#define MAX_FEED_ITEMS 128
+#define MAX_LINE_LENGTH 30
 
 // Define the submenu items for our Hello World application
 typedef enum
@@ -28,6 +33,11 @@ typedef enum
     //
     FlipSocialSubmenuComposeIndexAddPreSave,      // click to add a pre-saved message
     FlipSocialSubemnuComposeIndexStartIndex = 99, // starting index for the first pre saved message
+    //
+    FlipSocialSubmenuExploreIndex = 150,           // click to go to the explore
+    FlipSocialSubmenuExploreIndexStartIndex = 151, // starting index for the users to explore
+    //
+    FlipSocialSubmenuLoggedInIndexFriendsStart = 1000, // starting index for the friends
 } FlipSocialSubmenuIndex;
 
 typedef enum
@@ -83,6 +93,11 @@ typedef enum
     FlipSocialViewLoggedInProcessCompose,            // The dialog view to delete or send the clicked pre-saved text
     //
     FlipSocialViewLoggedInSignOut, // The view after clicking the sign out button
+    //
+    FlipSocialViewLoggedInExploreSubmenu,  // The view after clicking the explore button
+    FlipSocialViewLoggedInExploreProccess, // The view after clicking on a user in the explore screen
+    FlipSocialViewLoggedInFriendsSubmenu,  // The view after clicking the friends button on the profile screen
+    FlipSocialViewLoggedInFriendsProcess,  // The view after clicking on a friend in the friends screen
 } FlipSocialView;
 
 // Define the application structure
@@ -92,6 +107,8 @@ typedef struct
     Submenu *submenu_logged_out;     // The application submenu (logged out)
     Submenu *submenu_logged_in;      // The application submenu (logged in)
     Submenu *submenu_compose;        // The application submenu (compose)
+    Submenu *submenu_explore;        // The application submenu (explore)
+    Submenu *submenu_friends;        // The application submenu (friends)
     Widget *widget_logged_out_about; // The about screen (logged out)
     Widget *widget_logged_in_about;  // The about screen (logged in)
 
@@ -99,6 +116,8 @@ typedef struct
     View *view_process_register; // The screen displayed after clicking register
     View *view_process_feed;     // Dialog for the feed screen
     View *view_process_compose;  // Dialog for the compose screen (delete or send)
+    View *view_process_explore;  // Dialog for the explore screen (view user profile - add or delete friend)
+    View *view_process_friends;  // Dialog for the friends screen (view user profile - add or delete friend)
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
     VariableItemList *variable_item_list_logged_out_login;         // The login menu
@@ -138,8 +157,12 @@ typedef struct
     VariableItem *variable_item_logged_in_wifi_settings_ssid;      // Reference to the ssid configuration item
     VariableItem *variable_item_logged_in_wifi_settings_password;  // Reference to the password configuration item
     //
+    VariableItem *variable_item_logged_in_profile_friends; // Reference to the friends configuration item
+    //
     FuriPubSub *input_event_queue;
     FuriPubSubSubscription *input_event;
+
+    PreSavedPlaylist pre_saved_messages; // Pre-saved messages for the feed screen
 
     char *is_logged_in;         // Store the login status
     uint32_t is_logged_in_size; // Size of the login status buffer
@@ -147,8 +170,6 @@ typedef struct
     char *login_username_logged_in;                     // Store the entered login username
     char *login_username_logged_in_temp_buffer;         // Temporary buffer for login username text input
     uint32_t login_username_logged_in_temp_buffer_size; // Size of the login username temporary buffer
-
-    PreSavedPlaylist pre_saved_messages; // Pre-saved messages for the feed screen
 
     char *wifi_ssid_logged_out;                     // Store the entered wifi ssid
     char *wifi_ssid_logged_out_temp_buffer;         // Temporary buffer for wifi ssid text input
@@ -213,4 +234,38 @@ char *strndup(const char *s, size_t n)
     result[len] = '\0';
     return (char *)memcpy(result, s, len);
 }
+
+static FlipSocialApp *app_instance = NULL;
+
+typedef struct
+{
+    char *usernames[MAX_FEED_ITEMS];
+    char *messages[MAX_FEED_ITEMS];
+    bool is_flipped[MAX_FEED_ITEMS];
+    uint32_t ids[MAX_FEED_ITEMS];
+    size_t count;
+    size_t index;
+} FlipSocialFeed;
+
+typedef struct
+{
+    char *usernames[MAX_EXPLORE_USERS];
+    size_t count;
+    size_t index;
+} FlipSocialModel;
+
+static FlipSocialModel flip_social_explore;
+static FlipSocialModel flip_social_friends;
+
+// temporary FlipSocialFeed object
+static FlipSocialFeed flip_social_feed = {
+    .usernames = {"JBlanked", "FlipperKing", "FlipperQueen"},
+    .messages = {"Welcome. This is a temp message. Either the feed didn't load or there was a server error.", "I am the Chosen Flipper.", "No one can flip like me."},
+    .is_flipped = {false, false, true},
+    .ids = {0, 1, 2},
+    .count = 3,
+    .index = 0};
+
+static void flip_social_logged_in_compose_pre_save_updated(void *context);
+static void flip_social_callback_submenu_choices(void *context, uint32_t index);
 #endif

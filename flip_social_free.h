@@ -43,6 +43,16 @@ static void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
         submenu_free(app->submenu_compose);
     }
+    if (app->submenu_explore)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
+        submenu_free(app->submenu_explore);
+    }
+    if (app->submenu_friends)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
+        submenu_free(app->submenu_friends);
+    }
 
     // Free Variable Item List(s)
     if (app->variable_item_list_logged_out_wifi_settings)
@@ -166,6 +176,16 @@ static void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
         view_free(app->view_process_compose);
     }
+    if (app->view_process_explore)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
+        view_free(app->view_process_explore);
+    }
+    if (app->view_process_friends)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
+        view_free(app->view_process_friends);
+    }
 
     if (app->view_dispatcher)
         view_dispatcher_free(app->view_dispatcher);
@@ -228,6 +248,8 @@ static void flip_social_app_free(FlipSocialApp *app)
     // free received_data
     if (fhttp.received_data)
         free(fhttp.received_data);
+
+    // free playlist and explore page
 
     // DeInit UART
     flipper_http_deinit();

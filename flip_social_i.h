@@ -146,15 +146,23 @@ static FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.2", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.3", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.2", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.3", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
     if (!easy_flipper_set_submenu(&app->submenu_compose, FlipSocialViewLoggedInCompose, "Create A Post", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_submenu(&app->submenu_explore, FlipSocialViewLoggedInExploreSubmenu, "Explore", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_submenu(&app->submenu_friends, FlipSocialViewLoggedInFriendsSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -164,6 +172,7 @@ static FlipSocialApp *flip_social_app_alloc()
     submenu_add_item(app->submenu_logged_out, "About", FlipSocialSubmenuLoggedOutIndexAbout, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_out, "Settings", FlipSocialSubmenuLoggedOutIndexWifiSettings, flip_social_callback_submenu_choices, app);
     //
+    submenu_add_item(app->submenu_logged_in, "Explore", FlipSocialSubmenuExploreIndex, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Feed", FlipSocialSubmenuLoggedInIndexFeed, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Post", FlipSocialSubmenuLoggedInIndexCompose, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, flip_social_callback_submenu_choices, app);
@@ -171,6 +180,7 @@ static FlipSocialApp *flip_social_app_alloc()
     submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, flip_social_callback_submenu_choices, app);
     //
     submenu_add_item(app->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
+    //
 
     // Allocate View(s)
     if (!easy_flipper_set_view(&app->view_process_login, FlipSocialViewLoggedOutProcessLogin, flip_social_callback_draw_login, NULL, flip_social_callback_to_login_logged_out, &app->view_dispatcher, app))
@@ -186,6 +196,14 @@ static FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
     if (!easy_flipper_set_view(&app->view_process_compose, FlipSocialViewLoggedInProcessCompose, flip_social_callback_draw_compose, NULL, flip_social_callback_to_compose_logged_in, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_view(&app->view_process_explore, FlipSocialViewLoggedInExploreProccess, flip_social_callback_draw_explore, NULL, flip_social_callback_to_explore_logged_in, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_view(&app->view_process_friends, FlipSocialViewLoggedInFriendsProcess, flip_social_callback_draw_friends, NULL, flip_social_callback_to_friends_logged_in, &app->view_dispatcher, app))
     {
         return NULL;
     }
@@ -230,6 +248,7 @@ static FlipSocialApp *flip_social_app_alloc()
     //
     app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 0, NULL, NULL);
     app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Change Password", 0, NULL, NULL);
+    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, NULL);
     //
     app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, NULL);
     app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, NULL);

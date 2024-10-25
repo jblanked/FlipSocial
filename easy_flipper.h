@@ -18,6 +18,8 @@
 #include <gui/modules/popup.h>
 #include <gui/modules/loading.h>
 #include <uart_text_input.h>
+#include <stdio.h>
+#include <string.h>
 
 #define EASY_TAG "EasyFlipper"
 
