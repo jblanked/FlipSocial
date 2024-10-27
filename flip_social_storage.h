@@ -272,7 +272,10 @@ static bool load_settings(
         furi_record_close(RECORD_STORAGE);
         return false;
     }
-    ssid[ssid_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        ssid[ssid_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the password
     size_t password_length;
@@ -285,7 +288,10 @@ static bool load_settings(
         furi_record_close(RECORD_STORAGE);
         return false;
     }
-    password[password_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        password[password_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the login_username_logged_out
     size_t username_out_length;
@@ -293,12 +299,15 @@ static bool load_settings(
         storage_file_read(file, login_username_logged_out, username_out_length) != username_out_length)
     {
         FURI_LOG_E(TAG, "Failed to read login_username_logged_out");
-        storage_file_close(file);
-        storage_file_free(file);
-        furi_record_close(RECORD_STORAGE);
-        return false;
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        // return false;
     }
-    login_username_logged_out[username_out_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        login_username_logged_out[username_out_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the login_username_logged_in
     size_t username_in_length;
@@ -306,12 +315,15 @@ static bool load_settings(
         storage_file_read(file, login_username_logged_in, username_in_length) != username_in_length)
     {
         FURI_LOG_E(TAG, "Failed to read login_username_logged_in");
-        storage_file_close(file);
-        storage_file_free(file);
-        furi_record_close(RECORD_STORAGE);
-        return false;
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        // return false;
     }
-    login_username_logged_in[username_in_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        login_username_logged_in[username_in_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the login_password_logged_out
     size_t password_out_length;
@@ -319,12 +331,15 @@ static bool load_settings(
         storage_file_read(file, login_password_logged_out, password_out_length) != password_out_length)
     {
         FURI_LOG_E(TAG, "Failed to read login_password_logged_out");
-        storage_file_close(file);
-        storage_file_free(file);
-        furi_record_close(RECORD_STORAGE);
-        return false;
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        // return false;
     }
-    login_password_logged_out[password_out_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        login_password_logged_out[password_out_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the change_password_logged_in
     size_t change_password_length;
@@ -332,12 +347,15 @@ static bool load_settings(
         storage_file_read(file, change_password_logged_in, change_password_length) != change_password_length)
     {
         FURI_LOG_E(TAG, "Failed to read change_password_logged_in");
-        storage_file_close(file);
-        storage_file_free(file);
-        furi_record_close(RECORD_STORAGE);
-        return false;
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        //  return false;
     }
-    change_password_logged_in[change_password_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        change_password_logged_in[change_password_length - 1] = '\0'; // Ensure null-termination
+    }
 
     // Load the is_logged_in
     size_t is_logged_in_length;
@@ -345,12 +363,15 @@ static bool load_settings(
         storage_file_read(file, is_logged_in, is_logged_in_length) != is_logged_in_length)
     {
         FURI_LOG_E(TAG, "Failed to read is_logged_in");
-        storage_file_close(file);
-        storage_file_free(file);
-        furi_record_close(RECORD_STORAGE);
-        return false;
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        //  return false;
     }
-    is_logged_in[is_logged_in_length - 1] = '\0'; // Ensure null-termination
+    else
+    {
+        is_logged_in[is_logged_in_length - 1] = '\0'; // Ensure null-termination
+    }
 
     storage_file_close(file);
     storage_file_free(file);

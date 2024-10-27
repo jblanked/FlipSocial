@@ -472,6 +472,16 @@ static void flip_social_callback_draw_login(Canvas *canvas, void *model)
 
                 app_instance->is_logged_in = "true";
 
+                // set the logged_in_username and change_password_logged_in
+                if (app_instance->login_username_logged_out)
+                {
+                    strcpy(app_instance->login_username_logged_in, app_instance->login_username_logged_out);
+                }
+                if (app_instance->login_password_logged_out)
+                {
+                    app_instance->change_password_logged_in = app_instance->login_password_logged_out;
+                }
+
                 save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
 
                 // send user to the logged in submenu
