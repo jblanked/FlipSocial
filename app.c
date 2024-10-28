@@ -7,6 +7,7 @@
 #include "flip_social_feed.h"
 #include "flip_social_explore.h"
 #include "flip_social_friends.h"
+#include "flip_social_messages.h"
 #include <flip_social_callback.h> // Include the callback functions
 #include <flip_social_i.h>        // Include the initialization functions
 #include <flip_social_free.h>     // Include the cleanup functions

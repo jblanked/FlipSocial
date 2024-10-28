@@ -117,7 +117,7 @@ static uint32_t flip_social_callback_to_explore_logged_in(void *context)
     flip_social_dialog_stop = true;
     last_explore_response = "";
     flip_social_dialog_shown = false;
-    flip_social_explore.index = 0;
+    app_instance->flip_social_explore.index = 0;
     action = ActionNone;
     return FlipSocialViewLoggedInExploreSubmenu;
 }
@@ -133,10 +133,33 @@ static uint32_t flip_social_callback_to_friends_logged_in(void *context)
     flip_social_dialog_stop = true;
     last_explore_response = "";
     flip_social_dialog_shown = false;
-    flip_social_friends.index = 0;
+    app_instance->flip_social_friends.index = 0;
     action = ActionNone;
     return FlipSocialViewLoggedInFriendsSubmenu;
 }
+
+/**
+ * @brief Navigation callback to bring the user back to the Messages submenu
+ * @param context The context - unused
+ * @return next view id (FlipSocialViewLoggedInMessagesSubmenu)
+ */
+static uint32_t flip_social_callback_to_messages_logged_in(void *context)
+{
+    UNUSED(context);
+    return FlipSocialViewLoggedInMessagesSubmenu;
+}
+
+/**
+ * @brief Navigation callback to bring the user back to the User Choices screen
+ * @param context The context - unused
+ * @return next view id (FlipSocialViewLoggedInMessagesUserChoices)
+ */
+static uint32_t flip_social_callback_to_messages_user_choices(void *context)
+{
+    UNUSED(context);
+    return FlipSocialViewLoggedInMessagesUserChoices;
+}
+
 /**
  * @brief Navigation callback for exiting the application
  * @param context The context - unused
@@ -189,44 +212,29 @@ static void flip_social_callback_submenu_choices(void *context, uint32_t index)
     case FlipSocialSubmenuLoggedInIndexProfile:
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
         break;
+    case FlipSocialSubmenuLoggedInIndexMessages:
+        if (flipper_http_process_response_async(flip_social_get_message_users, flip_social_parse_json_message_users))
+        {
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+        }
+        break;
+    case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
+        if (flipper_http_process_response_async(flip_social_get_explore, flip_social_parse_json_message_user_choices))
+        {
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesUserChoices);
+        }
+        break;
     case FlipSocialSubmenuLoggedInIndexFeed:
-        if (flip_social_get_feed()) // start the async feed request
+        if (flipper_http_process_response_async(flip_social_get_feed, flip_social_parse_json_feed))
         {
-            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
-        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-        {
-            // Wait for the feed to be received
-            furi_delay_ms(100);
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-
-        if (!flip_social_parse_json_feed()) // parse the JSON before switching to the feed (synchonous)
-        {
-            FURI_LOG_E(TAG, "Failed to parse the JSON feed. Using the temporary feed.");
-        }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         break;
     case FlipSocialSubmenuExploreIndex:
-        // process explore page the same way as the feed page, then switch to the explore page
-        if (flip_social_get_explore()) // start the async explore request
+        if (flipper_http_process_response_async(flip_social_get_explore, flip_social_parse_json_explore))
         {
-            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
         }
-        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-        {
-            // Wait for the explore to be received
-            furi_delay_ms(100);
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-        if (!flip_social_parse_json_explore()) // parse the JSON before switching to the explore (synchonous)
-        {
-            FURI_LOG_E(TAG, "Failed to parse the JSON explore...");
-            return; // just return for now, no temporary explore yet
-            // show a popup message saving wifi is disconnected
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
         break;
     case FlipSocialSubmenuLoggedInIndexCompose:
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
@@ -248,27 +256,45 @@ static void flip_social_callback_submenu_choices(void *context, uint32_t index)
         // Handle the pre-saved message selection (has a max of 25 items)
         if (index >= FlipSocialSubemnuComposeIndexStartIndex && index < FlipSocialSubemnuComposeIndexStartIndex + MAX_PRE_SAVED_MESSAGES)
         {
-            flip_social_feed.index = index - FlipSocialSubemnuComposeIndexStartIndex;
+            app->flip_social_feed.index = index - FlipSocialSubemnuComposeIndexStartIndex;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
         }
 
         // Handle the explore selection
         else if (index >= FlipSocialSubmenuExploreIndexStartIndex && index < FlipSocialSubmenuExploreIndexStartIndex + MAX_EXPLORE_USERS)
         {
-            flip_social_explore.index = index - FlipSocialSubmenuExploreIndexStartIndex;
+            app->flip_social_explore.index = index - FlipSocialSubmenuExploreIndexStartIndex;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
         }
 
         // handle the friends selection
         else if (index >= FlipSocialSubmenuLoggedInIndexFriendsStart && index < FlipSocialSubmenuLoggedInIndexFriendsStart + MAX_FRIENDS)
         {
-            flip_social_friends.index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
+            app->flip_social_friends.index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
+        }
+
+        // handle the messages selection
+        else if (index >= FlipSocialSubmenuLoggedInIndexMessagesUsersStart && index < FlipSocialSubmenuLoggedInIndexMessagesUsersStart + MAX_MESSAGE_USERS)
+        {
+            app->flip_social_message_users.index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
+            if (flipper_http_process_response_async(flip_social_get_messages_with_user, flip_social_parse_json_messages))
+            {
+                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesProcess);
+            }
+        }
+
+        // handle the messages user choices selection
+        else if (index >= FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart && index < FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + MAX_EXPLORE_USERS)
+        {
+            app->flip_social_explore.index = index - FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart;
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput);
         }
         else
         {
             FURI_LOG_E(TAG, "Unknown submenu index");
         }
+
         break;
     }
 }
@@ -808,14 +834,15 @@ static void flip_social_logged_in_profile_change_password_updated(void *context)
     // send post request to change password
     char payload[256];
     snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
-
-    if (!flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/change-password/", "Content-Type: application/json", payload))
+    char *headers = jsmn("Content-Type", "application/json");
+    if (!flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/change-password/", headers, payload))
     {
         FURI_LOG_E(TAG, "Failed to send post request to change password");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        free(headers);
         return;
     }
-
+    free(headers);
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
 
@@ -896,6 +923,127 @@ static void flip_social_text_input_logged_in_settings_item_selected(void *contex
     default:
         break;
     }
+}
+
+/**
+ * @brief Text input callback for when the user finishes entering their message to send to the selected user choice (user choice messages view)
+ * @param context The context - FlipSocialApp object.
+ * @return void
+ */
+static void flip_social_logged_in_messages_user_choice_message_updated(void *context)
+{
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
+        return;
+    }
+
+    // check if the message is empty
+    if (app->message_user_choice_logged_in_temp_buffer_size == 0)
+    {
+        FURI_LOG_E(TAG, "Message is empty");
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput);
+        return;
+    }
+
+    // Store the entered message
+    strncpy(app->message_user_choice_logged_in, app->message_user_choice_logged_in_temp_buffer, app->message_user_choice_logged_in_temp_buffer_size);
+
+    // Ensure null-termination
+    app->message_user_choice_logged_in[app->message_user_choice_logged_in_temp_buffer_size - 1] = '\0';
+
+    // send post request to send message
+    char url[128];
+    char payload[256];
+    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
+    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], app->message_user_choice_logged_in);
+    char *headers = jsmn("Content-Type", "application/json");
+
+    if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request
+    {
+        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp.state = RECEIVING;
+        free(headers);
+    }
+    else
+    {
+        FURI_LOG_E(TAG, "Failed to send post request to send message");
+        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        free(headers);
+        return;
+    }
+    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp.get_timeout_timer);
+
+    // add user to the message list
+    strncpy(app_instance->flip_social_message_users.usernames[app_instance->flip_social_message_users.count], app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], strlen(app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index]));
+    app_instance->flip_social_message_users.count++;
+
+    // redraw submenu
+    flip_social_update_messages_submenu();
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+}
+
+/**
+ * @brief Text input callback for when the user finishes entering their message to the selected user (messages view)
+ * @param context The context - FlipSocialApp object.
+ * @return void
+ */
+static void flip_social_logged_in_messages_new_message_updated(void *context)
+{
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
+        return;
+    }
+
+    // check if the message is empty
+    if (app->messages_new_message_logged_in_temp_buffer_size == 0)
+    {
+        FURI_LOG_E(TAG, "Message is empty");
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageInput);
+        return;
+    }
+
+    // Store the entered message
+    strncpy(app->messages_new_message_logged_in, app->messages_new_message_logged_in_temp_buffer, app->messages_new_message_logged_in_temp_buffer_size);
+
+    // Ensure null-termination
+    app->messages_new_message_logged_in[app->messages_new_message_logged_in_temp_buffer_size - 1] = '\0';
+
+    // send post request to send message
+    char url[128];
+    char payload[256];
+    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
+    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", app_instance->flip_social_message_users.usernames[app_instance->flip_social_message_users.index], app->messages_new_message_logged_in);
+    char *headers = jsmn("Content-Type", "application/json");
+
+    if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request
+    {
+        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp.state = RECEIVING;
+        free(headers);
+    }
+    else
+    {
+        FURI_LOG_E(TAG, "Failed to send post request to send message");
+        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        free(headers);
+        return;
+    }
+    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp.get_timeout_timer);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
 }
 
 #endif // FLIP_SOCIAL_CALLBACK_H

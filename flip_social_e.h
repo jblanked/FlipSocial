@@ -6,16 +6,19 @@
 #include <storage/storage.h>
 #include <flipper_http.h>
 #include <input/input.h>
-#include <flip_social_icons.h> // add <(YOUR-APP)_icons.h> so the compiler treats the .pngs are icons
+#include <flip_social_icons.h>
 #define TAG "FlipSocial"
 
 #define MAX_PRE_SAVED_MESSAGES 25 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
+#define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 512            // Adjust based on expected JSON tokens
-#define MAX_FEED_ITEMS 128
+#define MAX_TOKENS 500            // Adjust based on expected JSON tokens
+#define MAX_FEED_ITEMS 50         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
+#define MAX_MESSAGE_USERS 20 // Maximum number of users to display in the submenu
+#define MAX_MESSAGES 20      // Maximum number of meesages between each user
 
 // Define the submenu items for our Hello World application
 typedef enum
@@ -26,18 +29,25 @@ typedef enum
     FlipSocialSubmenuLoggedOutIndexWifiSettings, // click to go to the wifi settings screen
     //
     FlipSocialSubmenuLoggedInIndexProfile,  // click to go to the profile screen
+    FlipSocialSubmenuExploreIndex,          // click to go to the explore
     FlipSocialSubmenuLoggedInIndexFeed,     // click to go to the feed screen
+    FlipSocialSubmenuLoggedInIndexMessages, // click to go to the messages screen
     FlipSocialSubmenuLoggedInIndexCompose,  // click to go to the compose screen
     FlipSocialSubmenuLoggedInIndexSettings, // click to go to the settings screen
     FlipSocialSubmenuLoggedInSignOutButton, // click to sign out
     //
-    FlipSocialSubmenuComposeIndexAddPreSave,      // click to add a pre-saved message
-    FlipSocialSubemnuComposeIndexStartIndex = 99, // starting index for the first pre saved message
+    FlipSocialSubmenuLoggedInIndexMessagesNewMessage, // click to add a new message
     //
-    FlipSocialSubmenuExploreIndex = 150,           // click to go to the explore
-    FlipSocialSubmenuExploreIndexStartIndex = 151, // starting index for the users to explore
+    FlipSocialSubmenuComposeIndexAddPreSave,       // click to add a pre-saved message
+    FlipSocialSubemnuComposeIndexStartIndex = 100, // starting index for the first pre saved message
     //
-    FlipSocialSubmenuLoggedInIndexFriendsStart = 1000, // starting index for the friends
+    FlipSocialSubmenuExploreIndexStartIndex = 150, // starting index for the users to explore
+    //
+    FlipSocialSubmenuLoggedInIndexFriendsStart = 200, // starting index for the friends
+    //
+    FlipSocialSubmenuLoggedInIndexMessagesUsersStart = 250, // starting index for the messages
+    //
+    FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart = 300, // click to select a user to message
 } FlipSocialSubmenuIndex;
 
 typedef enum
@@ -49,7 +59,7 @@ typedef enum
     ActionFlip,
 } Action;
 
-Action action = ActionNone;
+static Action action = ActionNone;
 
 // Define the ScriptPlaylist structure
 typedef struct
@@ -57,6 +67,38 @@ typedef struct
     char *messages[MAX_PRE_SAVED_MESSAGES];
     size_t count;
 } PreSavedPlaylist;
+
+typedef struct
+{
+    char *usernames[MAX_FEED_ITEMS];
+    char *messages[MAX_FEED_ITEMS];
+    bool is_flipped[MAX_FEED_ITEMS];
+    uint32_t ids[MAX_FEED_ITEMS];
+    size_t count;
+    size_t index;
+} FlipSocialFeed;
+
+typedef struct
+{
+    char *usernames[MAX_EXPLORE_USERS];
+    int count;
+    int index;
+} FlipSocialModel;
+
+typedef struct
+{
+    char *usernames[MAX_MESSAGE_USERS];
+    int count;
+    int index;
+} FlipSocialModel2;
+
+typedef struct
+{
+    char *usernames[MAX_MESSAGES];
+    char *messages[MAX_MESSAGES];
+    int count;
+    int index;
+} FlipSocialMessage;
 
 // Define views for our Hello World application
 typedef enum
@@ -83,9 +125,13 @@ typedef enum
     FlipSocialViewLoggedInCompose,  // The compose screen
     FlipSocialViewLoggedInSettings, // The settings screen
     //
-    FlipSocialViewLoggedInChangePasswordInput,       // Text input screen for password input on change password screen
-    FlipSocialViewLoggedInComposeAddPreSaveInput,    // Text input screen for add text input on compose screen
-    FlipSocialViewLoggedInMessagesNewMessageInput,   // Text input screen for new message input on messages screen
+    FlipSocialViewLoggedInChangePasswordInput,    // Text input screen for password input on change password screen
+    FlipSocialViewLoggedInComposeAddPreSaveInput, // Text input screen for add text input on compose screen
+    //
+    FlipSocialViewLoggedInMessagesNewMessageInput,            // Text input screen for new message input on messages screen
+    FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput, // Text input screen for new message input on messages screen
+    FlipSocialViewLoggedInMessagesUserChoices,                // the view after clicking [New Message] - select a user to message, then direct to input view
+    //
     FlipSocialViewLoggedInSettingsAbout,             // The about screen
     FlipSocialViewLoggedInSettingsWifi,              // The wifi settings screen
     FlipSocialViewLoggedInWifiSettingsSSIDInput,     // Text input screen for SSID input on wifi screen
@@ -98,19 +144,23 @@ typedef enum
     FlipSocialViewLoggedInExploreProccess, // The view after clicking on a user in the explore screen
     FlipSocialViewLoggedInFriendsSubmenu,  // The view after clicking the friends button on the profile screen
     FlipSocialViewLoggedInFriendsProcess,  // The view after clicking on a friend in the friends screen
+    FlipSocialViewLoggedInMessagesSubmenu, // The view after clicking the messages button on the profile screen
+    FlipSocialViewLoggedInMessagesProcess, // The view after clicking on a user in the messages screen
 } FlipSocialView;
 
 // Define the application structure
 typedef struct
 {
-    ViewDispatcher *view_dispatcher; // Switches between our views
-    Submenu *submenu_logged_out;     // The application submenu (logged out)
-    Submenu *submenu_logged_in;      // The application submenu (logged in)
-    Submenu *submenu_compose;        // The application submenu (compose)
-    Submenu *submenu_explore;        // The application submenu (explore)
-    Submenu *submenu_friends;        // The application submenu (friends)
-    Widget *widget_logged_out_about; // The about screen (logged out)
-    Widget *widget_logged_in_about;  // The about screen (logged in)
+    ViewDispatcher *view_dispatcher;        // Switches between our views
+    Submenu *submenu_logged_out;            // The application submenu (logged out)
+    Submenu *submenu_logged_in;             // The application submenu (logged in)
+    Submenu *submenu_compose;               // The application submenu (compose)
+    Submenu *submenu_explore;               // The application submenu (explore)
+    Submenu *submenu_friends;               // The application submenu (friends)
+    Submenu *submenu_messages;              // The application submenu (messages)
+    Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
+    Widget *widget_logged_out_about;        // The about screen (logged out)
+    Widget *widget_logged_in_about;         // The about screen (logged in)
 
     View *view_process_login;    // The screen displayed after clicking login
     View *view_process_register; // The screen displayed after clicking register
@@ -118,6 +168,7 @@ typedef struct
     View *view_process_compose;  // Dialog for the compose screen (delete or send)
     View *view_process_explore;  // Dialog for the explore screen (view user profile - add or delete friend)
     View *view_process_friends;  // Dialog for the friends screen (view user profile - add or delete friend)
+    View *view_process_messages; // Dialog for the messages screen (next, previous, send message)
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
     VariableItemList *variable_item_list_logged_out_login;         // The login menu
@@ -139,6 +190,9 @@ typedef struct
     UART_TextInput *text_input_logged_in_compose_pre_save_input; // Text input for pre save input on compose screen
     UART_TextInput *text_input_logged_in_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
     UART_TextInput *text_input_logged_in_wifi_settings_password; // Text input for password input on wifi settings screen
+    //
+    UART_TextInput *text_input_logged_in_messages_new_message;              // Text input for new message input on messages screen
+    UART_TextInput *text_input_logged_in_messages_new_message_user_choices; //
 
     VariableItem *variable_item_logged_out_wifi_settings_ssid;     // Reference to the ssid configuration item
     VariableItem *variable_item_logged_out_wifi_settings_password; // Reference to the password configuration item
@@ -216,6 +270,22 @@ typedef struct
     char *wifi_password_logged_in_temp_buffer;         // Temporary buffer for wifi_password text input
     uint32_t wifi_password_logged_in_temp_buffer_size; // Size of the wifi_password temporary buffer
 
+    //
+    char *messages_new_message_logged_in;                     // Store the entered new message
+    char *messages_new_message_logged_in_temp_buffer;         // Temporary buffer for new message text input
+    uint32_t messages_new_message_logged_in_temp_buffer_size; // Size of the new message temporary buffer
+
+    char *message_user_choice_logged_in;                     // Store the entered message to send to the selected user
+    char *message_user_choice_logged_in_temp_buffer;         // Temporary buffer for message to send to the selected user
+    uint32_t message_user_choice_logged_in_temp_buffer_size; // Size of the message to send to the selected user temporary buffer
+
+    //
+    FlipSocialFeed flip_social_feed;            // Store the feed
+    FlipSocialModel flip_social_friends;        // Store the friends
+    FlipSocialModel2 flip_social_message_users; // Store the users that have sent messages to the logged in user
+    FlipSocialModel flip_social_explore;        // Store the users to explore
+    FlipSocialMessage flip_social_messages;     // Store the messages between the logged in user and the selected user
+
 } FlipSocialApp;
 
 // include strndup (otherwise NULL pointer dereference)
@@ -236,36 +306,6 @@ char *strndup(const char *s, size_t n)
 }
 
 static FlipSocialApp *app_instance = NULL;
-
-typedef struct
-{
-    char *usernames[MAX_FEED_ITEMS];
-    char *messages[MAX_FEED_ITEMS];
-    bool is_flipped[MAX_FEED_ITEMS];
-    uint32_t ids[MAX_FEED_ITEMS];
-    size_t count;
-    size_t index;
-} FlipSocialFeed;
-
-typedef struct
-{
-    char *usernames[MAX_EXPLORE_USERS];
-    size_t count;
-    size_t index;
-} FlipSocialModel;
-
-static FlipSocialModel flip_social_explore;
-static FlipSocialModel flip_social_friends;
-
-// temporary FlipSocialFeed object
-static FlipSocialFeed flip_social_feed = {
-    .usernames = {"JBlanked", "FlipperKing", "FlipperQueen"},
-    .messages = {"Welcome. This is a temp message. Either the feed didn't load or there was a server error.", "I am the Chosen Flipper.", "No one can flip like me."},
-    .is_flipped = {false, false, true},
-    .ids = {0, 1, 2},
-    .count = 3,
-    .index = 0};
-
 static void flip_social_logged_in_compose_pre_save_updated(void *context);
 static void flip_social_callback_submenu_choices(void *context, uint32_t index);
 #endif

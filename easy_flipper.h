@@ -20,6 +20,7 @@
 #include <uart_text_input.h>
 #include <stdio.h>
 #include <string.h>
+#include <jsmn.h>
 
 #define EASY_TAG "EasyFlipper"
 

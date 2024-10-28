@@ -42,6 +42,10 @@ bool flipper_http_delete_request_with_headers(const char *url, const char *heade
 //---
 bool flipper_http_save_received_data(size_t bytes_received, const char line_buffer[]);
 static char *trim(const char *str);
+//
+bool flipper_http_process_response_async(
+    bool (*http_request)(void),
+    bool (*parse_json)(void));
 
 // State variable to track the UART state
 typedef enum
@@ -173,7 +177,7 @@ static int32_t flipper_http_worker(void *context)
             break;
         if (events & WorkerEvtRxDone)
         {
-            size_t len = furi_stream_buffer_receive(fhttp.flipper_http_stream, fhttp.rx_buf, RX_BUF_SIZE, 0);
+            size_t len = furi_stream_buffer_receive(fhttp.flipper_http_stream, fhttp.rx_buf, RX_BUF_SIZE + 1, 0);
             for (size_t i = 0; i < len; i++)
             {
                 char c = fhttp.rx_buf[i];
@@ -1153,6 +1157,41 @@ char *trim(const char *str)
     trimmed_str[len] = '\0'; // Null terminate the string
 
     return trimmed_str;
+}
+
+/**
+ * @brief Process requests and parse JSON data asynchronously
+ * @param http_request The function to send the request
+ * @param parse_json The function to parse the JSON
+ * @return true if successful, false otherwise
+ */
+bool flipper_http_process_response_async(
+    bool (*http_request)(void),
+    bool (*parse_json)(void))
+{
+    if (http_request()) // start the async request
+    {
+        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp.state = RECEIVING;
+    }
+    else
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to send request");
+        return false;
+    }
+    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp.get_timeout_timer);
+    if (!parse_json()) // parse the JSON before switching to the view (synchonous)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to parse the JSON...");
+        return false;
+    }
+    furi_timer_stop(fhttp.get_timeout_timer);
+    return true;
 }
 
 #endif // FLIPPER_HTTP_H

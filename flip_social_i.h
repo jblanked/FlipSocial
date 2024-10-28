@@ -29,20 +29,21 @@ static FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate the text input buffers
-    app->wifi_ssid_logged_out_temp_buffer_size = 64;
-    app->wifi_password_logged_out_temp_buffer_size = 64;
-    app->login_username_logged_out_temp_buffer_size = 64;
-    app->login_password_logged_out_temp_buffer_size = 64;
-    app->register_username_logged_out_temp_buffer_size = 64;
-    app->register_password_logged_out_temp_buffer_size = 64;
-    app->register_password_2_logged_out_temp_buffer_size = 64;
-    app->change_password_logged_in_temp_buffer_size = 64;
-    app->compose_pre_save_logged_in_temp_buffer_size = 64;
-    app->wifi_ssid_logged_in_temp_buffer_size = 64;
-    app->wifi_password_logged_in_temp_buffer_size = 64;
+    app->wifi_ssid_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->wifi_password_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->login_username_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->login_password_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->register_username_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->register_password_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->register_password_2_logged_out_temp_buffer_size = MAX_USER_LENGTH;
+    app->change_password_logged_in_temp_buffer_size = MAX_USER_LENGTH;
+    app->compose_pre_save_logged_in_temp_buffer_size = 100;
+    app->wifi_ssid_logged_in_temp_buffer_size = MAX_USER_LENGTH;
+    app->wifi_password_logged_in_temp_buffer_size = MAX_USER_LENGTH;
     app->is_logged_in_size = 8;
-    app->login_username_logged_in_temp_buffer_size = 64;
-
+    app->login_username_logged_in_temp_buffer_size = MAX_USER_LENGTH;
+    app->messages_new_message_logged_in_temp_buffer_size = 100;
+    app->message_user_choice_logged_in_temp_buffer_size = 100;
     if (!easy_flipper_set_buffer(&app->wifi_ssid_logged_out_temp_buffer, app->wifi_ssid_logged_out_temp_buffer_size))
     {
         return NULL;
@@ -144,13 +145,30 @@ static FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
-
-    // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.3", flip_social_callback_exit_app, &app->view_dispatcher))
+    //
+    if (!easy_flipper_set_buffer(&app->messages_new_message_logged_in, app->messages_new_message_logged_in_temp_buffer_size))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.3", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_buffer(&app->messages_new_message_logged_in_temp_buffer, app->messages_new_message_logged_in_temp_buffer_size))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_buffer(&app->message_user_choice_logged_in, app->message_user_choice_logged_in_temp_buffer_size))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_buffer(&app->message_user_choice_logged_in_temp_buffer, app->message_user_choice_logged_in_temp_buffer_size))
+    {
+        return NULL;
+    }
+
+    // Allocate Submenu(s)
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.4", flip_social_callback_exit_app, &app->view_dispatcher))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.4", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -166,6 +184,14 @@ static FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
+    if (!easy_flipper_set_submenu(&app->submenu_messages, FlipSocialViewLoggedInMessagesSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_submenu(&app->submenu_messages_user_choices, FlipSocialViewLoggedInMessagesUserChoices, "Users", flip_social_callback_to_messages_logged_in, &app->view_dispatcher))
+    {
+        return NULL;
+    }
 
     submenu_add_item(app->submenu_logged_out, "Login", FlipSocialSubmenuLoggedOutIndexLogin, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_out, "Register", FlipSocialSubmenuLoggedOutIndexRegister, flip_social_callback_submenu_choices, app);
@@ -175,6 +201,7 @@ static FlipSocialApp *flip_social_app_alloc()
     submenu_add_item(app->submenu_logged_in, "Explore", FlipSocialSubmenuExploreIndex, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Feed", FlipSocialSubmenuLoggedInIndexFeed, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Post", FlipSocialSubmenuLoggedInIndexCompose, flip_social_callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Messages", FlipSocialSubmenuLoggedInIndexMessages, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Settings", FlipSocialSubmenuLoggedInIndexSettings, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, flip_social_callback_submenu_choices, app);
@@ -204,6 +231,10 @@ static FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
     if (!easy_flipper_set_view(&app->view_process_friends, FlipSocialViewLoggedInFriendsProcess, flip_social_callback_draw_friends, NULL, flip_social_callback_to_friends_logged_in, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_view(&app->view_process_messages, FlipSocialViewLoggedInMessagesProcess, flip_social_callback_draw_messages, NULL, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
     {
         return NULL;
     }
@@ -302,6 +333,15 @@ static FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
+    //
+    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_messages_new_message, FlipSocialViewLoggedInMessagesNewMessageInput, "Enter Message", app->messages_new_message_logged_in_temp_buffer, app->messages_new_message_logged_in_temp_buffer_size, flip_social_logged_in_messages_new_message_updated, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
+    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_messages_new_message_user_choices, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput, "Enter Message", app->message_user_choice_logged_in_temp_buffer, app->message_user_choice_logged_in_temp_buffer_size, flip_social_logged_in_messages_user_choice_message_updated, flip_social_callback_to_messages_user_choices, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
 
     // Setup About(s)
     if (!easy_flipper_set_widget(&app->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked.\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
@@ -316,7 +356,7 @@ static FlipSocialApp *flip_social_app_alloc()
     // load the playlist
     if (load_playlist(&app->pre_saved_messages))
     {
-        // Update the submenu
+        // Update the playlist submenu
         for (uint32_t i = 0; i < app->pre_saved_messages.count; i++)
         {
             submenu_add_item(app->submenu_compose, app->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app);
@@ -342,8 +382,9 @@ static FlipSocialApp *flip_social_app_alloc()
     {
         FURI_LOG_E(TAG, "Failed to load settings");
 
-        if (app->is_logged_in != NULL)
+        if (app->is_logged_in == NULL)
         {
+            app->is_logged_in = (char *)malloc(app->is_logged_in_size);
             app->is_logged_in = "false";
         }
         app_instance = app;
@@ -486,6 +527,35 @@ static FlipSocialApp *flip_social_app_alloc()
         //
 
         app_instance = app;
+
+        // Initialize structs
+        if (!flip_social_feed_alloc())
+        {
+            return NULL;
+        }
+        if (!flip_social_friends_alloc())
+        {
+            return NULL;
+        }
+        if (!flip_social_explore_alloc())
+        {
+            return NULL;
+        }
+        if (!flip_social_messages_alloc())
+        {
+            return NULL;
+        }
+        if (!flip_social_user_messages_alloc())
+        {
+            return NULL;
+        }
+
+        // Set failure FlipSocialFeed object
+        if (!flip_social_temp_feed())
+        {
+            return NULL;
+        }
+
         if (app->is_logged_in != NULL && strcmp(app->is_logged_in, "true") == 0)
         {
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
