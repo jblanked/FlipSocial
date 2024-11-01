@@ -97,7 +97,7 @@ static void on_input(const void *event, void *ctx)
 }
 
 // Function to draw the message on the canvas with word wrapping
-void draw_user_message(Canvas *canvas, const char *user_message, int x)
+void draw_user_message(Canvas *canvas, const char *user_message, int x, int y)
 {
     if (user_message == NULL)
     {
@@ -136,7 +136,7 @@ void draw_user_message(Canvas *canvas, const char *user_message, int x)
 
         // Draw the string on the canvas
         // Adjust the y-coordinate based on the line number
-        canvas_draw_str_aligned(canvas, 0, x + line_num * 10, AlignLeft, AlignTop, line);
+        canvas_draw_str_aligned(canvas, x, y + line_num * 10, AlignLeft, AlignTop, line);
 
         // Update the start position for the next line
         start += len;
@@ -166,7 +166,7 @@ static void flip_social_callback_draw_compose(Canvas *canvas, void *model)
         return;
     }
 
-    char *message = app_instance->pre_saved_messages.messages[app_instance->flip_social_feed.index];
+    char *message = app_instance->pre_saved_messages.messages[flip_social_feed->index];
 
     if (!flip_social_dialog_shown)
     {
@@ -175,7 +175,7 @@ static void flip_social_callback_draw_compose(Canvas *canvas, void *model)
         app_instance->input_event = furi_pubsub_subscribe(app_instance->input_event_queue, on_input, NULL);
     }
 
-    draw_user_message(canvas, message, 2);
+    draw_user_message(canvas, message, 0, 2);
 
     canvas_draw_icon(canvas, 0, 53, &I_ButtonLeft_4x7);
     canvas_draw_str_aligned(canvas, 7, 54, AlignLeft, AlignTop, "Delete");
@@ -246,10 +246,9 @@ static void flip_social_callback_draw_compose(Canvas *canvas, void *model)
         break;
     case ActionPrev:
         // delete message
-        // remove the message from app_instance->pre_saved_messages
-        app_instance->pre_saved_messages.messages[app_instance->flip_social_feed.index] = NULL;
+        app_instance->pre_saved_messages.messages[flip_social_feed->index] = NULL;
 
-        for (uint32_t i = app_instance->flip_social_feed.index; i < app_instance->pre_saved_messages.count - 1; i++)
+        for (uint32_t i = flip_social_feed->index; i < app_instance->pre_saved_messages.count - 1; i++)
         {
             app_instance->pre_saved_messages.messages[i] = app_instance->pre_saved_messages.messages[i + 1];
         }
@@ -298,35 +297,95 @@ static void flip_social_callback_draw_compose(Canvas *canvas, void *model)
     }
 }
 // function to draw the dialog canvas
-static void flip_social_canvas_draw_message(Canvas *canvas, char *user_username, char *user_message, bool is_flipped, bool show_prev, bool show_next)
+static void flip_social_canvas_draw_message(Canvas *canvas, char *user_username, char *user_message, bool is_flipped, bool show_prev, bool show_next, int flip_count)
 {
     canvas_set_color(canvas, ColorBlack);
     canvas_set_font(canvas, FontPrimary);
     canvas_draw_str_aligned(canvas, 64, 5, AlignCenter, AlignCenter, user_username);
     canvas_set_font(canvas, FontSecondary);
 
-    draw_user_message(canvas, user_message, 12);
-
-    canvas_set_font(canvas, FontSecondary);
-    if (show_prev)
+    char flip_count_str[12];
+    if (flip_count == 1)
     {
-        canvas_draw_icon(canvas, 0, 53, &I_ButtonLeft_4x7);
-        canvas_draw_str_aligned(canvas, 9, 54, AlignLeft, AlignTop, "Prev");
-    }
-    if (!is_flipped)
-    {
-        canvas_draw_icon(canvas, 52, 53, &I_ButtonOK_7x7);
-        canvas_draw_str_aligned(canvas, 61, 54, AlignLeft, AlignTop, "Flip");
+        snprintf(flip_count_str, sizeof(flip_count_str), "%d Flip", flip_count);
+        canvas_draw_str_aligned(canvas, 106, 54, AlignLeft, AlignTop, flip_count_str);
     }
     else
     {
-        canvas_draw_icon(canvas, 47, 53, &I_ButtonOK_7x7);
-        canvas_draw_str_aligned(canvas, 56, 54, AlignLeft, AlignTop, "UnFlip");
+        snprintf(flip_count_str, sizeof(flip_count_str), "%d Flips", flip_count);
+
+        if (flip_count < 10)
+        {
+            canvas_draw_str_aligned(canvas, 100, 54, AlignLeft, AlignTop, flip_count_str);
+        }
+        else if (flip_count < 100)
+        {
+            canvas_draw_str_aligned(canvas, 94, 54, AlignLeft, AlignTop, flip_count_str);
+        }
+        else
+        {
+            canvas_draw_str_aligned(canvas, 88, 54, AlignLeft, AlignTop, flip_count_str);
+        }
     }
-    if (show_next)
+
+    draw_user_message(canvas, user_message, 0, 12);
+
+    // combine and shift icons/labels around if not show_prev or show_next
+    if (show_prev && show_next && !is_flipped)
     {
-        canvas_draw_icon(canvas, 98, 53, &I_ButtonRight_4x7);
-        canvas_draw_str_aligned(canvas, 107, 54, AlignLeft, AlignTop, "Next");
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonLeft_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Prev");
+        canvas_draw_icon(canvas, 30, 54, &I_ButtonRight_4x7);
+        canvas_draw_str_aligned(canvas, 36, 54, AlignLeft, AlignTop, "Next");
+        canvas_draw_icon(canvas, 58, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 67, 54, AlignLeft, AlignTop, "Flip");
+    }
+    else if (show_prev && !show_next && !is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonLeft_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Prev");
+        canvas_draw_icon(canvas, 28, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 37, 54, AlignLeft, AlignTop, "Flip");
+    }
+    else if (!show_prev && show_next && !is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonRight_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Next");
+        canvas_draw_icon(canvas, 28, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 37, 54, AlignLeft, AlignTop, "Flip");
+    }
+    else if (show_prev && show_next && is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonLeft_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Prev");
+        canvas_draw_icon(canvas, 28, 54, &I_ButtonRight_4x7);
+        canvas_draw_str_aligned(canvas, 34, 54, AlignLeft, AlignTop, "Next");
+        canvas_draw_icon(canvas, 54, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 63, 54, AlignLeft, AlignTop, "UnFlip");
+    }
+    else if (show_prev && !show_next && is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonLeft_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Prev");
+        canvas_draw_icon(canvas, 28, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 37, 54, AlignLeft, AlignTop, "UnFlip");
+    }
+    else if (!show_prev && show_next && is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonRight_4x7);
+        canvas_draw_str_aligned(canvas, 6, 54, AlignLeft, AlignTop, "Next");
+        canvas_draw_icon(canvas, 28, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 37, 54, AlignLeft, AlignTop, "UnFlip");
+    }
+    else if (!show_prev && !show_next && is_flipped)
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 9, 54, AlignLeft, AlignTop, "UnFlip");
+    }
+    else
+    {
+        canvas_draw_icon(canvas, 0, 54, &I_ButtonOK_7x7);
+        canvas_draw_str_aligned(canvas, 9, 54, AlignLeft, AlignTop, "Flip");
     }
 }
 // Callback function to handle the feed dialog
@@ -355,31 +414,29 @@ static void flip_social_callback_draw_feed(Canvas *canvas, void *model)
     switch (action)
     {
     case ActionNone:
-        flip_social_canvas_draw_message(canvas, app_instance->flip_social_feed.usernames[app_instance->flip_social_feed.index], app_instance->flip_social_feed.messages[app_instance->flip_social_feed.index], app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index], app_instance->flip_social_feed.index > 0, app_instance->flip_social_feed.index < app_instance->flip_social_feed.count - 1);
+        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
         break;
     case ActionNext:
         canvas_clear(canvas);
-        if (app_instance->flip_social_feed.index < app_instance->flip_social_feed.count - 1)
+        if (flip_social_feed->index < flip_social_feed->count - 1)
         {
-            app_instance->flip_social_feed.index++;
+            flip_social_feed->index++;
         }
-        flip_social_canvas_draw_message(canvas, app_instance->flip_social_feed.usernames[app_instance->flip_social_feed.index], app_instance->flip_social_feed.messages[app_instance->flip_social_feed.index], app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index], app_instance->flip_social_feed.index > 0, app_instance->flip_social_feed.index < app_instance->flip_social_feed.count - 1);
+        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
         action = ActionNone;
         break;
     case ActionPrev:
         canvas_clear(canvas);
-        if (app_instance->flip_social_feed.index > 0)
+        if (flip_social_feed->index > 0)
         {
-            app_instance->flip_social_feed.index--;
+            flip_social_feed->index--;
         }
-        flip_social_canvas_draw_message(canvas, app_instance->flip_social_feed.usernames[app_instance->flip_social_feed.index], app_instance->flip_social_feed.messages[app_instance->flip_social_feed.index], app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index], app_instance->flip_social_feed.index > 0, app_instance->flip_social_feed.index < app_instance->flip_social_feed.count - 1);
+        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
         action = ActionNone;
         break;
     case ActionFlip:
         canvas_clear(canvas);
-        app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index] = !app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index];
-        flip_social_canvas_draw_message(canvas, app_instance->flip_social_feed.usernames[app_instance->flip_social_feed.index], app_instance->flip_social_feed.messages[app_instance->flip_social_feed.index], app_instance->flip_social_feed.is_flipped[app_instance->flip_social_feed.index], app_instance->flip_social_feed.index > 0, app_instance->flip_social_feed.index < app_instance->flip_social_feed.count - 1);
-        action = ActionNone;
+        flip_social_feed->is_flipped[flip_social_feed->index] = !flip_social_feed->is_flipped[flip_social_feed->index];
         // send post request to flip the message
         if (app_instance->login_username_logged_in == NULL)
         {
@@ -387,13 +444,25 @@ static void flip_social_callback_draw_feed(Canvas *canvas, void *model)
             return;
         }
         char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%lu\"}", app_instance->login_username_logged_in, app_instance->flip_social_feed.ids[app_instance->flip_social_feed.index]);
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_social_feed->ids[flip_social_feed->index]);
         flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", "{\"Content-Type\":\"application/json\"}", payload);
+        if (!flip_social_feed->is_flipped[flip_social_feed->index])
+        {
+            // increase the flip count
+            flip_social_feed->flips[flip_social_feed->index]++;
+        }
+        else
+        {
+            // decrease the flip count
+            flip_social_feed->flips[flip_social_feed->index]--;
+        }
+        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
+        action = ActionNone;
         break;
     case ActionBack:
         canvas_clear(canvas);
         flip_social_dialog_stop = true;
-        app_instance->flip_social_feed.index = 0;
+        flip_social_feed->index = 0;
         action = ActionNone;
         break;
     default:
@@ -660,7 +729,7 @@ static void flip_social_canvas_draw_explore(Canvas *canvas, char *user_username,
     canvas_draw_str_aligned(canvas, 64, 5, AlignCenter, AlignCenter, user_username);
     canvas_set_font(canvas, FontSecondary);
 
-    draw_user_message(canvas, content, 12);
+    draw_user_message(canvas, content, 0, 12);
 
     canvas_set_font(canvas, FontSecondary);
     canvas_draw_icon(canvas, 0, 53, &I_ButtonLeft_4x7);
@@ -695,7 +764,7 @@ static void flip_social_callback_draw_explore(Canvas *canvas, void *model)
         app_instance->input_event_queue = furi_record_open(RECORD_INPUT_EVENTS);
         app_instance->input_event = furi_pubsub_subscribe(app_instance->input_event_queue, on_input, NULL);
     }
-    flip_social_canvas_draw_explore(canvas, app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], last_explore_response);
+    flip_social_canvas_draw_explore(canvas, flip_social_explore->usernames[flip_social_explore->index], last_explore_response);
 
     // handle action
     switch (action)
@@ -703,19 +772,19 @@ static void flip_social_callback_draw_explore(Canvas *canvas, void *model)
     case ActionNext:
         // add friend
         char add_payload[128];
-        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index]);
+        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
         flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/add-friend/", "{\"Content-Type\":\"application/json\"}", add_payload);
         canvas_clear(canvas);
-        flip_social_canvas_draw_explore(canvas, app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], "Added!");
+        flip_social_canvas_draw_explore(canvas, flip_social_explore->usernames[flip_social_explore->index], "Added!");
         action = ActionNone;
         break;
     case ActionPrev:
         // remove friend
         char remove_payload[128];
-        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index]);
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
         flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", "{\"Content-Type\":\"application/json\"}", remove_payload);
         canvas_clear(canvas);
-        flip_social_canvas_draw_explore(canvas, app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], "Removed!");
+        flip_social_canvas_draw_explore(canvas, flip_social_explore->usernames[flip_social_explore->index], "Removed!");
         action = ActionNone;
         break;
     case ActionBack:
@@ -723,7 +792,7 @@ static void flip_social_callback_draw_explore(Canvas *canvas, void *model)
         flip_social_dialog_stop = true;
         last_explore_response = "";
         flip_social_dialog_shown = false;
-        app_instance->flip_social_explore.index = 0;
+        flip_social_explore->index = 0;
         action = ActionNone;
         break;
     default:
@@ -760,7 +829,7 @@ static void flip_social_callback_draw_friends(Canvas *canvas, void *model)
         app_instance->input_event_queue = furi_record_open(RECORD_INPUT_EVENTS);
         app_instance->input_event = furi_pubsub_subscribe(app_instance->input_event_queue, on_input, NULL);
     }
-    flip_social_canvas_draw_explore(canvas, app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index], last_explore_response);
+    flip_social_canvas_draw_explore(canvas, flip_social_friends->usernames[flip_social_friends->index], last_explore_response);
 
     // handle action
     switch (action)
@@ -768,15 +837,15 @@ static void flip_social_callback_draw_friends(Canvas *canvas, void *model)
     case ActionNext:
         // add friend
         char add_payload[128];
-        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index]);
+        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
         if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/add-friend/", "{\"Content-Type\":\"application/json\"}", add_payload))
         {
             canvas_clear(canvas);
-            flip_social_canvas_draw_explore(canvas, app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index], "Added!");
+            flip_social_canvas_draw_explore(canvas, flip_social_friends->usernames[flip_social_friends->index], "Added!");
 
             // add the friend to the friends list
-            app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.count] = app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index];
-            app_instance->flip_social_friends.count++;
+            flip_social_friends->usernames[flip_social_friends->count] = flip_social_friends->usernames[flip_social_friends->index];
+            flip_social_friends->count++;
             if (!flip_social_update_friends())
             {
                 FURI_LOG_E(TAG, "Failed to update friends");
@@ -787,18 +856,18 @@ static void flip_social_callback_draw_friends(Canvas *canvas, void *model)
     case ActionPrev:
         // remove friend
         char remove_payload[128];
-        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index]);
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
         if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", "{\"Content-Type\":\"application/json\"}", remove_payload))
         {
             canvas_clear(canvas);
-            flip_social_canvas_draw_explore(canvas, app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.index], "Removed!");
+            flip_social_canvas_draw_explore(canvas, flip_social_friends->usernames[flip_social_friends->index], "Removed!");
 
             // remove the friend from the friends list
-            for (int i = app_instance->flip_social_friends.index; i < app_instance->flip_social_friends.count - 1; i++)
+            for (int i = flip_social_friends->index; i < flip_social_friends->count - 1; i++)
             {
-                app_instance->flip_social_friends.usernames[i] = app_instance->flip_social_friends.usernames[i + 1];
+                flip_social_friends->usernames[i] = flip_social_friends->usernames[i + 1];
             }
-            app_instance->flip_social_friends.count--;
+            flip_social_friends->count--;
             if (!flip_social_update_friends())
             {
                 FURI_LOG_E(TAG, "Failed to update friends");
@@ -811,7 +880,7 @@ static void flip_social_callback_draw_friends(Canvas *canvas, void *model)
         flip_social_dialog_stop = true;
         last_explore_response = "";
         flip_social_dialog_shown = false;
-        app_instance->flip_social_friends.index = 0;
+        flip_social_friends->index = 0;
         action = ActionNone;
         break;
     default:
@@ -834,7 +903,7 @@ static void flip_social_canvas_draw_user_message(Canvas *canvas, char *user_user
     canvas_draw_str_aligned(canvas, 64, 5, AlignCenter, AlignCenter, user_username);
     canvas_set_font(canvas, FontSecondary);
 
-    draw_user_message(canvas, user_message, 12);
+    draw_user_message(canvas, user_message, 0, 12);
 
     canvas_set_font(canvas, FontSecondary);
     if (show_prev)
@@ -879,27 +948,27 @@ static void flip_social_callback_draw_messages(Canvas *canvas, void *model)
     switch (action)
     {
     case ActionNone:
-        flip_social_canvas_draw_user_message(canvas, app_instance->flip_social_messages.usernames[app_instance->flip_social_messages.index], app_instance->flip_social_messages.messages[app_instance->flip_social_messages.index], app_instance->flip_social_messages.index > 0, app_instance->flip_social_messages.index < app_instance->flip_social_messages.count - 1);
+        flip_social_canvas_draw_user_message(canvas, flip_social_messages->usernames[flip_social_messages->index], flip_social_messages->messages[flip_social_messages->index], flip_social_messages->index > 0, flip_social_messages->index < flip_social_messages->count - 1);
         action = ActionNone;
         break;
     case ActionNext:
         // view next message (if any)
         canvas_clear(canvas);
-        if (app_instance->flip_social_messages.index < app_instance->flip_social_messages.count - 1)
+        if (flip_social_messages->index < flip_social_messages->count - 1)
         {
-            app_instance->flip_social_messages.index++;
+            flip_social_messages->index++;
         }
-        flip_social_canvas_draw_user_message(canvas, app_instance->flip_social_messages.usernames[app_instance->flip_social_messages.index], app_instance->flip_social_messages.messages[app_instance->flip_social_messages.index], app_instance->flip_social_messages.index > 0, app_instance->flip_social_messages.index < app_instance->flip_social_messages.count - 1);
+        flip_social_canvas_draw_user_message(canvas, flip_social_messages->usernames[flip_social_messages->index], flip_social_messages->messages[flip_social_messages->index], flip_social_messages->index > 0, flip_social_messages->index < flip_social_messages->count - 1);
         action = ActionNone;
         break;
     case ActionPrev:
         // view previous message (if any)
         canvas_clear(canvas);
-        if (app_instance->flip_social_messages.index > 0)
+        if (flip_social_messages->index > 0)
         {
-            app_instance->flip_social_messages.index--;
+            flip_social_messages->index--;
         }
-        flip_social_canvas_draw_user_message(canvas, app_instance->flip_social_messages.usernames[app_instance->flip_social_messages.index], app_instance->flip_social_messages.messages[app_instance->flip_social_messages.index], app_instance->flip_social_messages.index > 0, app_instance->flip_social_messages.index < app_instance->flip_social_messages.count - 1);
+        flip_social_canvas_draw_user_message(canvas, flip_social_messages->usernames[flip_social_messages->index], flip_social_messages->messages[flip_social_messages->index], flip_social_messages->index > 0, flip_social_messages->index < flip_social_messages->count - 1);
         action = ActionNone;
         break;
     case ActionBack:

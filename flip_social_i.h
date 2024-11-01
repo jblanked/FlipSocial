@@ -164,11 +164,11 @@ static FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.4", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.5", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.4", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.5", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -344,11 +344,11 @@ static FlipSocialApp *flip_social_app_alloc()
     }
 
     // Setup About(s)
-    if (!easy_flipper_set_widget(&app->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked.\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
+    if (!easy_flipper_set_widget(&app->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_widget(&app->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked.\n---\nPress BACK to return.", flip_social_callback_to_settings_logged_in, &app->view_dispatcher))
+    if (!easy_flipper_set_widget(&app->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_settings_logged_in, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -525,36 +525,6 @@ static FlipSocialApp *flip_social_app_alloc()
         variable_item_set_current_value_text(app->variable_item_logged_out_login_username, app->login_username_logged_out);
         variable_item_set_current_value_text(app->variable_item_logged_in_profile_username, app->login_username_logged_in);
         //
-
-        app_instance = app;
-
-        // Initialize structs
-        if (!flip_social_feed_alloc())
-        {
-            return NULL;
-        }
-        if (!flip_social_friends_alloc())
-        {
-            return NULL;
-        }
-        if (!flip_social_explore_alloc())
-        {
-            return NULL;
-        }
-        if (!flip_social_messages_alloc())
-        {
-            return NULL;
-        }
-        if (!flip_social_user_messages_alloc())
-        {
-            return NULL;
-        }
-
-        // Set failure FlipSocialFeed object
-        if (!flip_social_temp_feed())
-        {
-            return NULL;
-        }
 
         if (app->is_logged_in != NULL && strcmp(app->is_logged_in, "true") == 0)
         {

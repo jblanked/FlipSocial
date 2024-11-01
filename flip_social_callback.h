@@ -21,7 +21,11 @@ static uint32_t flip_social_callback_to_submenu_logged_out(void *context)
 static uint32_t flip_social_callback_to_submenu_logged_in(void *context)
 {
     UNUSED(context);
-    // flip_social_get_feed(); // start the feed request
+    flip_social_free_explore();
+    flip_social_free_feed();
+    flip_social_free_friends();
+    flip_social_free_message_users();
+    flip_social_free_messages();
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -117,7 +121,7 @@ static uint32_t flip_social_callback_to_explore_logged_in(void *context)
     flip_social_dialog_stop = true;
     last_explore_response = "";
     flip_social_dialog_shown = false;
-    app_instance->flip_social_explore.index = 0;
+    flip_social_explore->index = 0;
     action = ActionNone;
     return FlipSocialViewLoggedInExploreSubmenu;
 }
@@ -133,7 +137,7 @@ static uint32_t flip_social_callback_to_friends_logged_in(void *context)
     flip_social_dialog_stop = true;
     last_explore_response = "";
     flip_social_dialog_shown = false;
-    app_instance->flip_social_friends.index = 0;
+    flip_social_friends->index = 0;
     action = ActionNone;
     return FlipSocialViewLoggedInFriendsSubmenu;
 }
@@ -229,6 +233,15 @@ static void flip_social_callback_submenu_choices(void *context, uint32_t index)
         {
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
+        else
+        {
+            // Set failure FlipSocialFeed object
+            if (!flip_social_temp_feed())
+            {
+                return;
+            }
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
         break;
     case FlipSocialSubmenuExploreIndex:
         if (flipper_http_process_response_async(flip_social_get_explore, flip_social_parse_json_explore))
@@ -256,28 +269,28 @@ static void flip_social_callback_submenu_choices(void *context, uint32_t index)
         // Handle the pre-saved message selection (has a max of 25 items)
         if (index >= FlipSocialSubemnuComposeIndexStartIndex && index < FlipSocialSubemnuComposeIndexStartIndex + MAX_PRE_SAVED_MESSAGES)
         {
-            app->flip_social_feed.index = index - FlipSocialSubemnuComposeIndexStartIndex;
+            flip_social_feed->index = index - FlipSocialSubemnuComposeIndexStartIndex;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
         }
 
         // Handle the explore selection
         else if (index >= FlipSocialSubmenuExploreIndexStartIndex && index < FlipSocialSubmenuExploreIndexStartIndex + MAX_EXPLORE_USERS)
         {
-            app->flip_social_explore.index = index - FlipSocialSubmenuExploreIndexStartIndex;
+            flip_social_explore->index = index - FlipSocialSubmenuExploreIndexStartIndex;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
         }
 
         // handle the friends selection
         else if (index >= FlipSocialSubmenuLoggedInIndexFriendsStart && index < FlipSocialSubmenuLoggedInIndexFriendsStart + MAX_FRIENDS)
         {
-            app->flip_social_friends.index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
+            flip_social_friends->index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
         }
 
         // handle the messages selection
         else if (index >= FlipSocialSubmenuLoggedInIndexMessagesUsersStart && index < FlipSocialSubmenuLoggedInIndexMessagesUsersStart + MAX_MESSAGE_USERS)
         {
-            app->flip_social_message_users.index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
+            flip_social_message_users->index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
             if (flipper_http_process_response_async(flip_social_get_messages_with_user, flip_social_parse_json_messages))
             {
                 view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesProcess);
@@ -287,7 +300,7 @@ static void flip_social_callback_submenu_choices(void *context, uint32_t index)
         // handle the messages user choices selection
         else if (index >= FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart && index < FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + MAX_EXPLORE_USERS)
         {
-            app->flip_social_explore.index = index - FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart;
+            flip_social_explore->index = index - FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart;
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput);
         }
         else
@@ -957,7 +970,7 @@ static void flip_social_logged_in_messages_user_choice_message_updated(void *con
     char url[128];
     char payload[256];
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
-    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], app->message_user_choice_logged_in);
+    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_explore->usernames[flip_social_explore->index], app->message_user_choice_logged_in);
     char *headers = jsmn("Content-Type", "application/json");
 
     if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request
@@ -981,8 +994,8 @@ static void flip_social_logged_in_messages_user_choice_message_updated(void *con
     furi_timer_stop(fhttp.get_timeout_timer);
 
     // add user to the message list
-    strncpy(app_instance->flip_social_message_users.usernames[app_instance->flip_social_message_users.count], app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index], strlen(app_instance->flip_social_explore.usernames[app_instance->flip_social_explore.index]));
-    app_instance->flip_social_message_users.count++;
+    strncpy(flip_social_message_users->usernames[flip_social_message_users->count], flip_social_explore->usernames[flip_social_explore->index], strlen(flip_social_explore->usernames[flip_social_explore->index]));
+    flip_social_message_users->count++;
 
     // redraw submenu
     flip_social_update_messages_submenu();
@@ -1021,7 +1034,7 @@ static void flip_social_logged_in_messages_new_message_updated(void *context)
     char url[128];
     char payload[256];
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
-    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", app_instance->flip_social_message_users.usernames[app_instance->flip_social_message_users.index], app->messages_new_message_logged_in);
+    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
     char *headers = jsmn("Content-Type", "application/json");
 
     if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request

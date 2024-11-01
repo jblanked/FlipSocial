@@ -13,10 +13,10 @@
 #define HTTP_TAG "FlipSocial"             // change this to your app name
 #define http_tag "flip_social"            // change this to your app id
 #define UART_CH (FuriHalSerialIdUsart)    // UART channel
-#define TIMEOUT_DURATION_TICKS (5 * 1000) // 5 seconds
+#define TIMEOUT_DURATION_TICKS (6 * 1000) // 6 seconds
 #define BAUDRATE (115200)                 // UART baudrate
 #define RX_BUF_SIZE 128                   // UART RX buffer size
-#define RX_LINE_BUFFER_SIZE 4096          // UART RX line buffer size (increase for large responses)
+#define RX_LINE_BUFFER_SIZE 8192          // UART RX line buffer size (increase for large responses)
 
 // Forward declaration for callback
 typedef void (*FlipperHTTP_Callback)(const char *line, void *context);
@@ -728,7 +728,7 @@ void flipper_http_rx_callback(const char *line, void *context)
     }
 
     // Uncomment below line to log the data received over UART
-    // FURI_LOG_I(HTTP_TAG, "Received UART line: %s", line);
+    FURI_LOG_I(HTTP_TAG, "Received UART line: %s", line);
 
     // Check if we've started receiving data from a GET request
     if (fhttp.started_receiving_get)

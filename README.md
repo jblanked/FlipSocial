@@ -46,7 +46,8 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 
 **v0.5**
 - Improved memory allocation
-- Improved Feed Page (Flip count, report, block)
+- Improved Feed Page
+- Raspberry Pi Pico W Support
 
 **v0.6**
 - Improved User Profile (Bio, friend count, block)

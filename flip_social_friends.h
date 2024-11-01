@@ -1,34 +1,35 @@
 #ifndef FLIP_SOCIAL_FRIENDS
 #define FLIP_SOCIAL_FRIENDS
 
-static bool flip_social_friends_alloc()
+static FlipSocialModel *flip_social_friends_alloc()
 {
     // Allocate memory for each username only if not already allocated
+    FlipSocialModel *friends = malloc(sizeof(FlipSocialModel));
     for (size_t i = 0; i < MAX_FRIENDS; i++)
     {
-        if (app_instance->flip_social_friends.usernames[i] == NULL)
+        if (friends->usernames[i] == NULL)
         {
-            app_instance->flip_social_friends.usernames[i] = malloc(MAX_USER_LENGTH);
-            if (app_instance->flip_social_friends.usernames[i] == NULL)
+            friends->usernames[i] = malloc(MAX_USER_LENGTH);
+            if (friends->usernames[i] == NULL)
             {
                 FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return false; // Return false on memory allocation failure
+                return NULL; // Return false on memory allocation failure
             }
         }
     }
-    return true;
+    return friends;
 }
 
 static void flip_social_free_friends()
 {
-    if (!app_instance)
+    if (!flip_social_friends)
     {
-        FURI_LOG_E(TAG, "App instance is NULL");
+        FURI_LOG_E(TAG, "Friends model is NULL");
         return;
     }
-    for (int i = 0; i < app_instance->flip_social_friends.count; i++)
+    for (int i = 0; i < flip_social_friends->count; i++)
     {
-        free(app_instance->flip_social_friends.usernames[i]);
+        free(flip_social_friends->usernames[i]);
     }
 }
 
@@ -56,12 +57,17 @@ static bool flip_social_update_friends()
         FURI_LOG_E(TAG, "Friends submenu is NULL");
         return false;
     }
+    if (!flip_social_friends)
+    {
+        FURI_LOG_E(TAG, "Friends model is NULL");
+        return false;
+    }
     // Add submenu items for the users
     submenu_reset(app_instance->submenu_friends);
     submenu_set_header(app_instance->submenu_friends, "Friends");
-    for (int i = 0; i < app_instance->flip_social_friends.count; i++)
+    for (int i = 0; i < flip_social_friends->count; i++)
     {
-        submenu_add_item(app_instance->submenu_friends, app_instance->flip_social_friends.usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
     }
     return true;
 }
@@ -75,7 +81,8 @@ static bool flip_social_parse_json_friends()
     }
 
     // Allocate memory for each username only if not already allocated
-    if (!flip_social_friends_alloc())
+    flip_social_friends = flip_social_friends_alloc();
+    if (flip_social_friends == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
         return false;
@@ -89,7 +96,7 @@ static bool flip_social_parse_json_friends()
     }
 
     // Initialize friends count
-    app_instance->flip_social_friends.count = 0;
+    flip_social_friends->count = 0;
 
     // Extract the users array from the JSON
     char *json_users = get_json_value("friends", fhttp.received_data, MAX_TOKENS);
@@ -102,7 +109,7 @@ static bool flip_social_parse_json_friends()
     // Manual tokenization for comma-separated values
     char *start = json_users + 1; // Skip the opening bracket
     char *end;
-    while ((end = strchr(start, ',')) != NULL && app_instance->flip_social_friends.count < MAX_FRIENDS)
+    while ((end = strchr(start, ',')) != NULL && flip_social_friends->count < MAX_FRIENDS)
     {
         *end = '\0'; // Null-terminate the current token
 
@@ -113,14 +120,14 @@ static bool flip_social_parse_json_friends()
             *(end - 1) = '\0';
 
         // Copy username to pre-allocated memory
-        strncpy(app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.count], start, MAX_USER_LENGTH - 1);
-        app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.count][MAX_USER_LENGTH - 1] = '\0'; // Ensure null termination
-        app_instance->flip_social_friends.count++;
+        strncpy(flip_social_friends->usernames[flip_social_friends->count], start, MAX_USER_LENGTH - 1);
+        flip_social_friends->usernames[flip_social_friends->count][MAX_USER_LENGTH - 1] = '\0'; // Ensure null termination
+        flip_social_friends->count++;
         start = end + 1;
     }
 
     // Handle the last token
-    if (*start != '\0' && app_instance->flip_social_friends.count < MAX_FRIENDS)
+    if (*start != '\0' && flip_social_friends->count < MAX_FRIENDS)
     {
         if (*start == '"')
             start++;
@@ -129,9 +136,9 @@ static bool flip_social_parse_json_friends()
         if (*(start + strlen(start) - 1) == '"')
             *(start + strlen(start) - 1) = '\0';
 
-        strncpy(app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.count], start, MAX_USER_LENGTH - 1);
-        app_instance->flip_social_friends.usernames[app_instance->flip_social_friends.count][MAX_USER_LENGTH - 1] = '\0'; // Ensure null termination
-        app_instance->flip_social_friends.count++;
+        strncpy(flip_social_friends->usernames[flip_social_friends->count], start, MAX_USER_LENGTH - 1);
+        flip_social_friends->usernames[flip_social_friends->count][MAX_USER_LENGTH - 1] = '\0'; // Ensure null termination
+        flip_social_friends->count++;
     }
 
     // Add submenu items for the friends
@@ -143,6 +150,8 @@ static bool flip_social_parse_json_friends()
 
     // Free the json_users
     free(json_users);
+    free(start);
+    free(end);
 
     return true;
 }

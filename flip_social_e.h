@@ -14,8 +14,8 @@
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 500            // Adjust based on expected JSON tokens
-#define MAX_FEED_ITEMS 50         // Maximum number of feed items
+#define MAX_TOKENS 450            // Adjust based on expected JSON tokens
+#define MAX_FEED_ITEMS 41         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
 #define MAX_MESSAGE_USERS 20 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
@@ -73,7 +73,8 @@ typedef struct
     char *usernames[MAX_FEED_ITEMS];
     char *messages[MAX_FEED_ITEMS];
     bool is_flipped[MAX_FEED_ITEMS];
-    uint32_t ids[MAX_FEED_ITEMS];
+    int ids[MAX_FEED_ITEMS];
+    int flips[MAX_FEED_ITEMS];
     size_t count;
     size_t index;
 } FlipSocialFeed;
@@ -278,15 +279,13 @@ typedef struct
     char *message_user_choice_logged_in;                     // Store the entered message to send to the selected user
     char *message_user_choice_logged_in_temp_buffer;         // Temporary buffer for message to send to the selected user
     uint32_t message_user_choice_logged_in_temp_buffer_size; // Size of the message to send to the selected user temporary buffer
-
-    //
-    FlipSocialFeed flip_social_feed;            // Store the feed
-    FlipSocialModel flip_social_friends;        // Store the friends
-    FlipSocialModel2 flip_social_message_users; // Store the users that have sent messages to the logged in user
-    FlipSocialModel flip_social_explore;        // Store the users to explore
-    FlipSocialMessage flip_social_messages;     // Store the messages between the logged in user and the selected user
-
 } FlipSocialApp;
+
+static FlipSocialFeed *flip_social_feed = NULL;            // Store the feed
+static FlipSocialModel *flip_social_friends = NULL;        // Store the friends
+static FlipSocialModel2 *flip_social_message_users = NULL; // Store the users that have sent messages to the logged in user
+static FlipSocialModel *flip_social_explore = NULL;        // Store the users to explore
+static FlipSocialMessage *flip_social_messages = NULL;     // Store the messages between the logged in user and the selected user
 
 // include strndup (otherwise NULL pointer dereference)
 char *strndup(const char *s, size_t n)

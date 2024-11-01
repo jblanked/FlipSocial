@@ -1,3 +1,8 @@
+## 0.5
+- Improved memory allocation
+- Improved Feed Page
+- Raspberry Pi Pico W Support
+
 ## 0.4
 - Added direct messaging.
 - Updated app flow for a smoother user experience.
