@@ -436,16 +436,7 @@ static void flip_social_callback_draw_feed(Canvas *canvas, void *model)
         break;
     case ActionFlip:
         canvas_clear(canvas);
-        flip_social_feed->is_flipped[flip_social_feed->index] = !flip_social_feed->is_flipped[flip_social_feed->index];
-        // send post request to flip the message
-        if (app_instance->login_username_logged_in == NULL)
-        {
-            FURI_LOG_E(TAG, "Username is NULL");
-            return;
-        }
-        char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_social_feed->ids[flip_social_feed->index]);
-        flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", "{\"Content-Type\":\"application/json\"}", payload);
+        // Moved to above the is_flipped check
         if (!flip_social_feed->is_flipped[flip_social_feed->index])
         {
             // increase the flip count
@@ -456,6 +447,17 @@ static void flip_social_callback_draw_feed(Canvas *canvas, void *model)
             // decrease the flip count
             flip_social_feed->flips[flip_social_feed->index]--;
         }
+        // change the flip status
+        flip_social_feed->is_flipped[flip_social_feed->index] = !flip_social_feed->is_flipped[flip_social_feed->index];
+        // send post request to flip the message
+        if (app_instance->login_username_logged_in == NULL)
+        {
+            FURI_LOG_E(TAG, "Username is NULL");
+            return;
+        }
+        char payload[256];
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_social_feed->ids[flip_social_feed->index]);
+        flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", "{\"Content-Type\":\"application/json\"}", payload);
         flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
         action = ActionNone;
         break;
