@@ -3,11 +3,12 @@ The first social media app for Flipper Zero. Connect with other users directly o
 
 The highlight of this app is customizable pre-saves, which, as explained below, aim to address the challenges of typing with the directional pad.
 
-FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: [WebCrawler](https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP)
+FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
 
 ## Requirements
-- WiFi Dev Board for Flipper Zero with FlipperHTTP Flash: [FlipperHTTP](https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP)
+- WiFi Dev Board or Raspberry Pi Pico W for Flipper Zero with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
 - WiFi Access Point
+
 
 ## Features
 - Login/Logout
@@ -50,9 +51,12 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 - Raspberry Pi Pico W Support
 
 **v0.6**
-- Improved User Profile (Bio, friend count, block)
+- Improved memory allocation
+- Fixed bugs in Direct Messaging View
+- Fixed bugs in Pre-Save View
 
 **v0.7**
+- Improved User Profile (Bio, friend count, block)
 - Improved Explore Page
 
 **v0.8**

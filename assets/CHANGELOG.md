@@ -1,3 +1,8 @@
+## 0.6
+- Improved memory allocation
+- Fixed bugs in Direct Messaging View
+- Fixed bugs in Pre-Save View
+
 ## 0.5
 - Improved memory allocation
 - Improved Feed Page

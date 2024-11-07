@@ -1,16 +1,6 @@
 // app.c
-#include <jsmn.h>                // Include cJSON
-#include <uart_text_input.h>     // Include the text input widget
-#include <flip_social_e.h>       // Include the FlipSocialApp structure
-#include <flip_social_storage.h> // Include the storage functions
-#include "flip_social_draw.h"
-#include "flip_social_feed.h"
-#include "flip_social_explore.h"
-#include "flip_social_friends.h"
-#include "flip_social_messages.h"
-#include <flip_social_callback.h> // Include the callback functions
-#include <flip_social_i.h>        // Include the initialization functions
-#include <flip_social_free.h>     // Include the cleanup functions
+#include <flip_social.h>             // Include the FlipSocialApp structure
+#include <alloc/flip_social_alloc.h> // Include the allocation functions
 
 /**
  * @brief Entry point for the Hello World application.
