@@ -148,7 +148,7 @@ bool flip_social_get_message_users()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_rss/message_users.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.txt");
 
     fhttp.save_received_data = true;
     char *headers = jsmn("Content-Type", "application/json");
@@ -177,7 +177,7 @@ bool flip_social_get_messages_with_user()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_rss/messages.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages.txt");
 
     fhttp.save_received_data = true;
     char *headers = jsmn("Content-Type", "application/json");

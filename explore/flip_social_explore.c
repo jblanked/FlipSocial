@@ -47,7 +47,7 @@ bool flip_social_get_explore()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_rss/users.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/users.txt");
 
     fhttp.save_received_data = true;
     char *headers = jsmn("Content-Type", "application/json");

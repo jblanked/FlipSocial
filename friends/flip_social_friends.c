@@ -44,7 +44,7 @@ bool flip_social_get_friends()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_rss/friends.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends.txt");
 
     fhttp.save_received_data = true;
     char *headers = jsmn("Content-Type", "application/json");

@@ -121,7 +121,7 @@ bool flip_social_get_feed()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_rss/feed.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed.txt");
 
     fhttp.save_received_data = true;
     char *headers = jsmn("Content-Type", "application/json");
