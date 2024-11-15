@@ -6,7 +6,7 @@ The highlight of this app is customizable pre-saves, which, as explained below, 
 FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
 
 ## Requirements
-- WiFi Dev Board or Raspberry Pi Pico W for Flipper Zero with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
+- WiFi Developer Board or Raspberry Pi Pico W with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
 - WiFi Access Point
 
 
@@ -89,3 +89,7 @@ This is a big project, and I welcome all contributors, especially developers int
 
 5. Out of memory when starting the app or after visiting the feed and post views back-to-back.
 - **Solution:** Restart your Flipper device.
+
+6. I can no longer access my Direct Messages.
+- **Solution 1:** Uppdate the app to version 0.6.2 (or higher)
+- **Solution 2:** Click the logout button then login again.
