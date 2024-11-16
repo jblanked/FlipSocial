@@ -91,5 +91,5 @@ This is a big project, and I welcome all contributors, especially developers int
 - **Solution:** Restart your Flipper device.
 
 6. I can no longer access my Direct Messages.
-- **Solution 1:** Uppdate the app to version 0.6.2 (or higher)
+- **Solution 1:** Uppdate the app to version 0.6.3 (or higher)
 - **Solution 2:** Click the logout button then login again.
