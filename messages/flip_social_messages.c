@@ -171,6 +171,11 @@ bool flip_social_get_messages_with_user()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    if (!flip_social_message_users->usernames[flip_social_message_users->index] || strlen(flip_social_message_users->usernames[flip_social_message_users->index]) == 0)
+    {
+        FURI_LOG_E(TAG, "Username is NULL");
+        return false;
+    }
     char command[128];
     snprintf(
         fhttp.file_path,

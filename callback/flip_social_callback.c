@@ -870,17 +870,15 @@ void flip_social_logged_in_profile_change_password_updated(void *context)
     }
 
     // send post request to change password
+    auth_headers_alloc();
     char payload[256];
     snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
-    char *headers = jsmn("Content-Type", "application/json");
-    if (!flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/change-password/", headers, payload))
+    if (!flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/change-password/", auth_headers, payload))
     {
         FURI_LOG_E(TAG, "Failed to send post request to change password");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        free(headers);
         return;
     }
-    free(headers);
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
 
@@ -992,23 +990,21 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     app->message_user_choice_logged_in[app->message_user_choice_logged_in_temp_buffer_size - 1] = '\0';
 
     // send post request to send message
+    auth_headers_alloc();
     char url[128];
     char payload[256];
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_explore->usernames[flip_social_explore->index], app->message_user_choice_logged_in);
-    char *headers = jsmn("Content-Type", "application/json");
 
-    if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request
+    if (flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp.state = RECEIVING;
-        free(headers);
     }
     else
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        free(headers);
         return;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
@@ -1056,23 +1052,21 @@ void flip_social_logged_in_messages_new_message_updated(void *context)
     app->messages_new_message_logged_in[app->messages_new_message_logged_in_temp_buffer_size - 1] = '\0';
 
     // send post request to send message
+    auth_headers_alloc();
     char url[128];
     char payload[256];
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
-    char *headers = jsmn("Content-Type", "application/json");
 
-    if (flipper_http_post_request_with_headers(url, headers, payload)) // start the async request
+    if (flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp.state = RECEIVING;
-        free(headers);
     }
     else
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        free(headers);
         return;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
