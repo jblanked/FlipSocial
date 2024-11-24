@@ -23,7 +23,6 @@ void flip_social_free_friends()
 {
     if (!flip_social_friends)
     {
-        FURI_LOG_E(TAG, "Friends model is NULL");
         return;
     }
     for (int i = 0; i < flip_social_friends->count; i++)
@@ -33,22 +32,29 @@ void flip_social_free_friends()
             free(flip_social_friends->usernames[i]);
         }
     }
+    free(flip_social_friends);
+    flip_social_friends = NULL;
 }
 
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the friends view
 bool flip_social_get_friends()
 {
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
     // will return true unless the devboard is not connected
     char url[100];
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends.json");
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
-    snprintf(url, 100, "https://www.flipsocial.net/api/user/friends/%s/", app_instance->login_username_logged_in);
+    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/friends/%s/", app_instance->login_username_logged_in);
     if (!flipper_http_get_request_with_headers(url, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for friends");
@@ -125,6 +131,7 @@ bool flip_social_parse_json_friends()
         FURI_LOG_E(TAG, "Failed to parse friends array.");
         furi_string_free(friend_data);
         free(data_cstr);
+        flip_social_free_friends();
         return false;
     }
 
@@ -167,14 +174,16 @@ bool flip_social_parse_json_friends()
         FURI_LOG_E(TAG, "Failed to update friends submenu");
         furi_string_free(friend_data);
         free(data_cstr);
+        free(json_users);
+        free(start);
+        free(end);
         return false;
     }
 
-    // Free the json_users
+    furi_string_free(friend_data);
+    free(data_cstr);
     free(json_users);
     free(start);
     free(end);
-    furi_string_free(friend_data);
-    free(data_cstr);
     return true;
 }

@@ -11,11 +11,11 @@
 
 #define MAX_PRE_SAVED_MESSAGES 25 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
-#define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
+#define MAX_EXPLORE_USERS 100     // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 450            // Adjust based on expected JSON tokens
-#define MAX_FEED_ITEMS 41         // Maximum number of feed items
+#define MAX_TOKENS 640            // Adjust based on expected JSON tokens
+#define MAX_FEED_ITEMS 50         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
 #define MAX_MESSAGE_USERS 20 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
@@ -44,13 +44,13 @@ typedef enum
     FlipSocialSubmenuComposeIndexAddPreSave,       // click to add a pre-saved message
     FlipSocialSubemnuComposeIndexStartIndex = 100, // starting index for the first pre saved message
     //
-    FlipSocialSubmenuExploreIndexStartIndex = 150, // starting index for the users to explore
+    FlipSocialSubmenuExploreIndexStartIndex = 200, // starting index for the users to explore
     //
-    FlipSocialSubmenuLoggedInIndexFriendsStart = 200, // starting index for the friends
+    FlipSocialSubmenuLoggedInIndexFriendsStart = 400, // starting index for the friends
     //
-    FlipSocialSubmenuLoggedInIndexMessagesUsersStart = 250, // starting index for the messages
+    FlipSocialSubmenuLoggedInIndexMessagesUsersStart = 600, // starting index for the messages
     //
-    FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart = 300, // click to select a user to message
+    FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart = 800, // click to select a user to message
 } FlipSocialSubmenuIndex;
 
 // Define the ScriptPlaylist structure
@@ -61,16 +61,22 @@ typedef struct
     size_t index;
 } PreSavedPlaylist;
 
+// Define a FlipSocialFeed individual item
 typedef struct
 {
-    char *usernames[MAX_FEED_ITEMS];
-    char *messages[MAX_FEED_ITEMS];
-    bool is_flipped[MAX_FEED_ITEMS];
+    char *username;
+    char *message;
+    bool is_flipped;
+    int id;
+    int flips;
+} FlipSocialFeedItem;
+
+typedef struct
+{
     int ids[MAX_FEED_ITEMS];
-    int flips[MAX_FEED_ITEMS];
     size_t count;
     size_t index;
-} FlipSocialFeed;
+} FlipSocialFeedMini;
 
 typedef struct
 {
@@ -140,6 +146,8 @@ typedef enum
     FlipSocialViewLoggedInFriendsProcess,  // The view after clicking on a friend in the friends screen
     FlipSocialViewLoggedInMessagesSubmenu, // The view after clicking the messages button on the profile screen
     FlipSocialViewLoggedInMessagesProcess, // The view after clicking on a user in the messages screen
+    //
+    FlipSocialViewLoading, // The loading screen
 } FlipSocialView;
 
 // Define the application structure
@@ -272,16 +280,18 @@ typedef struct
     char *message_user_choice_logged_in;                     // Store the entered message to send to the selected user
     char *message_user_choice_logged_in_temp_buffer;         // Temporary buffer for message to send to the selected user
     uint32_t message_user_choice_logged_in_temp_buffer_size; // Size of the message to send to the selected user temporary buffer
+
+    Loading *loading; // The loading screen
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);
 
-extern FlipSocialFeed *flip_social_feed;            // Store the feed
 extern FlipSocialModel *flip_social_friends;        // Store the friends
 extern FlipSocialModel2 *flip_social_message_users; // Store the users that have sent messages to the logged in user
 extern FlipSocialModel *flip_social_explore;        // Store the users to explore
 extern FlipSocialMessage *flip_social_messages;     // Store the messages between the logged in user and the selected user
-
+extern FlipSocialFeedMini *flip_feed_info;          // Store the feed info
+extern FlipSocialFeedItem *flip_feed_item;          // Store a feed item
 extern FlipSocialApp *app_instance;
 
 extern bool flip_social_sent_login_request;
@@ -296,4 +306,6 @@ extern char *selected_message;
 extern char auth_headers[256];
 
 void auth_headers_alloc(void);
+FlipSocialFeedMini *flip_feed_info_alloc(void);
+void flip_feed_info_free(void);
 #endif

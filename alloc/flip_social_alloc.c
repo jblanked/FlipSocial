@@ -165,11 +165,11 @@ FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.6", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.6", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -266,27 +266,27 @@ FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
 
-    app->variable_item_logged_out_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "SSID", 1, NULL, NULL);
-    app->variable_item_logged_out_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "Password", 1, NULL, NULL);
+    app->variable_item_logged_out_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "SSID", 1, NULL, app);
+    app->variable_item_logged_out_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "Password", 1, NULL, app);
     //
-    app->variable_item_logged_out_login_username = variable_item_list_add(app->variable_item_list_logged_out_login, "Username", 1, NULL, NULL);
-    app->variable_item_logged_out_login_password = variable_item_list_add(app->variable_item_list_logged_out_login, "Password", 1, NULL, NULL);
-    app->variable_item_logged_out_login_button = variable_item_list_add(app->variable_item_list_logged_out_login, "Login", 0, NULL, NULL);
+    app->variable_item_logged_out_login_username = variable_item_list_add(app->variable_item_list_logged_out_login, "Username", 1, NULL, app);
+    app->variable_item_logged_out_login_password = variable_item_list_add(app->variable_item_list_logged_out_login, "Password", 1, NULL, app);
+    app->variable_item_logged_out_login_button = variable_item_list_add(app->variable_item_list_logged_out_login, "Login", 0, NULL, app);
     //
-    app->variable_item_logged_out_register_username = variable_item_list_add(app->variable_item_list_logged_out_register, "Username", 1, NULL, NULL);
-    app->variable_item_logged_out_register_password = variable_item_list_add(app->variable_item_list_logged_out_register, "Password", 1, NULL, NULL);
-    app->variable_item_logged_out_register_password_2 = variable_item_list_add(app->variable_item_list_logged_out_register, "Confirm Password", 1, NULL, NULL);
-    app->variable_item_logged_out_register_button = variable_item_list_add(app->variable_item_list_logged_out_register, "Register", 0, NULL, NULL);
+    app->variable_item_logged_out_register_username = variable_item_list_add(app->variable_item_list_logged_out_register, "Username", 1, NULL, app);
+    app->variable_item_logged_out_register_password = variable_item_list_add(app->variable_item_list_logged_out_register, "Password", 1, NULL, app);
+    app->variable_item_logged_out_register_password_2 = variable_item_list_add(app->variable_item_list_logged_out_register, "Confirm Password", 1, NULL, app);
+    app->variable_item_logged_out_register_button = variable_item_list_add(app->variable_item_list_logged_out_register, "Register", 0, NULL, app);
     //
-    app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 0, NULL, NULL);
-    app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Change Password", 0, NULL, NULL);
-    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, NULL);
+    app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 1, NULL, app);
+    app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Change Password", 1, NULL, app);
+    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, app);
     //
-    app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, NULL);
-    app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, NULL);
+    app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, app);
+    app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, app);
     //
-    app->variable_item_logged_in_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "SSID", 1, NULL, NULL);
-    app->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "Password", 1, NULL, NULL);
+    app->variable_item_logged_in_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "SSID", 1, NULL, app);
+    app->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "Password", 1, NULL, app);
 
     // Setup Text Input(s)
     if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_wifi_settings_ssid, FlipSocialViewLoggedOutWifiSettingsSSIDInput, "Enter SSID", app->wifi_ssid_logged_out_temp_buffer, app->wifi_ssid_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_out, &app->view_dispatcher, app))

@@ -1,11 +1,11 @@
 #include "flip_social.h"
 
-FlipSocialFeed *flip_social_feed = NULL;            // Store the feed
 FlipSocialModel *flip_social_friends = NULL;        // Store the friends
 FlipSocialModel2 *flip_social_message_users = NULL; // Store the users that have sent messages to the logged in user
 FlipSocialModel *flip_social_explore = NULL;        // Store the users to explore
 FlipSocialMessage *flip_social_messages = NULL;     // Store the messages between the logged in user and the selected user
-
+FlipSocialFeedMini *flip_feed_info = NULL;          // Store the feed info
+FlipSocialFeedItem *flip_feed_item = NULL;          // Store a feed item
 FlipSocialApp *app_instance = NULL;
 
 bool flip_social_sent_login_request = false;
@@ -306,14 +306,15 @@ void auth_headers_alloc(void)
 {
     if (!app_instance)
     {
+        snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\"}");
         return;
     }
 
-    if (app_instance->login_username_logged_out && app_instance->login_password_logged_out)
+    if (app_instance->login_username_logged_out && app_instance->login_password_logged_out && strlen(app_instance->login_username_logged_out) > 0 && strlen(app_instance->login_password_logged_out) > 0)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\",\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
     }
-    else if (app_instance->login_username_logged_in && app_instance->change_password_logged_in)
+    else if (app_instance->login_username_logged_in && app_instance->change_password_logged_in && strlen(app_instance->login_username_logged_in) > 0 && strlen(app_instance->change_password_logged_in) > 0)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\",\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_in, app_instance->change_password_logged_in);
     }
@@ -321,4 +322,27 @@ void auth_headers_alloc(void)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\"}");
     }
+}
+
+FlipSocialFeedMini *flip_feed_info_alloc(void)
+{
+    FlipSocialFeedMini *feed_info = (FlipSocialFeedMini *)malloc(sizeof(FlipSocialFeedMini));
+    if (!feed_info)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for feed_info");
+        return NULL;
+    }
+    feed_info->count = 0;
+    feed_info->index = 0;
+    return feed_info;
+}
+
+void flip_feed_info_free(void)
+{
+    if (!flip_feed_info)
+    {
+        return;
+    }
+    free(flip_feed_info);
+    flip_feed_info = NULL;
 }

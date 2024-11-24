@@ -28,7 +28,6 @@ void flip_social_free_explore()
 {
     if (!flip_social_explore)
     {
-        FURI_LOG_E(TAG, "Explore model is NULL");
         return;
     }
     for (int i = 0; i < flip_social_explore->count; i++)
@@ -38,6 +37,8 @@ void flip_social_free_explore()
             free(flip_social_explore->usernames[i]);
         }
     }
+    free(flip_social_explore);
+    flip_social_explore = NULL;
 }
 
 // for now we're just listing the current users
@@ -47,7 +48,7 @@ bool flip_social_get_explore()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/users.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/users.json");
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -99,7 +100,7 @@ bool flip_social_parse_json_explore()
     flip_social_explore->count = 0;
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("users", data_cstr, MAX_TOKENS);
+    char *json_users = get_json_value("users", data_cstr, MAX_TOKENS); // currently it's about 480 tokens
     if (json_users == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse users array.");

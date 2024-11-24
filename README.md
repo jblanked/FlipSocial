@@ -90,6 +90,6 @@ This is a big project, and I welcome all contributors, especially developers int
 5. Out of memory when starting the app or after visiting the feed and post views back-to-back.
 - **Solution:** Restart your Flipper device.
 
-6. I can no longer access my Direct Messages.
+6. I can no longer access the Messages.
 - **Solution 1:** Uppdate the app to version 0.6.3 (or higher)
-- **Solution 2:** Click the logout button then login again.
+- **Solution 2:** Click the logout button then login again. Make sure your password is correct before clicking "Login".

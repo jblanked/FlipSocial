@@ -369,3 +369,34 @@ bool load_settings(
 
     return true;
 }
+
+bool flip_social_save_post(char *post_id, char *json_feed_data)
+{
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    File *file = storage_file_alloc(storage);
+
+    char file_path[128];
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed_post_%s.json", post_id);
+
+    if (!storage_file_open(file, file_path, FSAM_WRITE, FSOM_CREATE_ALWAYS))
+    {
+        FURI_LOG_E(TAG, "Failed to open file for writing: %s", file_path);
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return false;
+    }
+
+    if (storage_file_write(file, json_feed_data, strlen(json_feed_data)) != strlen(json_feed_data))
+    {
+        FURI_LOG_E(TAG, "Failed to write feed post data");
+        storage_file_close(file);
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return false;
+    }
+
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+    return true;
+}

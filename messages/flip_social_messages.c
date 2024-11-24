@@ -61,7 +61,6 @@ void flip_social_free_message_users()
 {
     if (flip_social_message_users == NULL)
     {
-        FURI_LOG_E(TAG, "Message users model is NULL");
         return;
     }
     for (int i = 0; i < flip_social_message_users->count; i++)
@@ -71,13 +70,14 @@ void flip_social_free_message_users()
             free(flip_social_message_users->usernames[i]);
         }
     }
+    free(flip_social_message_users);
+    flip_social_message_users = NULL;
 }
 
 void flip_social_free_messages()
 {
     if (flip_social_messages == NULL)
     {
-        FURI_LOG_E(TAG, "Messages model is NULL");
         return;
     }
     for (int i = 0; i < flip_social_messages->count; i++)
@@ -91,6 +91,8 @@ void flip_social_free_messages()
             free(flip_social_messages->messages[i]);
         }
     }
+    free(flip_social_messages);
+    flip_social_messages = NULL;
 }
 
 bool flip_social_update_messages_submenu()
@@ -148,7 +150,7 @@ bool flip_social_get_message_users()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.json");
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -180,7 +182,8 @@ bool flip_social_get_messages_with_user()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s_messages.json",
+        flip_social_message_users->usernames[flip_social_message_users->index]);
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -430,8 +433,8 @@ bool flip_social_parse_json_messages()
         }
 
         // Extract individual fields from the JSON object
-        char *sender = get_json_value("sender", item, MAX_TOKENS);
-        char *content = get_json_value("content", item, MAX_TOKENS);
+        char *sender = get_json_value("sender", item, 64);
+        char *content = get_json_value("content", item, 64);
 
         if (sender == NULL || content == NULL)
         {

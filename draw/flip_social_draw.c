@@ -205,7 +205,6 @@ void flip_social_callback_draw_compose(Canvas *canvas, void *model)
             char command[256];
             snprintf(command, sizeof(command), "{\"username\":\"%s\",\"content\":\"%s\"}",
                      app_instance->login_username_logged_in, selected_message);
-
             if (!flipper_http_post_request_with_headers(
                     "https://www.flipsocial.net/api/feed/post/",
                     auth_headers,
@@ -277,19 +276,60 @@ void flip_social_callback_draw_compose(Canvas *canvas, void *model)
             canvas_draw_str(canvas, 0, 50, "Loading feed :D");
             canvas_draw_str(canvas, 0, 60, "Please wait...");
             action = ActionNone;
-            if (flipper_http_process_response_async(flip_social_get_feed, flip_social_parse_json_feed))
+            // Send the user to the feed
+
+            if (!easy_flipper_set_loading(&app_instance->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
             {
-                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+                FURI_LOG_E(TAG, "Failed to set loading screen");
+                return; // already on the submenu
+            }
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+            if (flip_social_get_feed()) // start the async request
+            {
+                furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+                fhttp.state = RECEIVING;
             }
             else
             {
-                // Set failure FlipSocialFeed object
-                if (!flip_social_temp_feed())
-                {
-                    return;
-                }
-                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+                FURI_LOG_E(HTTP_TAG, "Failed to send request");
+                fhttp.state = ISSUE;
+                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+                loading_free(app_instance->loading);
+                return;
             }
+            while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+            {
+                // Wait for the request to be received
+                furi_delay_ms(100);
+            }
+            furi_timer_stop(fhttp.get_timeout_timer);
+
+            // load feed info
+            flip_feed_info = flip_social_parse_json_feed();
+            if (!flip_feed_info || flip_feed_info->count < 1)
+            {
+                FURI_LOG_E(TAG, "Failed to parse JSON feed");
+                fhttp.state = ISSUE;
+                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+                loading_free(app_instance->loading);
+                return;
+            }
+
+            // load the current feed post
+            if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+            {
+                FURI_LOG_E(TAG, "Failed to load feed post");
+                fhttp.state = ISSUE;
+                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+                loading_free(app_instance->loading);
+                return;
+            }
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+            view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+            loading_free(app_instance->loading);
         }
         else if (action == ActionBack)
         {
@@ -422,41 +462,55 @@ void flip_social_callback_draw_feed(Canvas *canvas, void *model)
     switch (action)
     {
     case ActionNone:
-        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
+        flip_social_canvas_draw_message(canvas, flip_feed_item->username, flip_feed_item->message, flip_feed_item->is_flipped, flip_feed_info->index > 0, flip_feed_info->index < flip_feed_info->count - 1, flip_feed_item->flips);
         break;
     case ActionNext:
         canvas_clear(canvas);
-        if (flip_social_feed->index < flip_social_feed->count - 1)
+        if (flip_feed_info->index < flip_feed_info->count - 1)
         {
-            flip_social_feed->index++;
+            flip_feed_info->index++;
         }
-        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
+        // load the next feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return;
+        }
+        flip_social_canvas_draw_message(canvas, flip_feed_item->username, flip_feed_item->message, flip_feed_item->is_flipped, flip_feed_info->index > 0, flip_feed_info->index < flip_feed_info->count - 1, flip_feed_item->flips);
         action = ActionNone;
         break;
     case ActionPrev:
         canvas_clear(canvas);
-        if (flip_social_feed->index > 0)
+        if (flip_feed_info->index > 0)
         {
-            flip_social_feed->index--;
+            flip_feed_info->index--;
         }
-        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
+        // load the previous feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return;
+        }
+        flip_social_canvas_draw_message(canvas, flip_feed_item->username, flip_feed_item->message, flip_feed_item->is_flipped, flip_feed_info->index > 0, flip_feed_info->index < flip_feed_info->count - 1, flip_feed_item->flips);
         action = ActionNone;
         break;
     case ActionFlip:
         canvas_clear(canvas);
         // Moved to above the is_flipped check
-        if (!flip_social_feed->is_flipped[flip_social_feed->index])
+        if (!flip_feed_item->is_flipped)
         {
             // increase the flip count
-            flip_social_feed->flips[flip_social_feed->index]++;
+            flip_feed_item->flips++;
         }
         else
         {
             // decrease the flip count
-            flip_social_feed->flips[flip_social_feed->index]--;
+            flip_feed_item->flips--;
         }
         // change the flip status
-        flip_social_feed->is_flipped[flip_social_feed->index] = !flip_social_feed->is_flipped[flip_social_feed->index];
+        flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
         // send post request to flip the message
         if (app_instance->login_username_logged_in == NULL)
         {
@@ -464,15 +518,15 @@ void flip_social_callback_draw_feed(Canvas *canvas, void *model)
             return;
         }
         char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_social_feed->ids[flip_social_feed->index]);
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
         flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", auth_headers, payload);
-        flip_social_canvas_draw_message(canvas, flip_social_feed->usernames[flip_social_feed->index], flip_social_feed->messages[flip_social_feed->index], flip_social_feed->is_flipped[flip_social_feed->index], flip_social_feed->index > 0, flip_social_feed->index < flip_social_feed->count - 1, flip_social_feed->flips[flip_social_feed->index]);
+        flip_social_canvas_draw_message(canvas, flip_feed_item->username, flip_feed_item->message, flip_feed_item->is_flipped, flip_feed_info->index > 0, flip_feed_info->index < flip_feed_info->count - 1, flip_feed_item->flips);
         action = ActionNone;
         break;
     case ActionBack:
         canvas_clear(canvas);
         flip_social_dialog_stop = true;
-        flip_social_feed->index = 0;
+        flip_feed_info->index = 0;
         action = ActionNone;
         break;
     default:
@@ -564,7 +618,7 @@ void flip_social_callback_draw_login(Canvas *canvas, void *model)
                 }
                 if (app_instance->login_password_logged_out)
                 {
-                    app_instance->change_password_logged_in = app_instance->login_password_logged_out;
+                    strcpy(app_instance->change_password_logged_in, app_instance->login_password_logged_out);
                 }
 
                 save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
@@ -628,6 +682,7 @@ void flip_social_callback_draw_register(Canvas *canvas, void *model)
     // Perform login request
     if (!flip_social_sent_register_request)
     {
+
         // check if the username and password are valid
         if (!app_instance->register_username_logged_out || !app_instance->register_password_logged_out || strlen(app_instance->register_username_logged_out) == 0 || strlen(app_instance->register_password_logged_out) == 0)
         {

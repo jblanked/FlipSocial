@@ -20,10 +20,15 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
 {
     UNUSED(context);
     flip_social_free_explore();
-    flip_social_free_feed();
     flip_social_free_friends();
     flip_social_free_message_users();
     flip_social_free_messages();
+    flip_feed_info_free();
+    if (flip_feed_item)
+    {
+        free(flip_feed_item);
+        flip_feed_item = NULL;
+    }
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -116,7 +121,7 @@ uint32_t flip_social_callback_to_profile_logged_in(void *context)
 uint32_t flip_social_callback_to_explore_logged_in(void *context)
 {
     UNUSED(context);
-    flip_social_dialog_stop = true;
+    flip_social_dialog_stop = false;
     last_explore_response = "";
     flip_social_dialog_shown = false;
     flip_social_explore->index = 0;
@@ -132,7 +137,7 @@ uint32_t flip_social_callback_to_explore_logged_in(void *context)
 uint32_t flip_social_callback_to_friends_logged_in(void *context)
 {
     UNUSED(context);
-    flip_social_dialog_stop = true;
+    flip_social_dialog_stop = false;
     last_explore_response = "";
     flip_social_dialog_shown = false;
     flip_social_friends->index = 0;
@@ -215,37 +220,82 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
         break;
     case FlipSocialSubmenuLoggedInIndexMessages:
-        if (flipper_http_process_response_async(flip_social_get_message_users, flip_social_parse_json_message_users))
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
-        }
+        flipper_http_loading_task(
+            flip_social_get_message_users,         // get the message users
+            flip_social_parse_json_message_users,  // parse the message users
+            FlipSocialViewLoggedInMessagesSubmenu, // switch to the messages submenu if successful
+            FlipSocialViewLoggedInSubmenu,         // switch back to the main submenu if failed
+            &app->view_dispatcher);                // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
-        if (flipper_http_process_response_async(flip_social_get_explore, flip_social_parse_json_message_user_choices))
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesUserChoices);
-        }
+        flipper_http_loading_task(
+            flip_social_get_explore,                     // get the explore users
+            flip_social_parse_json_message_user_choices, // parse the explore users
+            FlipSocialViewLoggedInMessagesUserChoices,   // switch to the user choices if successful
+            FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
+            &app->view_dispatcher);                      // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
-        if (flipper_http_process_response_async(flip_social_get_feed, flip_social_parse_json_feed))
+        if (!easy_flipper_set_loading(&app->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
         {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
+            FURI_LOG_E(TAG, "Failed to set loading screen");
+            return; // already on the submenu
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoading);
+        if (flip_social_get_feed()) // start the async request
+        {
+            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+            fhttp.state = RECEIVING;
         }
         else
         {
-            // Set failure FlipSocialFeed object
-            if (!flip_social_temp_feed())
-            {
-                return;
-            }
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
+            FURI_LOG_E(HTTP_TAG, "Failed to send request");
+            fhttp.state = ISSUE;
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
+            loading_free(app->loading);
+            return;
         }
+        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+        {
+            // Wait for the request to be received
+            furi_delay_ms(100);
+        }
+        furi_timer_stop(fhttp.get_timeout_timer);
+
+        // load feed info
+        flip_feed_info = flip_social_parse_json_feed();
+        if (!flip_feed_info || flip_feed_info->count < 1)
+        {
+            FURI_LOG_E(TAG, "Failed to parse JSON feed");
+            fhttp.state = ISSUE;
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
+            loading_free(app->loading);
+            return;
+        }
+
+        // load the current feed post
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load feed post");
+            fhttp.state = ISSUE;
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
+            loading_free(app->loading);
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
+        loading_free(app->loading);
         break;
     case FlipSocialSubmenuExploreIndex:
-        if (flipper_http_process_response_async(flip_social_get_explore, flip_social_parse_json_explore))
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
-        }
+        flipper_http_loading_task(
+            flip_social_get_explore,              // get the explore users
+            flip_social_parse_json_explore,       // parse the explore users
+            FlipSocialViewLoggedInExploreSubmenu, // switch to the explore submenu if successful
+            FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
+            &app->view_dispatcher);               // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexCompose:
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
@@ -311,10 +361,12 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_message_users->index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
-            if (flipper_http_process_response_async(flip_social_get_messages_with_user, flip_social_parse_json_messages))
-            {
-                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesProcess);
-            }
+            flipper_http_loading_task(
+                flip_social_get_messages_with_user,    // get the messages with the selected user
+                flip_social_parse_json_messages,       // parse the messages
+                FlipSocialViewLoggedInMessagesProcess, // switch to the messages process if successful
+                FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
+                &app->view_dispatcher);                // view dispatcher
         }
 
         // handle the messages user choices selection
@@ -367,10 +419,13 @@ void flip_social_logged_out_wifi_settings_ssid_updated(void *context)
     }
 
     // update the wifi settings
-    if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+    if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
     }
 
     // Save the settings
@@ -409,10 +464,13 @@ void flip_social_logged_out_wifi_settings_password_updated(void *context)
     }
 
     // update the wifi settings
-    if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+    if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
     }
 
     // Save the settings
@@ -908,25 +966,7 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInChangePasswordInput);
         break;
     case 2: // Friends
-        // get friends then switch to the friends screen
-        if (flip_social_get_friends()) // start the async friends request
-        {
-            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-        }
-        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-        {
-            // Wait for the friends to be received
-            furi_delay_ms(100);
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-        if (!flip_social_parse_json_friends()) // parse the JSON before switching to the friends (synchonous)
-        {
-            FURI_LOG_E(TAG, "Failed to parse the JSON friends...");
-            return; // just return for now, no temporary friends yet
-            // show a popup message saving wifi is disconnected
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
+        flipper_http_loading_task(flip_social_get_friends, flip_social_parse_json_friends, FlipSocialViewLoggedInFriendsSubmenu, FlipSocialViewLoggedInProfile, &app->view_dispatcher);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1005,12 +1045,13 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        fhttp.state = ISSUE;
         return;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
     {
         // Wait for the request to be received
-        furi_delay_ms(100);
+        furi_delay_ms(10);
     }
     furi_timer_stop(fhttp.get_timeout_timer);
 
@@ -1067,12 +1108,13 @@ void flip_social_logged_in_messages_new_message_updated(void *context)
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        fhttp.state = ISSUE;
         return;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
     {
         // Wait for the request to be received
-        furi_delay_ms(100);
+        furi_delay_ms(10);
     }
     furi_timer_stop(fhttp.get_timeout_timer);
     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);

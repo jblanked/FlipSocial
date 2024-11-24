@@ -1,3 +1,9 @@
+## 0.7
+- Improved memory allocation
+- Increased the max explore users from 50 to 100
+- Increased the max feed posts from 40 to 50.
+- Added loading screens.
+
 ## 0.6
 - Improved memory allocation
 - Fixed bugs in Direct Messaging View
