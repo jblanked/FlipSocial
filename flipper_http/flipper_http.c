@@ -1508,6 +1508,11 @@ void flipper_http_loading_task(bool (*http_request)(void),
                                uint32_t failure_view_id,
                                ViewDispatcher **view_dispatcher)
 {
+    if (fhttp.state == INACTIVE)
+    {
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        return;
+    }
     Loading *loading;
     int32_t loading_view_id = 987654321; // Random ID
 

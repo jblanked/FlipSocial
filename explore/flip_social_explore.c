@@ -45,6 +45,11 @@ void flip_social_free_explore()
 // as the feed is upgraded, then we can port more to the explore view
 bool flip_social_get_explore()
 {
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),

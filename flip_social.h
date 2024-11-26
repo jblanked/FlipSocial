@@ -148,11 +148,17 @@ typedef enum
     FlipSocialViewLoggedInMessagesProcess, // The view after clicking on a user in the messages screen
     //
     FlipSocialViewLoading, // The loading screen
+    //
+    FlipSocialViewWidgetResult, // The text box that displays the random fact
+    FlipSocialViewLoader,       // The loader screen retrieves data from the internet
 } FlipSocialView;
 
 // Define the application structure
 typedef struct
 {
+    View *view_loader;
+    Widget *widget_result;
+    //
     ViewDispatcher *view_dispatcher;        // Switches between our views
     Submenu *submenu_logged_out;            // The application submenu (logged out)
     Submenu *submenu_logged_in;             // The application submenu (logged in)

@@ -7,6 +7,11 @@ bool flip_social_get_feed()
         FURI_LOG_E(TAG, "FlipSocialApp is NULL");
         return false;
     }
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     // Get the feed from the server
     if (app_instance->login_username_logged_out == NULL)
     {

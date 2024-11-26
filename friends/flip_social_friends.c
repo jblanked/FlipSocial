@@ -45,6 +45,11 @@ bool flip_social_get_friends()
         FURI_LOG_E(TAG, "App instance is NULL");
         return false;
     }
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     // will return true unless the devboard is not connected
     char url[100];
     snprintf(

@@ -146,6 +146,11 @@ bool flip_social_get_message_users()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     char command[128];
     snprintf(
         fhttp.file_path,
@@ -168,6 +173,11 @@ bool flip_social_get_message_users()
 // Get all the messages between the logged in user and the selected user
 bool flip_social_get_messages_with_user()
 {
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     if (app_instance->login_username_logged_out == NULL)
     {
         FURI_LOG_E(TAG, "Username is NULL");
