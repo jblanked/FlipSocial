@@ -29,20 +29,6 @@ void flip_social_callback_draw_compose(Canvas *canvas, void *model);
 void flip_social_canvas_draw_message(Canvas *canvas, char *user_username, char *user_message, bool is_flipped, bool show_prev, bool show_next, int flip_count);
 // Callback function to handle the feed dialog
 void flip_social_callback_draw_feed(Canvas *canvas, void *model);
-/**
- * @brief Navigation callback for asynchonously handling the login process.
- * @param canvas The canvas to draw on.
- * @param model The model - unused
- * @return void
- */
-void flip_social_callback_draw_login(Canvas *canvas, void *model);
-/**
- * @brief Navigation callback for asynchonously handling the register process.
- * @param canvas The canvas to draw on.
- * @param model The model - unused
- * @return void
- */
-void flip_social_callback_draw_register(Canvas *canvas, void *model);
 
 // function to draw the dialog canvas
 void flip_social_canvas_draw_explore(Canvas *canvas, char *user_username, char *content);

@@ -222,14 +222,6 @@ FlipSocialApp *flip_social_app_alloc()
     //
 
     // Allocate View(s)
-    if (!easy_flipper_set_view(&app->view_process_login, FlipSocialViewLoggedOutProcessLogin, flip_social_callback_draw_login, NULL, flip_social_callback_to_login_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_register, FlipSocialViewLoggedOutProcessRegister, flip_social_callback_draw_register, NULL, flip_social_callback_to_register_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
     if (!easy_flipper_set_view(&app->view_process_feed, FlipSocialViewLoggedInFeed, flip_social_callback_draw_feed, NULL, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
     {
         return NULL;

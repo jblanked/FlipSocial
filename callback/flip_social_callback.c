@@ -10,7 +10,7 @@
 #define DEV_CRASH()
 #endif
 
-static void flip_social_request_error_draw(Canvas *canvas)
+void flip_social_request_error_draw(Canvas *canvas)
 {
     if (canvas == NULL)
     {
@@ -61,6 +61,153 @@ static void flip_social_request_error_draw(Canvas *canvas)
         canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
         canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
     }
+}
+
+static bool flip_social_login_fetch(DataLoaderModel *model)
+{
+    UNUSED(model);
+    if (!app_instance->login_username_logged_out || !app_instance->login_password_logged_out || strlen(app_instance->login_username_logged_out) == 0 || strlen(app_instance->login_password_logged_out) == 0)
+    {
+        return false;
+    }
+
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
+    auth_headers_alloc();
+    if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/login/", auth_headers, buffer))
+    {
+        fhttp.state = RECEIVING;
+        return true;
+    }
+    else
+    {
+        fhttp.state = ISSUE;
+        return false;
+    }
+}
+
+static char *flip_social_login_parse(DataLoaderModel *model)
+{
+    UNUSED(model);
+    // read response
+    if (strstr(fhttp.last_response, "[SUCCESS]") != NULL || strstr(fhttp.last_response, "User found") != NULL)
+    {
+        app_instance->is_logged_in = "true";
+
+        // set the logged_in_username and change_password_logged_in
+        if (app_instance->login_username_logged_out)
+        {
+            strcpy(app_instance->login_username_logged_in, app_instance->login_username_logged_out);
+        }
+        if (app_instance->login_password_logged_out)
+        {
+            strcpy(app_instance->change_password_logged_in, app_instance->login_password_logged_out);
+        }
+
+        save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
+
+        // send user to the logged in submenu
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        return "Login successful!";
+    }
+    else if (strstr(fhttp.last_response, "User not found") != NULL)
+    {
+        return "Account not found...";
+    }
+    else
+    {
+        return "Failed to login...";
+    }
+}
+
+static void flip_social_login_switch_to_view(FlipSocialApp *app)
+{
+    flip_social_generic_switch_to_view(app, "Logging in...", flip_social_login_fetch, flip_social_login_parse, 1, flip_social_callback_to_login_logged_out, FlipSocialViewLoader);
+}
+
+static bool flip_social_register_fetch(DataLoaderModel *model)
+{
+    UNUSED(model);
+    // check if the username and password are valid
+    if (!app_instance->register_username_logged_out || !app_instance->register_password_logged_out || strlen(app_instance->register_username_logged_out) == 0 || strlen(app_instance->register_password_logged_out) == 0)
+    {
+        FURI_LOG_E(TAG, "Username or password is NULL");
+        return false;
+    }
+
+    // check if both passwords match
+    if (strcmp(app_instance->register_password_logged_out, app_instance->register_password_2_logged_out) != 0)
+    {
+        FURI_LOG_E(TAG, "Passwords do not match");
+        return false;
+    }
+
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->register_username_logged_out, app_instance->register_password_logged_out);
+
+    if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer))
+    {
+        // Set the state to RECEIVING to ensure we continue to see the receiving message
+        fhttp.state = RECEIVING;
+        return true;
+    }
+    else
+    {
+        fhttp.state = ISSUE;
+        return false;
+    }
+}
+
+static char *flip_social_register_parse(DataLoaderModel *model)
+{
+    UNUSED(model);
+    // read response
+    if (fhttp.last_response != NULL && (strstr(fhttp.last_response, "[SUCCESS]") != NULL || strstr(fhttp.last_response, "User created") != NULL))
+    {
+        // set the login credentials
+        if (app_instance->login_username_logged_out)
+        {
+            app_instance->login_username_logged_out = app_instance->register_username_logged_out;
+        }
+        if (app_instance->login_password_logged_out)
+        {
+            app_instance->login_password_logged_out = app_instance->register_password_logged_out;
+            app_instance->change_password_logged_in = app_instance->register_password_logged_out;
+        }
+        if (app_instance->login_username_logged_in)
+        {
+            app_instance->login_username_logged_in = app_instance->register_username_logged_out;
+        }
+
+        app_instance->is_logged_in = "true";
+
+        // update header credentials
+        auth_headers_alloc();
+
+        // save the credentials
+        save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->is_logged_in);
+
+        // send user to the logged in submenu
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        return "Registration successful!\nWelcome to FlipSocial!";
+    }
+    else if (strstr(fhttp.last_response, "Username or password not provided") != NULL)
+    {
+        return "Please enter your credentials.\nPress BACK to return.";
+    }
+    else if (strstr(fhttp.last_response, "User already exists") != NULL || strstr(fhttp.last_response, "Multiple users found") != NULL)
+    {
+        return "Registration failed...\nUsername already exists.\nPress BACK to return.";
+    }
+    else
+    {
+        return "Registration failed...\nUpdate your credentials.\nPress BACK to return.";
+    }
+}
+
+static void flip_social_register_switch_to_view(FlipSocialApp *app)
+{
+    flip_social_generic_switch_to_view(app, "Registering...", flip_social_register_fetch, flip_social_register_parse, 1, flip_social_callback_to_register_logged_out, FlipSocialViewLoader);
 }
 
 /**
@@ -670,7 +817,7 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLoginPasswordInput);
         break;
     case 2: // Login Button
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutProcessLogin);
+        flip_social_login_switch_to_view(app);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -788,7 +935,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPassword2Input);
         break;
     case 3: // Register button
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutProcessRegister);
+        flip_social_register_switch_to_view(app);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1333,7 +1480,7 @@ void flip_social_loader_draw_callback(Canvas *canvas, void *model)
 
     if (http_state == SENDING)
     {
-        canvas_draw_str(canvas, 0, 27, "Sending...");
+        canvas_draw_str(canvas, 0, 27, "Fetching...");
         return;
     }
 

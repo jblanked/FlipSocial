@@ -9,6 +9,8 @@
 #include <draw/flip_social_draw.h>
 #include <flip_storage/flip_social_storage.h>
 
+void flip_social_request_error_draw(Canvas *canvas);
+
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
  * @param context The context - unused
