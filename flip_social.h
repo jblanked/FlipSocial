@@ -170,8 +170,6 @@ typedef struct
     Widget *widget_logged_out_about;        // The about screen (logged out)
     Widget *widget_logged_in_about;         // The about screen (logged in)
 
-    View *view_process_login;    // The screen displayed after clicking login
-    View *view_process_register; // The screen displayed after clicking register
     View *view_process_feed;     // Dialog for the feed screen
     View *view_process_compose;  // Dialog for the compose screen (delete or send)
     View *view_process_explore;  // Dialog for the explore screen (view user profile - add or delete friend)
