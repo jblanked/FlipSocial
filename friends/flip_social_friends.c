@@ -19,23 +19,6 @@ FlipSocialModel *flip_social_friends_alloc()
     return friends;
 }
 
-void flip_social_free_friends()
-{
-    if (!flip_social_friends)
-    {
-        return;
-    }
-    for (int i = 0; i < flip_social_friends->count; i++)
-    {
-        if (flip_social_friends->usernames[i])
-        {
-            free(flip_social_friends->usernames[i]);
-        }
-    }
-    free(flip_social_friends);
-    flip_social_friends = NULL;
-}
-
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the friends view
 bool flip_social_get_friends()
@@ -129,6 +112,10 @@ bool flip_social_parse_json_friends()
     // Initialize friends count
     flip_social_friends->count = 0;
 
+    // Reset the friends submenu
+    submenu_reset(app_instance->submenu_friends);
+    submenu_set_header(app_instance->submenu_friends, "Friends");
+
     // Extract the users array from the JSON
     char *json_users = get_json_value("friends", data_cstr, MAX_TOKENS);
     if (json_users == NULL)
@@ -136,7 +123,6 @@ bool flip_social_parse_json_friends()
         FURI_LOG_E(TAG, "Failed to parse friends array.");
         furi_string_free(friend_data);
         free(data_cstr);
-        flip_social_free_friends();
         return false;
     }
 
@@ -155,6 +141,7 @@ bool flip_social_parse_json_friends()
 
         // Copy username to pre-allocated memory
         snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
+        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
         flip_social_friends->count++;
         start = end + 1;
     }
@@ -170,19 +157,8 @@ bool flip_social_parse_json_friends()
             *(start + strlen(start) - 1) = '\0';
 
         snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
+        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
         flip_social_friends->count++;
-    }
-
-    // Add submenu items for the friends
-    if (!flip_social_update_friends())
-    {
-        FURI_LOG_E(TAG, "Failed to update friends submenu");
-        furi_string_free(friend_data);
-        free(data_cstr);
-        free(json_users);
-        free(start);
-        free(end);
-        return false;
     }
 
     furi_string_free(friend_data);

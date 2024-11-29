@@ -2,6 +2,13 @@
 
 FlipSocialModel2 *flip_social_messages_alloc()
 {
+    if (!app_instance->submenu_messages)
+    {
+        if (!easy_flipper_set_submenu(&app_instance->submenu_messages, FlipSocialViewLoggedInMessagesSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+        {
+            return NULL;
+        }
+    }
     // Allocate memory for each username only if not already allocated
     FlipSocialModel2 *users = malloc(sizeof(FlipSocialModel2));
     if (users == NULL)
@@ -63,33 +70,21 @@ void flip_social_free_message_users()
     {
         return;
     }
-    for (int i = 0; i < flip_social_message_users->count; i++)
-    {
-        if (flip_social_message_users->usernames[i])
-        {
-            free(flip_social_message_users->usernames[i]);
-        }
-    }
     free(flip_social_message_users);
     flip_social_message_users = NULL;
 }
 
 void flip_social_free_messages()
 {
+    if (app_instance->submenu_messages)
+    {
+        submenu_free(app_instance->submenu_messages);
+        app_instance->submenu_messages = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+    }
     if (flip_social_messages == NULL)
     {
         return;
-    }
-    for (int i = 0; i < flip_social_messages->count; i++)
-    {
-        if (flip_social_messages->usernames[i])
-        {
-            free(flip_social_messages->usernames[i]);
-        }
-        if (flip_social_messages->messages[i])
-        {
-            free(flip_social_messages->messages[i]);
-        }
     }
     free(flip_social_messages);
     flip_social_messages = NULL;

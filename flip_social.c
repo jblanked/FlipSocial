@@ -52,26 +52,7 @@ void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         submenu_free(app->submenu_logged_in);
     }
-    if (app->submenu_compose)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
-        submenu_free(app->submenu_compose);
-    }
-    if (app->submenu_explore)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
-        submenu_free(app->submenu_explore);
-    }
-    if (app->submenu_friends)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
-        submenu_free(app->submenu_friends);
-    }
-    if (app->submenu_messages)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
-        submenu_free(app->submenu_messages);
-    }
+    //
     if (app->submenu_messages_user_choices)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesUserChoices);
@@ -178,16 +159,6 @@ void flip_social_app_free(FlipSocialApp *app)
     }
 
     // Free Widget(s)
-    if (app->widget_logged_out_about)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutAbout);
-        widget_free(app->widget_logged_out_about);
-    }
-    if (app->widget_logged_in_about)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsAbout);
-        widget_free(app->widget_logged_in_about);
-    }
     if (app->widget_result)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewWidgetResult);
