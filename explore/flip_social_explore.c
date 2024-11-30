@@ -83,7 +83,7 @@ bool flip_social_get_explore(void)
     return true;
 }
 
-bool flip_social_parse_json_explore(void)
+bool flip_social_parse_json_explore()
 {
     // load the received data from the saved file
     FuriString *user_data = flipper_http_load_from_file(fhttp.file_path);

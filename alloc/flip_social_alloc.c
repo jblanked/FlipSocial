@@ -212,14 +212,6 @@ FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
-    if (!easy_flipper_set_view(&app->view_process_explore, FlipSocialViewLoggedInExploreProccess, flip_social_callback_draw_explore, NULL, flip_social_callback_to_explore_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_friends, FlipSocialViewLoggedInFriendsProcess, flip_social_callback_draw_friends, NULL, flip_social_callback_to_friends_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
     if (!easy_flipper_set_view(&app->view_process_messages, FlipSocialViewLoggedInMessagesProcess, flip_social_callback_draw_messages, NULL, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
     {
         return NULL;

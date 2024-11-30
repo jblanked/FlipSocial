@@ -317,6 +317,25 @@ uint32_t flip_social_callback_to_submenu_logged_out(void *context)
     return FlipSocialViewLoggedOutSubmenu;
 }
 
+static void flip_social_free_explore_dialog()
+{
+    if (app_instance->dialog_explore)
+    {
+        dialog_ex_free(app_instance->dialog_explore);
+        app_instance->dialog_explore = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewExploreDialog);
+    }
+}
+static void flip_social_free_friends_dialog()
+{
+    if (app_instance->dialog_friends)
+    {
+        dialog_ex_free(app_instance->dialog_friends);
+        app_instance->dialog_friends = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewFriendsDialog);
+    }
+}
+
 /**
  * @brief Navigation callback to go back to the submenu Logged in.
  * @param context The context - unused
@@ -337,6 +356,8 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     }
     // free the about widget if it exists
     free_about_widget(true);
+    flip_social_free_explore_dialog();
+    flip_social_free_friends_dialog();
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -432,7 +453,10 @@ uint32_t flip_social_callback_to_explore_logged_in(void *context)
     flip_social_dialog_stop = false;
     last_explore_response = "";
     flip_social_dialog_shown = false;
-    flip_social_explore->index = 0;
+    if (flip_social_explore)
+    {
+        flip_social_explore->index = 0;
+    }
     action = ActionNone;
     return FlipSocialViewLoggedInExploreSubmenu;
 }
@@ -493,6 +517,47 @@ uint32_t flip_social_callback_exit_app(void *context)
     free_flip_social_group();
     free_pre_saved_messages();
     return VIEW_NONE; // Return VIEW_NONE to exit the app
+}
+
+static void explore_dialog_callback(DialogExResult result, void *context)
+{
+    furi_assert(context);
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (result == DialogExResultLeft) // Remove
+    {
+        // remove friend
+        char remove_payload[128];
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
+        auth_headers_alloc();
+        flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
+        flip_social_free_explore_dialog();
+    }
+    else if (result == DialogExResultRight)
+    {
+        // add friend
+        char add_payload[128];
+        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
+        auth_headers_alloc();
+        flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/add-friend/", auth_headers, add_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
+        flip_social_free_explore_dialog();
+    }
+}
+static void friends_dialog_callback(DialogExResult result, void *context)
+{
+    furi_assert(context);
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (result == DialogExResultLeft) // Remove
+    {
+        // remove friend
+        char remove_payload[128];
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
+        auth_headers_alloc();
+        flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
+        flip_social_free_friends_dialog();
+    }
 }
 
 /**
@@ -669,7 +734,30 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_explore->index = index - FlipSocialSubmenuExploreIndexStartIndex;
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
+            flip_social_free_explore_dialog();
+            if (!app->dialog_explore)
+            {
+                if (!easy_flipper_set_dialog_ex(
+                        &app->dialog_explore,
+                        FlipSocialViewExploreDialog,
+                        "User Options",
+                        0,
+                        0,
+                        flip_social_explore->usernames[flip_social_explore->index],
+                        0,
+                        10,
+                        "Remove",
+                        "Add",
+                        NULL,
+                        explore_dialog_callback,
+                        flip_social_callback_to_explore_logged_in,
+                        &app->view_dispatcher,
+                        app))
+                {
+                    return;
+                }
+            }
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
         }
 
         // handle the friends selection
@@ -681,7 +769,30 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_friends->index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
+            flip_social_free_friends_dialog();
+            if (!app->dialog_friends)
+            {
+                if (!easy_flipper_set_dialog_ex(
+                        &app->dialog_friends,
+                        FlipSocialViewFriendsDialog,
+                        "User Options",
+                        0,
+                        0,
+                        flip_social_friends->usernames[flip_social_friends->index],
+                        0,
+                        10,
+                        "Remove",
+                        "",
+                        NULL,
+                        friends_dialog_callback,
+                        flip_social_callback_to_friends_logged_in,
+                        &app->view_dispatcher,
+                        app))
+                {
+                    return;
+                }
+            }
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFriendsDialog);
         }
 
         // handle the messages selection

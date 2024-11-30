@@ -9,7 +9,7 @@
 #include <flip_social_icons.h>
 #define TAG "FlipSocial"
 
-#define MAX_PRE_SAVED_MESSAGES 25 // Maximum number of pre-saved messages
+#define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
 #define MAX_EXPLORE_USERS 100     // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
@@ -141,9 +141,7 @@ typedef enum
     FlipSocialViewLoggedInSignOut, // The view after clicking the sign out button
     //
     FlipSocialViewLoggedInExploreSubmenu,  // The view after clicking the explore button
-    FlipSocialViewLoggedInExploreProccess, // The view after clicking on a user in the explore screen
     FlipSocialViewLoggedInFriendsSubmenu,  // The view after clicking the friends button on the profile screen
-    FlipSocialViewLoggedInFriendsProcess,  // The view after clicking on a friend in the friends screen
     FlipSocialViewLoggedInMessagesSubmenu, // The view after clicking the messages button on the profile screen
     FlipSocialViewLoggedInMessagesProcess, // The view after clicking on a user in the messages screen
     //
@@ -151,6 +149,9 @@ typedef enum
     //
     FlipSocialViewWidgetResult, // The text box that displays the random fact
     FlipSocialViewLoader,       // The loader screen retrieves data from the internet
+    //
+    FlipSocialViewExploreDialog, // The dialog for the explore screen
+    FlipSocialViewFriendsDialog, // The dialog for the friends screen
 } FlipSocialView;
 
 // Define the application structure
@@ -172,8 +173,6 @@ typedef struct
 
     View *view_process_feed;     // Dialog for the feed screen
     View *view_process_compose;  // Dialog for the compose screen (delete or send)
-    View *view_process_explore;  // Dialog for the explore screen (view user profile - add or delete friend)
-    View *view_process_friends;  // Dialog for the friends screen (view user profile - add or delete friend)
     View *view_process_messages; // Dialog for the messages screen (next, previous, send message)
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
@@ -286,6 +285,8 @@ typedef struct
     uint32_t message_user_choice_logged_in_temp_buffer_size; // Size of the message to send to the selected user temporary buffer
 
     Loading *loading; // The loading screen
+    DialogEx *dialog_explore;
+    DialogEx *dialog_friends;
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);

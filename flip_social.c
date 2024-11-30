@@ -182,16 +182,6 @@ void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
         view_free(app->view_process_compose);
     }
-    if (app->view_process_explore)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
-        view_free(app->view_process_explore);
-    }
-    if (app->view_process_friends)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
-        view_free(app->view_process_friends);
-    }
     if (app->view_process_messages)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesProcess);
