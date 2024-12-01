@@ -81,11 +81,11 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
         }
 
         // Extract individual fields from the JSON object
-        char *username = get_json_value("username", item, 64);
-        char *message = get_json_value("message", item, 64);
-        char *flipped = get_json_value("flipped", item, 64);
-        char *flips = get_json_value("flip_count", item, 64);
-        char *id = get_json_value("id", item, 64);
+        char *username = get_json_value("username", item, 40);
+        char *message = get_json_value("message", item, 40);
+        char *flipped = get_json_value("flipped", item, 40);
+        char *flips = get_json_value("flip_count", item, 40);
+        char *id = get_json_value("id", item, 40);
 
         if (username == NULL || message == NULL || flipped == NULL || id == NULL)
         {
@@ -167,11 +167,11 @@ bool flip_social_load_feed_post(int post_id)
     }
 
     // Extract individual fields from the JSON object
-    char *username = get_json_value("username", data_cstr, 64);
-    char *message = get_json_value("message", data_cstr, 64);
-    char *flipped = get_json_value("flipped", data_cstr, 64);
-    char *flips = get_json_value("flip_count", data_cstr, 64);
-    char *id = get_json_value("id", data_cstr, 64);
+    char *username = get_json_value("username", data_cstr, 40);
+    char *message = get_json_value("message", data_cstr, 40);
+    char *flipped = get_json_value("flipped", data_cstr, 40);
+    char *flips = get_json_value("flip_count", data_cstr, 40);
+    char *id = get_json_value("id", data_cstr, 40);
 
     if (username == NULL || message == NULL || flipped == NULL || id == NULL)
     {

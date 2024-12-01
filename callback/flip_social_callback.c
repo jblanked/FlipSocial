@@ -758,7 +758,7 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             flip_feed_info->index--;
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -784,7 +784,7 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             flip_feed_info->index++;
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -840,7 +840,7 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             }
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
         if (feed_dialog_alloc())
         {
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
@@ -853,6 +853,90 @@ static void feed_dialog_callback(DialogExResult result, void *context)
         }
     }
 }
+
+static char *updated_user_message(const char *user_message)
+{
+    if (user_message == NULL)
+    {
+        FURI_LOG_E(TAG, "User message is NULL.");
+        return NULL;
+    }
+
+    size_t msg_length = strlen(user_message);
+    size_t start = 0;
+    int line_num = 0;
+
+    // Allocate memory for the updated message
+    char *updated_message = malloc(MAX_MESSAGE_LENGTH + 10);
+    if (updated_message == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for updated_message.");
+        return NULL;
+    }
+    size_t current_pos = 0;    // Tracks the current position in updated_message
+    updated_message[0] = '\0'; // Initialize as empty string
+
+    while (start < msg_length && line_num < 4)
+    {
+        size_t remaining = msg_length - start;
+        size_t len = (remaining > MAX_LINE_LENGTH) ? MAX_LINE_LENGTH : remaining;
+
+        // Adjust length to the last space if the line exceeds MAX_LINE_LENGTH
+        if (remaining > MAX_LINE_LENGTH)
+        {
+            size_t last_space = len;
+            while (last_space > 0 && user_message[start + last_space - 1] != ' ')
+            {
+                last_space--;
+            }
+
+            if (last_space > 0)
+            {
+                len = last_space; // Adjust len to the position of the last space
+            }
+        }
+
+        // Check if the new line fits in the updated_message buffer
+        if (current_pos + len + 1 >= (MAX_MESSAGE_LENGTH + 10))
+        {
+            FURI_LOG_E(TAG, "Updated message exceeds maximum length.");
+            // break and return what we have so far
+            break;
+        }
+
+        // Copy the line and append a newline character
+        memcpy(updated_message + current_pos, user_message + start, len);
+        current_pos += len;
+        updated_message[current_pos++] = '\n'; // Append newline
+
+        // Update the start position for the next line
+        start += len;
+
+        // Skip any spaces to avoid leading spaces on the next line
+        while (start < msg_length && user_message[start] == ' ')
+        {
+            start++;
+        }
+
+        // Increment the line number
+        line_num++;
+    }
+
+    // Null-terminate the final string
+    if (current_pos < (MAX_MESSAGE_LENGTH + 10))
+    {
+        updated_message[current_pos] = '\0';
+    }
+    else
+    {
+        FURI_LOG_E(TAG, "Buffer overflow while null-terminating.");
+        free(updated_message);
+        return NULL;
+    }
+
+    return updated_message;
+}
+
 bool feed_dialog_alloc()
 {
     if (!flip_feed_item)
@@ -863,13 +947,21 @@ bool feed_dialog_alloc()
     flip_social_free_feed_dialog();
     if (!app_instance->dialog_feed)
     {
+        char updated_message[MAX_MESSAGE_LENGTH + 10];
+        snprintf(updated_message, MAX_MESSAGE_LENGTH + 10, "%s (%u %s)", flip_feed_item->message, flip_feed_item->flips, flip_feed_item->flips == 1 ? "flip" : "flips");
+        char *real_message = updated_user_message(updated_message);
+        if (!real_message)
+        {
+            FURI_LOG_E(TAG, "Failed to update the user message");
+            return false;
+        }
         if (!easy_flipper_set_dialog_ex(
                 &app_instance->dialog_feed,
                 FlipSocialViewFeedDialog,
                 flip_feed_item->username,
                 0,
                 0,
-                flip_feed_item->message,
+                updated_message,
                 0,
                 10,
                 flip_feed_info->index != 0 ? "Prev" : NULL,
@@ -880,8 +972,10 @@ bool feed_dialog_alloc()
                 &app_instance->view_dispatcher,
                 app_instance))
         {
+            free(real_message);
             return false;
         }
+        free(real_message);
         return true;
     }
     return false;
@@ -1071,7 +1165,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 if (!easy_flipper_set_dialog_ex(
                         &app->dialog_friends,
                         FlipSocialViewFriendsDialog,
-                        "User Options",
+                        "Friend Options",
                         0,
                         0,
                         flip_social_friends->usernames[flip_social_friends->index],
