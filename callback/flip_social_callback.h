@@ -6,7 +6,6 @@
 #include <friends/flip_social_friends.h>
 #include <explore/flip_social_explore.h>
 #include <feed/flip_social_feed.h>
-#include <draw/flip_social_draw.h>
 #include <flip_storage/flip_social_storage.h>
 
 void flip_social_request_error_draw(Canvas *canvas);
@@ -300,5 +299,5 @@ void flip_social_loader_free_model(View *view);
 bool flip_social_custom_event_callback(void *context, uint32_t index);
 
 bool messages_dialog_alloc(bool free_first);
-
+bool feed_dialog_alloc();
 #endif

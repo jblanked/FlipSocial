@@ -172,11 +172,6 @@ void flip_social_app_free(FlipSocialApp *app)
         flip_social_loader_free_model(app->view_loader);
         view_free(app->view_loader);
     }
-    if (app->view_process_feed)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        view_free(app->view_process_feed);
-    }
 
     if (app->view_dispatcher)
         view_dispatcher_free(app->view_dispatcher);

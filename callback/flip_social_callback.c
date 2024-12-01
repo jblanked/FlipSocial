@@ -354,6 +354,15 @@ static void flip_social_free_compose_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewComposeDialog);
     }
 }
+static void flip_social_free_feed_dialog()
+{
+    if (app_instance->dialog_feed)
+    {
+        dialog_ex_free(app_instance->dialog_feed);
+        app_instance->dialog_feed = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
+    }
+}
 
 /**
  * @brief Navigation callback to go back to the submenu Logged in.
@@ -478,7 +487,6 @@ uint32_t flip_social_callback_to_explore_logged_in(void *context)
     {
         flip_social_explore->index = 0;
     }
-    action = ActionNone;
     return FlipSocialViewLoggedInExploreSubmenu;
 }
 
@@ -494,7 +502,6 @@ uint32_t flip_social_callback_to_friends_logged_in(void *context)
     last_explore_response = "";
     flip_social_dialog_shown = false;
     flip_social_friends->index = 0;
-    action = ActionNone;
     return FlipSocialViewLoggedInFriendsSubmenu;
 }
 
@@ -524,6 +531,7 @@ static void free_flip_social_group()
 {
     flip_social_free_messages();
     flip_social_free_explore();
+    flip_social_free_feed_dialog();
 }
 
 /**
@@ -739,6 +747,145 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         return;
     }
 }
+static void feed_dialog_callback(DialogExResult result, void *context)
+{
+    furi_assert(context);
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (result == DialogExResultLeft) // Previous message
+    {
+        if (flip_feed_info->index > 0)
+        {
+            flip_feed_info->index--;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        // load feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return;
+        }
+        if (feed_dialog_alloc())
+        {
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            fhttp.state = ISSUE;
+            return;
+        }
+    }
+    else if (result == DialogExResultRight) // Next message
+    {
+        if (flip_feed_info->index < flip_feed_info->count - 1)
+        {
+            flip_feed_info->index++;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        // load feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return;
+        }
+        if (feed_dialog_alloc())
+        {
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            fhttp.state = ISSUE;
+            return;
+        }
+    }
+    else if (result == DialogExResultCenter) // Flip/Unflip
+    {
+        // Moved to above the is_flipped check
+        if (!flip_feed_item->is_flipped)
+        {
+            // increase the flip count
+            flip_feed_item->flips++;
+        }
+        else
+        {
+            // decrease the flip count
+            flip_feed_item->flips--;
+        }
+        // change the flip status
+        flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
+        // send post request to flip the message
+        if (app_instance->login_username_logged_in == NULL)
+        {
+            FURI_LOG_E(TAG, "Username is NULL");
+            return;
+        }
+        char payload[256];
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
+        if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", auth_headers, payload))
+        {
+            // save feed item
+            char new_save[256];
+            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s}",
+                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false");
+            if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
+            {
+                FURI_LOG_E(TAG, "Failed to save the feed post");
+                fhttp.state = ISSUE;
+                return;
+            }
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        if (feed_dialog_alloc())
+        {
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            fhttp.state = ISSUE;
+            return;
+        }
+    }
+}
+bool feed_dialog_alloc()
+{
+    if (!flip_feed_item)
+    {
+        FURI_LOG_E(TAG, "Feed item is NULL");
+        return false;
+    }
+    flip_social_free_feed_dialog();
+    if (!app_instance->dialog_feed)
+    {
+        if (!easy_flipper_set_dialog_ex(
+                &app_instance->dialog_feed,
+                FlipSocialViewFeedDialog,
+                flip_feed_item->username,
+                0,
+                0,
+                flip_feed_item->message,
+                0,
+                10,
+                flip_feed_info->index != 0 ? "Prev" : NULL,
+                flip_feed_info->index != flip_feed_info->count - 1 ? "Next" : NULL,
+                flip_feed_item->is_flipped ? "Unflip" : "Flip",
+                feed_dialog_callback,
+                flip_social_callback_to_submenu_logged_in,
+                &app_instance->view_dispatcher,
+                app_instance))
+        {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
 
 /**
  * @brief Handle ALL submenu item selections.
@@ -838,7 +985,6 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInComposeAddPreSaveInput);
         break;
     default:
-        action = ActionNone;
         // Handle the pre-saved message selection (has a max of 25 items)
         if (index >= FlipSocialSubemnuComposeIndexStartIndex && index < FlipSocialSubemnuComposeIndexStartIndex + MAX_PRE_SAVED_MESSAGES)
         {

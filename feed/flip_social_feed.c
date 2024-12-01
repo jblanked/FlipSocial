@@ -264,7 +264,16 @@ bool flip_social_load_initial_feed()
         loading_free(app_instance->loading);
         return false;
     }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+    if (!feed_dialog_alloc())
+    {
+        FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+        fhttp.state = ISSUE;
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+        loading_free(app_instance->loading);
+        return false;
+    }
+    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
     view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
     loading_free(app_instance->loading);
 

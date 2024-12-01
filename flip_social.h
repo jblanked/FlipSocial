@@ -152,6 +152,7 @@ typedef enum
     FlipSocialViewFriendsDialog,  // The dialog for the friends screen
     FlipSocialViewMessagesDialog, // The dialog for the messages screen
     FlipSocialViewComposeDialog,  // The dialog for the compose screen
+    FlipSocialViewFeedDialog,     // The dialog for the feed screen
 } FlipSocialView;
 
 // Define the application structure
@@ -170,9 +171,6 @@ typedef struct
     Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
     Widget *widget_logged_out_about;        // The about screen (logged out)
     Widget *widget_logged_in_about;         // The about screen (logged in)
-
-    View *view_process_feed;    // Dialog for the feed screen
-    View *view_process_compose; // Dialog for the compose screen (delete or send)
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
     VariableItemList *variable_item_list_logged_out_login;         // The login menu
@@ -288,6 +286,7 @@ typedef struct
     DialogEx *dialog_friends;
     DialogEx *dialog_messages;
     DialogEx *dialog_compose;
+    DialogEx *dialog_feed;
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);
