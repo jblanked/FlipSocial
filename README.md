@@ -46,21 +46,22 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 - Direct Messaging
 
 **v0.5**
-- Improved memory allocation
-- Improved Feed Page
+- Improve memory allocation
+- Improve Feed Page
 - Raspberry Pi Pico W Support
 
 **v0.6**
-- Improved memory allocation
-- Fixed bugs in Direct Messaging View
-- Fixed bugs in Pre-Save View
+- Improve memory allocation
+- Update the Direct Messaging View
+- Update the Pre-Save View
 
 **v0.7**
-- Improved User Profile (Bio, friend count, block)
-- Improved Explore Page
+- Improve memory allocation
+- Loading screens.
 
 **v0.8**
-- Create and Post Pixel Art
+- Improve User Profile (Bio, friend count, block)
+- Improve Explore Page
 
 **v1.0**
 - Official Release
@@ -88,7 +89,8 @@ This is a big project, and I welcome all contributors, especially developers int
 - **Solution 3:** Ensure your WiFi Devboard is plugged in, then restart your Flipper device.
 
 5. Out of memory when starting the app or after visiting the feed and post views back-to-back.
-- **Solution:** Restart your Flipper device.
+- **Solution 1:** Restart your Flipper device.
+- **Solution 2:** Update the app to version 0.7 (or higher).
 
 6. I can no longer access the Messages.
 - **Solution 1:** Uppdate the app to version 0.6.3 (or higher)
