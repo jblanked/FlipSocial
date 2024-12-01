@@ -457,6 +457,13 @@ bool flip_social_parse_json_messages()
         free(sender);
         free(content);
     }
+    if (!messages_dialog_alloc(true))
+    {
+        FURI_LOG_E(TAG, "Failed to allocate and set messages dialog.");
+        furi_string_free(message_data);
+        free(data_cstr);
+        return false;
+    }
     furi_string_free(message_data);
     free(data_cstr);
     return true;

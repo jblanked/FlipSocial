@@ -143,15 +143,15 @@ typedef enum
     FlipSocialViewLoggedInExploreSubmenu,  // The view after clicking the explore button
     FlipSocialViewLoggedInFriendsSubmenu,  // The view after clicking the friends button on the profile screen
     FlipSocialViewLoggedInMessagesSubmenu, // The view after clicking the messages button on the profile screen
-    FlipSocialViewLoggedInMessagesProcess, // The view after clicking on a user in the messages screen
     //
     FlipSocialViewLoading, // The loading screen
     //
     FlipSocialViewWidgetResult, // The text box that displays the random fact
     FlipSocialViewLoader,       // The loader screen retrieves data from the internet
     //
-    FlipSocialViewExploreDialog, // The dialog for the explore screen
-    FlipSocialViewFriendsDialog, // The dialog for the friends screen
+    FlipSocialViewExploreDialog,  // The dialog for the explore screen
+    FlipSocialViewFriendsDialog,  // The dialog for the friends screen
+    FlipSocialViewMessagesDialog, // The dialog for the messages screen
 } FlipSocialView;
 
 // Define the application structure
@@ -287,6 +287,7 @@ typedef struct
     Loading *loading; // The loading screen
     DialogEx *dialog_explore;
     DialogEx *dialog_friends;
+    DialogEx *dialog_messages;
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);

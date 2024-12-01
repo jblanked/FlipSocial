@@ -212,11 +212,6 @@ FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
-    if (!easy_flipper_set_view(&app->view_process_messages, FlipSocialViewLoggedInMessagesProcess, flip_social_callback_draw_messages, NULL, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-
     // Setup Variable Item List(s)
     if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_out_wifi_settings, FlipSocialViewLoggedOutWifiSettings, flip_social_text_input_logged_out_wifi_settings_item_selected, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
     {

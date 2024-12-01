@@ -30,8 +30,4 @@ void flip_social_canvas_draw_message(Canvas *canvas, char *user_username, char *
 // Callback function to handle the feed dialog
 void flip_social_callback_draw_feed(Canvas *canvas, void *model);
 
-void flip_social_canvas_draw_user_message(Canvas *canvas, char *user_username, char *user_message, bool show_prev, bool show_next);
-// Callback function to handle the messages dialog
-void flip_social_callback_draw_messages(Canvas *canvas, void *model);
-
 #endif

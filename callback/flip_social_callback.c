@@ -335,6 +335,16 @@ static void flip_social_free_friends_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewFriendsDialog);
     }
 }
+static void flip_social_free_messages_dialog()
+{
+    if (app_instance->dialog_messages)
+    {
+        dialog_ex_free(app_instance->dialog_messages);
+        app_instance->dialog_messages = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewMessagesDialog);
+        return;
+    }
+}
 
 /**
  * @brief Navigation callback to go back to the submenu Logged in.
@@ -358,6 +368,7 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     free_about_widget(true);
     flip_social_free_explore_dialog();
     flip_social_free_friends_dialog();
+    flip_social_free_messages_dialog();
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -558,6 +569,83 @@ static void friends_dialog_callback(DialogExResult result, void *context)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
         flip_social_free_friends_dialog();
     }
+}
+static void messages_dialog_callback(DialogExResult result, void *context)
+{
+    furi_assert(context);
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (result == DialogExResultLeft) // Previous message
+    {
+        if (flip_social_messages->index > 0)
+        {
+            flip_social_messages->index--;
+            dialog_ex_reset(app->dialog_messages);
+            dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
+            if (flip_social_messages->index != 0)
+            {
+                dialog_ex_set_left_button_text(app->dialog_messages, "Previous");
+            }
+            dialog_ex_set_right_button_text(app->dialog_messages, "Next");
+            // switch view, free dialog, re-alloc dialog, switch back to dialog
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+            flip_social_free_messages_dialog();
+            messages_dialog_alloc(false);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
+        }
+    }
+    else if (result == DialogExResultRight) // Next message
+    {
+        if (flip_social_messages->index < flip_social_messages->count - 1)
+        {
+            flip_social_messages->index++;
+            dialog_ex_reset(app->dialog_messages);
+            dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
+            dialog_ex_set_left_button_text(app->dialog_messages, "Previous");
+            if (flip_social_messages->index != flip_social_messages->count - 1)
+            {
+                dialog_ex_set_right_button_text(app->dialog_messages, "Next");
+            }
+            // switch view, free dialog, re-alloc dialog, switch back to dialog
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+            flip_social_free_messages_dialog();
+            messages_dialog_alloc(false);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
+        }
+    }
+}
+
+bool messages_dialog_alloc(bool free_first)
+{
+    if (free_first)
+    {
+        flip_social_free_messages_dialog();
+    }
+    if (!app_instance->dialog_messages)
+    {
+        if (!easy_flipper_set_dialog_ex(
+                &app_instance->dialog_messages,
+                FlipSocialViewMessagesDialog,
+                flip_social_messages->usernames[flip_social_messages->index],
+                0,
+                0,
+                flip_social_messages->messages[flip_social_messages->index],
+                0,
+                10,
+                flip_social_messages->index != 0 ? "Previous" : NULL,
+                flip_social_messages->index != flip_social_messages->count - 1 ? "Next" : NULL,
+                NULL,
+                messages_dialog_callback,
+                flip_social_callback_to_messages_logged_in,
+                &app_instance->view_dispatcher,
+                app_instance))
+        {
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -807,9 +895,10 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             flipper_http_loading_task(
                 flip_social_get_messages_with_user,    // get the messages with the selected user
                 flip_social_parse_json_messages,       // parse the messages
-                FlipSocialViewLoggedInMessagesProcess, // switch to the messages process if successful
+                FlipSocialViewMessagesDialog,          // switch to the messages process if successful
                 FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
-                &app->view_dispatcher);                // view dispatcher
+                &app->view_dispatcher                  // view dispatcher
+            );
         }
 
         // handle the messages user choices selection

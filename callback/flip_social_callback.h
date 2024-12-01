@@ -299,4 +299,6 @@ void flip_social_loader_free_model(View *view);
 
 bool flip_social_custom_event_callback(void *context, uint32_t index);
 
+bool messages_dialog_alloc(bool free_first);
+
 #endif
