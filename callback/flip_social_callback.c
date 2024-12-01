@@ -345,6 +345,15 @@ static void flip_social_free_messages_dialog()
         return;
     }
 }
+static void flip_social_free_compose_dialog()
+{
+    if (app_instance->dialog_compose)
+    {
+        dialog_ex_free(app_instance->dialog_compose);
+        app_instance->dialog_compose = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewComposeDialog);
+    }
+}
 
 /**
  * @brief Navigation callback to go back to the submenu Logged in.
@@ -369,6 +378,7 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     flip_social_free_explore_dialog();
     flip_social_free_friends_dialog();
     flip_social_free_messages_dialog();
+    flip_social_free_compose_dialog();
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -584,9 +594,10 @@ static void messages_dialog_callback(DialogExResult result, void *context)
             dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
             if (flip_social_messages->index != 0)
             {
-                dialog_ex_set_left_button_text(app->dialog_messages, "Previous");
+                dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
             }
             dialog_ex_set_right_button_text(app->dialog_messages, "Next");
+            dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
             flip_social_free_messages_dialog();
@@ -602,11 +613,12 @@ static void messages_dialog_callback(DialogExResult result, void *context)
             dialog_ex_reset(app->dialog_messages);
             dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
             dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
-            dialog_ex_set_left_button_text(app->dialog_messages, "Previous");
+            dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
             if (flip_social_messages->index != flip_social_messages->count - 1)
             {
                 dialog_ex_set_right_button_text(app->dialog_messages, "Next");
             }
+            dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
             flip_social_free_messages_dialog();
@@ -650,6 +662,82 @@ bool messages_dialog_alloc(bool free_first)
         return true;
     }
     return false;
+}
+
+static void compose_dialog_callback(DialogExResult result, void *context)
+{
+    furi_assert(context);
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (result == DialogExResultLeft) // Delete
+    {
+        // delete message
+        app->pre_saved_messages.messages[app_instance->pre_saved_messages.index] = NULL;
+
+        for (uint32_t i = app->pre_saved_messages.index; i < app->pre_saved_messages.count - 1; i++)
+        {
+            app->pre_saved_messages.messages[i] = app->pre_saved_messages.messages[i + 1];
+        }
+        app->pre_saved_messages.count--;
+
+        // add the item to the submenu
+        submenu_reset(app_instance->submenu_compose);
+
+        submenu_add_item(app_instance->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
+
+        for (uint32_t i = 0; i < app->pre_saved_messages.count; i++)
+        {
+            submenu_add_item(app_instance->submenu_compose, app->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app);
+        }
+
+        // save playlist
+        save_playlist(&app_instance->pre_saved_messages);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+        flip_social_free_compose_dialog();
+    }
+    else if (result == DialogExResultRight) // Post
+    {
+        // post the message
+        // send selected_message
+        if (selected_message && app_instance->login_username_logged_in)
+        {
+            if (strlen(selected_message) > MAX_MESSAGE_LENGTH)
+            {
+                FURI_LOG_E(TAG, "Message is too long");
+                return;
+            }
+            // Send the selected_message
+            char command[256];
+            snprintf(command, sizeof(command), "{\"username\":\"%s\",\"content\":\"%s\"}",
+                     app_instance->login_username_logged_in, selected_message);
+            if (!flipper_http_post_request_with_headers(
+                    "https://www.flipsocial.net/api/feed/post/",
+                    auth_headers,
+                    command))
+            {
+                FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
+                fhttp.state = ISSUE;
+                return;
+            }
+
+            fhttp.state = RECEIVING;
+            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Message or username is NULL");
+            return;
+        }
+        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+        {
+            furi_delay_ms(100);
+        }
+        if (flip_social_load_initial_feed())
+        {
+            flip_social_free_compose_dialog();
+        }
+        FURI_LOG_E(TAG, "Failed to load initial feed");
+        return;
+    }
 }
 
 /**
@@ -710,64 +798,11 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
         free_flip_social_group();
-        // use derek's switch_to_view instead
-        if (fhttp.state == INACTIVE)
+        if (!flip_social_load_initial_feed())
         {
-            FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+            FURI_LOG_E(TAG, "Failed to load the initial feed");
             return;
         }
-        if (!easy_flipper_set_loading(&app->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
-        {
-            FURI_LOG_E(TAG, "Failed to set loading screen");
-            return; // already on the submenu
-        }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoading);
-        if (flip_social_get_feed()) // start the async request
-        {
-            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-            fhttp.state = RECEIVING;
-        }
-        else
-        {
-            FURI_LOG_E(HTTP_TAG, "Failed to send request");
-            fhttp.state = ISSUE;
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
-            loading_free(app->loading);
-            return;
-        }
-        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-        {
-            // Wait for the request to be received
-            furi_delay_ms(100);
-        }
-        furi_timer_stop(fhttp.get_timeout_timer);
-
-        // load feed info
-        flip_feed_info = flip_social_parse_json_feed();
-        if (!flip_feed_info || flip_feed_info->count < 1)
-        {
-            FURI_LOG_E(TAG, "Failed to parse JSON feed");
-            fhttp.state = ISSUE;
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
-            loading_free(app->loading);
-            return;
-        }
-
-        // load the current feed post
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
-        {
-            FURI_LOG_E(TAG, "Failed to load feed post");
-            fhttp.state = ISSUE;
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-            view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
-            loading_free(app->loading);
-            return;
-        }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app->loading);
         free_pre_saved_messages();
         break;
     case FlipSocialSubmenuExploreIndex:
@@ -814,7 +849,30 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 FURI_LOG_E(TAG, "Selected message is NULL");
                 return;
             }
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
+            flip_social_free_compose_dialog();
+            if (!app->dialog_compose)
+            {
+                if (!easy_flipper_set_dialog_ex(
+                        &app->dialog_compose,
+                        FlipSocialViewComposeDialog,
+                        "New Feed Post",
+                        0,
+                        0,
+                        selected_message,
+                        0,
+                        10,
+                        "Delete",
+                        "Post",
+                        NULL,
+                        compose_dialog_callback,
+                        flip_social_callback_to_compose_logged_in,
+                        &app->view_dispatcher,
+                        app))
+                {
+                    return;
+                }
+            }
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewComposeDialog);
         }
 
         // Handle the explore selection

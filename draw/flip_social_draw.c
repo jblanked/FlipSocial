@@ -243,60 +243,11 @@ void flip_social_callback_draw_compose(Canvas *canvas, void *model)
             canvas_draw_str(canvas, 0, 50, "Loading feed :D");
             canvas_draw_str(canvas, 0, 60, "Please wait...");
             action = ActionNone;
-            // Send the user to the feed
-
-            if (!easy_flipper_set_loading(&app_instance->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            if (!flip_social_load_initial_feed())
             {
-                FURI_LOG_E(TAG, "Failed to set loading screen");
-                return; // already on the submenu
-            }
-            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-            if (flip_social_get_feed()) // start the async request
-            {
-                furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-                fhttp.state = RECEIVING;
-            }
-            else
-            {
-                FURI_LOG_E(HTTP_TAG, "Failed to send request");
-                fhttp.state = ISSUE;
-                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-                loading_free(app_instance->loading);
+                FURI_LOG_E(TAG, "Failed to load initial feed");
                 return;
             }
-            while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-            {
-                // Wait for the request to be received
-                furi_delay_ms(100);
-            }
-            furi_timer_stop(fhttp.get_timeout_timer);
-
-            // load feed info
-            flip_feed_info = flip_social_parse_json_feed();
-            if (!flip_feed_info || flip_feed_info->count < 1)
-            {
-                FURI_LOG_E(TAG, "Failed to parse JSON feed");
-                fhttp.state = ISSUE;
-                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-                loading_free(app_instance->loading);
-                return;
-            }
-
-            // load the current feed post
-            if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
-            {
-                FURI_LOG_E(TAG, "Failed to load feed post");
-                fhttp.state = ISSUE;
-                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-                view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-                loading_free(app_instance->loading);
-                return;
-            }
-            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
-            view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-            loading_free(app_instance->loading);
         }
         else if (action == ActionBack)
         {

@@ -6,5 +6,6 @@
 
 bool flip_social_get_feed();
 bool flip_social_load_feed_post(int post_id);
+bool flip_social_load_initial_feed();
 FlipSocialFeedMini *flip_social_parse_json_feed();
 #endif

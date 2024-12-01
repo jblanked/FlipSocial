@@ -136,7 +136,6 @@ typedef enum
     FlipSocialViewLoggedInSettingsWifi,              // The wifi settings screen
     FlipSocialViewLoggedInWifiSettingsSSIDInput,     // Text input screen for SSID input on wifi screen
     FlipSocialViewLoggedInWifiSettingsPasswordInput, // Text input screen for Password input on wifi screen
-    FlipSocialViewLoggedInProcessCompose,            // The dialog view to delete or send the clicked pre-saved text
     //
     FlipSocialViewLoggedInSignOut, // The view after clicking the sign out button
     //
@@ -152,6 +151,7 @@ typedef enum
     FlipSocialViewExploreDialog,  // The dialog for the explore screen
     FlipSocialViewFriendsDialog,  // The dialog for the friends screen
     FlipSocialViewMessagesDialog, // The dialog for the messages screen
+    FlipSocialViewComposeDialog,  // The dialog for the compose screen
 } FlipSocialView;
 
 // Define the application structure
@@ -171,9 +171,8 @@ typedef struct
     Widget *widget_logged_out_about;        // The about screen (logged out)
     Widget *widget_logged_in_about;         // The about screen (logged in)
 
-    View *view_process_feed;     // Dialog for the feed screen
-    View *view_process_compose;  // Dialog for the compose screen (delete or send)
-    View *view_process_messages; // Dialog for the messages screen (next, previous, send message)
+    View *view_process_feed;    // Dialog for the feed screen
+    View *view_process_compose; // Dialog for the compose screen (delete or send)
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
     VariableItemList *variable_item_list_logged_out_login;         // The login menu
@@ -288,6 +287,7 @@ typedef struct
     DialogEx *dialog_explore;
     DialogEx *dialog_friends;
     DialogEx *dialog_messages;
+    DialogEx *dialog_compose;
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);
