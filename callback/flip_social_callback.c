@@ -832,12 +832,12 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             char new_save[256];
             snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s}",
                      flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false");
-            if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
-            {
-                FURI_LOG_E(TAG, "Failed to save the feed post");
-                fhttp.state = ISSUE;
-                return;
-            }
+            // if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
+            // {
+            //     FURI_LOG_E(TAG, "Failed to save the feed post");
+            //     fhttp.state = ISSUE;
+            //     return;
+            // }
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
