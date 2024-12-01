@@ -614,6 +614,10 @@ static void messages_dialog_callback(DialogExResult result, void *context)
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
         }
     }
+    else if (result == DialogExResultCenter) // new message
+    {
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageInput);
+    }
 }
 
 bool messages_dialog_alloc(bool free_first)
@@ -633,9 +637,9 @@ bool messages_dialog_alloc(bool free_first)
                 flip_social_messages->messages[flip_social_messages->index],
                 0,
                 10,
-                flip_social_messages->index != 0 ? "Previous" : NULL,
+                flip_social_messages->index != 0 ? "Prev" : NULL,
                 flip_social_messages->index != flip_social_messages->count - 1 ? "Next" : NULL,
-                NULL,
+                "Create",
                 messages_dialog_callback,
                 flip_social_callback_to_messages_logged_in,
                 &app_instance->view_dispatcher,
