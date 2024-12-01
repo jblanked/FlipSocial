@@ -6,8 +6,9 @@
 #include <friends/flip_social_friends.h>
 #include <explore/flip_social_explore.h>
 #include <feed/flip_social_feed.h>
-#include <draw/flip_social_draw.h>
 #include <flip_storage/flip_social_storage.h>
+
+void flip_social_request_error_draw(Canvas *canvas);
 
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
@@ -253,4 +254,50 @@ void flip_social_logged_in_messages_new_message_updated(void *context);
  */
 void flip_social_text_input_logged_out_register_item_selected(void *context, uint32_t index);
 
+// Add edits by Derek Jamison
+typedef enum DataState DataState;
+enum DataState
+{
+    DataStateInitial,
+    DataStateRequested,
+    DataStateReceived,
+    DataStateParsed,
+    DataStateParseError,
+    DataStateError,
+};
+
+typedef enum FlipSocialCustomEvent FlipSocialCustomEvent;
+enum FlipSocialCustomEvent
+{
+    FlipSocialCustomEventProcess,
+};
+
+typedef struct DataLoaderModel DataLoaderModel;
+typedef bool (*DataLoaderFetch)(DataLoaderModel *model);
+typedef char *(*DataLoaderParser)(DataLoaderModel *model);
+struct DataLoaderModel
+{
+    char *title;
+    char *data_text;
+    DataState data_state;
+    DataLoaderFetch fetcher;
+    DataLoaderParser parser;
+    void *parser_context;
+    size_t request_index;
+    size_t request_count;
+    ViewNavigationCallback back_callback;
+    FuriTimer *timer;
+};
+void flip_social_generic_switch_to_view(FlipSocialApp *app, char *title, DataLoaderFetch fetcher, DataLoaderParser parser, size_t request_count, ViewNavigationCallback back, uint32_t view_id);
+
+void flip_social_loader_draw_callback(Canvas *canvas, void *model);
+
+void flip_social_loader_init(View *view);
+
+void flip_social_loader_free_model(View *view);
+
+bool flip_social_custom_event_callback(void *context, uint32_t index);
+
+bool messages_dialog_alloc(bool free_first);
+bool feed_dialog_alloc();
 #endif

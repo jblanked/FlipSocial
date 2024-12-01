@@ -20,6 +20,17 @@ FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
+    view_dispatcher_set_custom_event_callback(app->view_dispatcher, flip_social_custom_event_callback);
+    // Main view
+    if (!easy_flipper_set_view(&app->view_loader, FlipSocialViewLoader, flip_social_loader_draw_callback, NULL, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
+    {
+        return NULL;
+    }
+    flip_social_loader_init(app->view_loader);
+    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "Error, try again.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
+    {
+        return NULL;
+    }
 
     // Allocate the text input buffers
     app->wifi_ssid_logged_out_temp_buffer_size = MAX_USER_LENGTH;
@@ -165,30 +176,15 @@ FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.6", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.6", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_compose, FlipSocialViewLoggedInCompose, "Create A Post", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_submenu(&app->submenu_explore, FlipSocialViewLoggedInExploreSubmenu, "Explore", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_submenu(&app->submenu_friends, FlipSocialViewLoggedInFriendsSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_submenu(&app->submenu_messages, FlipSocialViewLoggedInMessagesSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
+
     if (!easy_flipper_set_submenu(&app->submenu_messages_user_choices, FlipSocialViewLoggedInMessagesUserChoices, "Users", flip_social_callback_to_messages_logged_in, &app->view_dispatcher))
     {
         return NULL;
@@ -206,39 +202,6 @@ FlipSocialApp *flip_social_app_alloc()
     submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Settings", FlipSocialSubmenuLoggedInIndexSettings, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, flip_social_callback_submenu_choices, app);
-    //
-    submenu_add_item(app->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
-    //
-
-    // Allocate View(s)
-    if (!easy_flipper_set_view(&app->view_process_login, FlipSocialViewLoggedOutProcessLogin, flip_social_callback_draw_login, NULL, flip_social_callback_to_login_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_register, FlipSocialViewLoggedOutProcessRegister, flip_social_callback_draw_register, NULL, flip_social_callback_to_register_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_feed, FlipSocialViewLoggedInFeed, flip_social_callback_draw_feed, NULL, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_compose, FlipSocialViewLoggedInProcessCompose, flip_social_callback_draw_compose, NULL, flip_social_callback_to_compose_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_explore, FlipSocialViewLoggedInExploreProccess, flip_social_callback_draw_explore, NULL, flip_social_callback_to_explore_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_friends, FlipSocialViewLoggedInFriendsProcess, flip_social_callback_draw_friends, NULL, flip_social_callback_to_friends_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_view(&app->view_process_messages, FlipSocialViewLoggedInMessagesProcess, flip_social_callback_draw_messages, NULL, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
 
     // Setup Variable Item List(s)
     if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_out_wifi_settings, FlipSocialViewLoggedOutWifiSettings, flip_social_text_input_logged_out_wifi_settings_item_selected, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
@@ -266,27 +229,27 @@ FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
 
-    app->variable_item_logged_out_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "SSID", 1, NULL, NULL);
-    app->variable_item_logged_out_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "Password", 1, NULL, NULL);
+    app->variable_item_logged_out_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "SSID", 1, NULL, app);
+    app->variable_item_logged_out_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "Password", 1, NULL, app);
     //
-    app->variable_item_logged_out_login_username = variable_item_list_add(app->variable_item_list_logged_out_login, "Username", 1, NULL, NULL);
-    app->variable_item_logged_out_login_password = variable_item_list_add(app->variable_item_list_logged_out_login, "Password", 1, NULL, NULL);
-    app->variable_item_logged_out_login_button = variable_item_list_add(app->variable_item_list_logged_out_login, "Login", 0, NULL, NULL);
+    app->variable_item_logged_out_login_username = variable_item_list_add(app->variable_item_list_logged_out_login, "Username", 1, NULL, app);
+    app->variable_item_logged_out_login_password = variable_item_list_add(app->variable_item_list_logged_out_login, "Password", 1, NULL, app);
+    app->variable_item_logged_out_login_button = variable_item_list_add(app->variable_item_list_logged_out_login, "Login", 0, NULL, app);
     //
-    app->variable_item_logged_out_register_username = variable_item_list_add(app->variable_item_list_logged_out_register, "Username", 1, NULL, NULL);
-    app->variable_item_logged_out_register_password = variable_item_list_add(app->variable_item_list_logged_out_register, "Password", 1, NULL, NULL);
-    app->variable_item_logged_out_register_password_2 = variable_item_list_add(app->variable_item_list_logged_out_register, "Confirm Password", 1, NULL, NULL);
-    app->variable_item_logged_out_register_button = variable_item_list_add(app->variable_item_list_logged_out_register, "Register", 0, NULL, NULL);
+    app->variable_item_logged_out_register_username = variable_item_list_add(app->variable_item_list_logged_out_register, "Username", 1, NULL, app);
+    app->variable_item_logged_out_register_password = variable_item_list_add(app->variable_item_list_logged_out_register, "Password", 1, NULL, app);
+    app->variable_item_logged_out_register_password_2 = variable_item_list_add(app->variable_item_list_logged_out_register, "Confirm Password", 1, NULL, app);
+    app->variable_item_logged_out_register_button = variable_item_list_add(app->variable_item_list_logged_out_register, "Register", 0, NULL, app);
     //
-    app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 0, NULL, NULL);
-    app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Change Password", 0, NULL, NULL);
-    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, NULL);
+    app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 1, NULL, app);
+    app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Change Password", 1, NULL, app);
+    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, app);
     //
-    app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, NULL);
-    app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, NULL);
+    app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, app);
+    app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, app);
     //
-    app->variable_item_logged_in_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "SSID", 1, NULL, NULL);
-    app->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "Password", 1, NULL, NULL);
+    app->variable_item_logged_in_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "SSID", 1, NULL, app);
+    app->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "Password", 1, NULL, app);
 
     // Setup Text Input(s)
     if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_wifi_settings_ssid, FlipSocialViewLoggedOutWifiSettingsSSIDInput, "Enter SSID", app->wifi_ssid_logged_out_temp_buffer, app->wifi_ssid_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_out, &app->view_dispatcher, app))
@@ -342,26 +305,6 @@ FlipSocialApp *flip_social_app_alloc()
     if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_messages_new_message_user_choices, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput, "Enter Message", app->message_user_choice_logged_in_temp_buffer, app->message_user_choice_logged_in_temp_buffer_size, flip_social_logged_in_messages_user_choice_message_updated, flip_social_callback_to_messages_user_choices, &app->view_dispatcher, app))
     {
         return NULL;
-    }
-
-    // Setup About(s)
-    if (!easy_flipper_set_widget(&app->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_widget(&app->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_settings_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-
-    // load the playlist
-    if (load_playlist(&app->pre_saved_messages))
-    {
-        // Update the playlist submenu
-        for (uint32_t i = 0; i < app->pre_saved_messages.count; i++)
-        {
-            submenu_add_item(app->submenu_compose, app->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app);
-        }
     }
 
     // Load the settings

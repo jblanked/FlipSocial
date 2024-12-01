@@ -1467,3 +1467,131 @@ bool flipper_http_process_response_async(bool (*http_request)(void), bool (*pars
     }
     return true;
 }
+bool flipper_http_process_response_async_2(bool (*http_request)(void), int (*parse_json)(void))
+{
+    if (http_request()) // start the async request
+    {
+        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp.state = RECEIVING;
+    }
+    else
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to send request");
+        return false;
+    }
+    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp.get_timeout_timer);
+    if (parse_json() < 1) // parse the JSON before switching to the view (synchonous)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to parse the JSON...");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Perform a task while displaying a loading screen
+ * @param http_request The function to send the request
+ * @param parse_response The function to parse the response
+ * @param success_view_id The view ID to switch to on success
+ * @param failure_view_id The view ID to switch to on failure
+ * @param view_dispatcher The view dispatcher to use
+ * @return
+ */
+void flipper_http_loading_task(bool (*http_request)(void),
+                               bool (*parse_response)(void),
+                               uint32_t success_view_id,
+                               uint32_t failure_view_id,
+                               ViewDispatcher **view_dispatcher)
+{
+    if (fhttp.state == INACTIVE)
+    {
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        return;
+    }
+    Loading *loading;
+    int32_t loading_view_id = 987654321; // Random ID
+
+    loading = loading_alloc();
+    if (!loading)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to allocate loading");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+
+        return;
+    }
+
+    view_dispatcher_add_view(*view_dispatcher, loading_view_id, loading_get_view(loading));
+
+    // Switch to the loading view
+    view_dispatcher_switch_to_view(*view_dispatcher, loading_view_id);
+
+    // Make the request
+    if (!flipper_http_process_response_async(http_request, parse_response))
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to make request");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+        loading_free(loading);
+
+        return;
+    }
+
+    // Switch to the success view
+    view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
+    view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+    // loading_free(loading);
+}
+
+/**
+ * @brief Perform a task while displaying a loading screen
+ * @param http_request The function to send the request
+ * @param parse_response The function to parse the response
+ * @param success_view_id The view ID to switch to on success
+ * @param failure_view_id The view ID to switch to on failure
+ * @param view_dispatcher The view dispatcher to use
+ * @return
+ */
+void flipper_http_loading_task_2(bool (*http_request)(void),
+                                 int (*parse_response)(void),
+                                 uint32_t success_view_id,
+                                 uint32_t failure_view_id,
+                                 ViewDispatcher **view_dispatcher)
+{
+    Loading *loading;
+    int32_t loading_view_id = 987654321; // Random ID
+
+    loading = loading_alloc();
+    if (!loading)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to allocate loading");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+
+        return;
+    }
+
+    view_dispatcher_add_view(*view_dispatcher, loading_view_id, loading_get_view(loading));
+
+    // Switch to the loading view
+    view_dispatcher_switch_to_view(*view_dispatcher, loading_view_id);
+
+    // Make the request
+    if (!flipper_http_process_response_async_2(http_request, parse_response))
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to make request");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+        loading_free(loading);
+
+        return;
+    }
+
+    // Switch to the success view
+    view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
+    view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+    loading_free(loading);
+}

@@ -2,6 +2,13 @@
 
 FlipSocialModel2 *flip_social_messages_alloc()
 {
+    if (!app_instance->submenu_messages)
+    {
+        if (!easy_flipper_set_submenu(&app_instance->submenu_messages, FlipSocialViewLoggedInMessagesSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+        {
+            return NULL;
+        }
+    }
     // Allocate memory for each username only if not already allocated
     FlipSocialModel2 *users = malloc(sizeof(FlipSocialModel2));
     if (users == NULL)
@@ -61,36 +68,26 @@ void flip_social_free_message_users()
 {
     if (flip_social_message_users == NULL)
     {
-        FURI_LOG_E(TAG, "Message users model is NULL");
         return;
     }
-    for (int i = 0; i < flip_social_message_users->count; i++)
-    {
-        if (flip_social_message_users->usernames[i])
-        {
-            free(flip_social_message_users->usernames[i]);
-        }
-    }
+    free(flip_social_message_users);
+    flip_social_message_users = NULL;
 }
 
 void flip_social_free_messages()
 {
+    if (app_instance->submenu_messages)
+    {
+        submenu_free(app_instance->submenu_messages);
+        app_instance->submenu_messages = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+    }
     if (flip_social_messages == NULL)
     {
-        FURI_LOG_E(TAG, "Messages model is NULL");
         return;
     }
-    for (int i = 0; i < flip_social_messages->count; i++)
-    {
-        if (flip_social_messages->usernames[i])
-        {
-            free(flip_social_messages->usernames[i]);
-        }
-        if (flip_social_messages->messages[i])
-        {
-            free(flip_social_messages->messages[i]);
-        }
-    }
+    free(flip_social_messages);
+    flip_social_messages = NULL;
 }
 
 bool flip_social_update_messages_submenu()
@@ -144,11 +141,16 @@ bool flip_social_get_message_users()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     char command[128];
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.json");
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -166,6 +168,11 @@ bool flip_social_get_message_users()
 // Get all the messages between the logged in user and the selected user
 bool flip_social_get_messages_with_user()
 {
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
     if (app_instance->login_username_logged_out == NULL)
     {
         FURI_LOG_E(TAG, "Username is NULL");
@@ -180,7 +187,8 @@ bool flip_social_get_messages_with_user()
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages.txt");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s_messages.json",
+        flip_social_message_users->usernames[flip_social_message_users->index]);
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -430,8 +438,8 @@ bool flip_social_parse_json_messages()
         }
 
         // Extract individual fields from the JSON object
-        char *sender = get_json_value("sender", item, MAX_TOKENS);
-        char *content = get_json_value("content", item, MAX_TOKENS);
+        char *sender = get_json_value("sender", item, 64);
+        char *content = get_json_value("content", item, 64);
 
         if (sender == NULL || content == NULL)
         {
@@ -448,6 +456,13 @@ bool flip_social_parse_json_messages()
         free(item);
         free(sender);
         free(content);
+    }
+    if (!messages_dialog_alloc(true))
+    {
+        FURI_LOG_E(TAG, "Failed to allocate and set messages dialog.");
+        furi_string_free(message_data);
+        free(data_cstr);
+        return false;
     }
     furi_string_free(message_data);
     free(data_cstr);

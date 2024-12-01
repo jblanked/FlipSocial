@@ -1,11 +1,11 @@
 #include "flip_social.h"
 
-FlipSocialFeed *flip_social_feed = NULL;            // Store the feed
 FlipSocialModel *flip_social_friends = NULL;        // Store the friends
 FlipSocialModel2 *flip_social_message_users = NULL; // Store the users that have sent messages to the logged in user
 FlipSocialModel *flip_social_explore = NULL;        // Store the users to explore
 FlipSocialMessage *flip_social_messages = NULL;     // Store the messages between the logged in user and the selected user
-
+FlipSocialFeedMini *flip_feed_info = NULL;          // Store the feed info
+FlipSocialFeedItem *flip_feed_item = NULL;          // Store a feed item
 FlipSocialApp *app_instance = NULL;
 
 bool flip_social_sent_login_request = false;
@@ -19,6 +19,8 @@ char *last_explore_response = NULL;
 char *selected_message = NULL;
 
 char auth_headers[256] = {0};
+
+void flip_social_loader_free_model(View *view);
 
 /**
  * @brief Function to free the resources used by FlipSocialApp.
@@ -50,26 +52,7 @@ void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         submenu_free(app->submenu_logged_in);
     }
-    if (app->submenu_compose)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
-        submenu_free(app->submenu_compose);
-    }
-    if (app->submenu_explore)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
-        submenu_free(app->submenu_explore);
-    }
-    if (app->submenu_friends)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
-        submenu_free(app->submenu_friends);
-    }
-    if (app->submenu_messages)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
-        submenu_free(app->submenu_messages);
-    }
+    //
     if (app->submenu_messages_user_choices)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesUserChoices);
@@ -176,52 +159,18 @@ void flip_social_app_free(FlipSocialApp *app)
     }
 
     // Free Widget(s)
-    if (app->widget_logged_out_about)
+    if (app->widget_result)
     {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutAbout);
-        widget_free(app->widget_logged_out_about);
-    }
-    if (app->widget_logged_in_about)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsAbout);
-        widget_free(app->widget_logged_in_about);
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+        widget_free(app->widget_result);
     }
 
     // Free View(s)
-    if (app->view_process_login)
+    if (app->view_loader)
     {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutProcessLogin);
-        view_free(app->view_process_login);
-    }
-    if (app->view_process_register)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutProcessRegister);
-        view_free(app->view_process_register);
-    }
-    if (app->view_process_feed)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        view_free(app->view_process_feed);
-    }
-    if (app->view_process_compose)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInProcessCompose);
-        view_free(app->view_process_compose);
-    }
-    if (app->view_process_explore)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreProccess);
-        view_free(app->view_process_explore);
-    }
-    if (app->view_process_friends)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsProcess);
-        view_free(app->view_process_friends);
-    }
-    if (app->view_process_messages)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesProcess);
-        view_free(app->view_process_messages);
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoader);
+        flip_social_loader_free_model(app->view_loader);
+        view_free(app->view_loader);
     }
 
     if (app->view_dispatcher)
@@ -306,14 +255,15 @@ void auth_headers_alloc(void)
 {
     if (!app_instance)
     {
+        snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\"}");
         return;
     }
 
-    if (app_instance->login_username_logged_out && app_instance->login_password_logged_out)
+    if (app_instance->login_username_logged_out && app_instance->login_password_logged_out && strlen(app_instance->login_username_logged_out) > 0 && strlen(app_instance->login_password_logged_out) > 0)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\",\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
     }
-    else if (app_instance->login_username_logged_in && app_instance->change_password_logged_in)
+    else if (app_instance->login_username_logged_in && app_instance->change_password_logged_in && strlen(app_instance->login_username_logged_in) > 0 && strlen(app_instance->change_password_logged_in) > 0)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\",\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_in, app_instance->change_password_logged_in);
     }
@@ -321,4 +271,27 @@ void auth_headers_alloc(void)
     {
         snprintf(auth_headers, sizeof(auth_headers), "{\"Content-Type\":\"application/json\"}");
     }
+}
+
+FlipSocialFeedMini *flip_feed_info_alloc(void)
+{
+    FlipSocialFeedMini *feed_info = (FlipSocialFeedMini *)malloc(sizeof(FlipSocialFeedMini));
+    if (!feed_info)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for feed_info");
+        return NULL;
+    }
+    feed_info->count = 0;
+    feed_info->index = 0;
+    return feed_info;
+}
+
+void flip_feed_info_free(void)
+{
+    if (!flip_feed_info)
+    {
+        return;
+    }
+    free(flip_feed_info);
+    flip_feed_info = NULL;
 }

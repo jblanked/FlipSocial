@@ -34,4 +34,5 @@ bool load_settings(
     char *is_logged_in,
     size_t is_logged_in_size);
 
+bool flip_social_save_post(char *post_id, char *json_feed_data);
 #endif

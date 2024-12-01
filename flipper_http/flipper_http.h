@@ -2,6 +2,10 @@
 #ifndef FLIPPER_HTTP_H
 #define FLIPPER_HTTP_H
 
+#include <gui/gui.h>
+#include <gui/view.h>
+#include <gui/view_dispatcher.h>
+#include <gui/modules/loading.h>
 #include <furi.h>
 #include <furi_hal.h>
 #include <furi_hal_gpio.h>
@@ -13,11 +17,11 @@
 #define HTTP_TAG "FlipSocial"             // change this to your app name
 #define http_tag "flip_social"            // change this to your app id
 #define UART_CH (FuriHalSerialIdUsart)    // UART channel
-#define TIMEOUT_DURATION_TICKS (5 * 1000) // 5 seconds
+#define TIMEOUT_DURATION_TICKS (8 * 1000) // 8 seconds (increased for Pico W)
 #define BAUDRATE (115200)                 // UART baudrate
-#define RX_BUF_SIZE 1024                  // UART RX buffer size
-#define RX_LINE_BUFFER_SIZE 8192          // UART RX line buffer size (increase for large responses)
-#define MAX_FILE_SHOW 8192                // Maximum data from file to show
+#define RX_BUF_SIZE 128                   // UART RX buffer size
+#define RX_LINE_BUFFER_SIZE 7000          // UART RX line buffer size (increase for large responses)
+#define MAX_FILE_SHOW 7000                // Maximum data from file to show
 #define FILE_BUFFER_SIZE 512              // File buffer size
 
 // Forward declaration for callback
@@ -362,5 +366,36 @@ char *trim(const char *str);
  * @return true if successful, false otherwise
  */
 bool flipper_http_process_response_async(bool (*http_request)(void), bool (*parse_json)(void));
+bool flipper_http_process_response_async_2(bool (*http_request)(void), int (*parse_json)(void));
+
+/**
+ * @brief Perform a task while displaying a loading screen
+ * @param http_request The function to send the request
+ * @param parse_response The function to parse the response
+ * @param success_view_id The view ID to switch to on success
+ * @param failure_view_id The view ID to switch to on failure
+ * @param view_dispatcher The view dispatcher to use
+ * @return
+ */
+void flipper_http_loading_task(bool (*http_request)(void),
+                               bool (*parse_response)(void),
+                               uint32_t success_view_id,
+                               uint32_t failure_view_id,
+                               ViewDispatcher **view_dispatcher);
+
+/**
+ * @brief Perform a task while displaying a loading screen
+ * @param http_request The function to send the request
+ * @param parse_response The function to parse the response
+ * @param success_view_id The view ID to switch to on success
+ * @param failure_view_id The view ID to switch to on failure
+ * @param view_dispatcher The view dispatcher to use
+ * @return
+ */
+void flipper_http_loading_task_2(bool (*http_request)(void),
+                                 int (*parse_response)(void),
+                                 uint32_t success_view_id,
+                                 uint32_t failure_view_id,
+                                 ViewDispatcher **view_dispatcher);
 
 #endif // FLIPPER_HTTP_H

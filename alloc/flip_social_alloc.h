@@ -3,7 +3,6 @@
 #include <flip_social.h>
 #include <callback/flip_social_callback.h>
 #include <flip_storage/flip_social_storage.h>
-#include <draw/flip_social_draw.h>
 
 /**
  * @brief Function to allocate resources for the FlipSocialApp.
