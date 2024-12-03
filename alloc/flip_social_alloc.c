@@ -176,11 +176,11 @@ FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.8", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.7", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.8", flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }

@@ -1,3 +1,6 @@
+## 0.8
+- Add support for RPC_KEYBOARD
+
 ## 0.7
 - Improved memory allocation
 - Increased the max explore users from 50 to 100
