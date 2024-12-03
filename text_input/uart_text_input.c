@@ -348,17 +348,17 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
                 if (model->selected_row == row && model->selected_column == column)
                 {
                     canvas_draw_icon(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
                         keyboard_origin_y + keys[column].y,
                         &I_KeySaveSelected_24x11);
                 }
                 else
                 {
                     canvas_draw_icon(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
-                        keyboard_origin_y + keys[column].y, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
+                        keyboard_origin_y + keys[column].y,
                         &I_KeySave_24x11);
                 }
             }
@@ -368,17 +368,17 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
                 if (model->selected_row == row && model->selected_column == column)
                 {
                     canvas_draw_icon(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
-                        keyboard_origin_y + keys[column].y, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
+                        keyboard_origin_y + keys[column].y,
                         &I_KeyBackspaceSelected_16x9);
                 }
                 else
                 {
                     canvas_draw_icon(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
-                        keyboard_origin_y + keys[column].y, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
+                        keyboard_origin_y + keys[column].y,
                         &I_KeyBackspace_16x9);
                 }
             }
@@ -388,10 +388,10 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
                 {
                     canvas_set_color(canvas, ColorBlack);
                     canvas_draw_box(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x - 1, 
-                        keyboard_origin_y + keys[column].y - 8, 
-                        7, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x - 1,
+                        keyboard_origin_y + keys[column].y - 8,
+                        7,
                         10);
                     canvas_set_color(canvas, ColorWhite);
                 }
@@ -402,17 +402,17 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
                 if (0 == strcmp(model->header, mode_AT))
                 {
                     canvas_draw_glyph(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
-                        keyboard_origin_y + keys[column].y, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
+                        keyboard_origin_y + keys[column].y,
                         char_to_uppercase(keys[column].text));
                 }
                 else
                 {
                     canvas_draw_glyph(
-                        canvas, 
-                        keyboard_origin_x + keys[column].x, 
-                        keyboard_origin_y + keys[column].y, 
+                        canvas,
+                        keyboard_origin_x + keys[column].x,
+                        keyboard_origin_y + keys[column].y,
                         keys[column].text);
                 }
             }
@@ -432,7 +432,7 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
     }
 }
 
-static void 
+static void
 uart_text_input_handle_up(UART_TextInput *uart_text_input, UART_TextInputModel *model)
 {
     UNUSED(uart_text_input);
@@ -446,7 +446,7 @@ uart_text_input_handle_up(UART_TextInput *uart_text_input, UART_TextInputModel *
     }
 }
 
-static void 
+static void
 uart_text_input_handle_down(UART_TextInput *uart_text_input, UART_TextInputModel *model)
 {
     UNUSED(uart_text_input);
@@ -460,7 +460,7 @@ uart_text_input_handle_down(UART_TextInput *uart_text_input, UART_TextInputModel
     }
 }
 
-static void 
+static void
 uart_text_input_handle_left(UART_TextInput *uart_text_input, UART_TextInputModel *model)
 {
     UNUSED(uart_text_input);
@@ -474,7 +474,7 @@ uart_text_input_handle_left(UART_TextInput *uart_text_input, UART_TextInputModel
     }
 }
 
-static void 
+static void
 uart_text_input_handle_right(UART_TextInput *uart_text_input, UART_TextInputModel *model)
 {
     UNUSED(uart_text_input);
@@ -489,8 +489,8 @@ uart_text_input_handle_right(UART_TextInput *uart_text_input, UART_TextInputMode
 }
 
 static void uart_text_input_handle_ok(
-    UART_TextInput *uart_text_input, 
-    UART_TextInputModel *model, 
+    UART_TextInput *uart_text_input,
+    UART_TextInputModel *model,
     bool shift)
 {
     char selected = get_selected_char(model);
@@ -556,7 +556,7 @@ static bool uart_text_input_view_input_callback(InputEvent *event, void *context
     // Acquire model
     UART_TextInputModel *model = view_get_model(uart_text_input->view);
 
-    if ((!(event->type == InputTypePress) && !(event->type == InputTypeRelease)) && 
+    if ((!(event->type == InputTypePress) && !(event->type == InputTypeRelease)) &&
         model->valadator_message_visible)
     {
         model->valadator_message_visible = false;
@@ -857,13 +857,13 @@ UART_TextInput *uart_text_input_alloc()
     view_set_enter_callback(uart_text_input->view, text_input_view_enter_callback);
     view_set_exit_callback(uart_text_input->view, text_input_view_exit_callback);
 
-    uart_text_input->timer = 
+    uart_text_input->timer =
         furi_timer_alloc(uart_text_input_timer_callback, FuriTimerTypeOnce, uart_text_input);
 
     with_view_model(
-        uart_text_input->view, 
-        UART_TextInputModel * model, 
-        { model->validator_text = furi_string_alloc(); }, 
+        uart_text_input->view,
+        UART_TextInputModel * model,
+        { model->validator_text = furi_string_alloc(); },
         false);
 
     uart_text_input_reset(uart_text_input);
@@ -875,9 +875,9 @@ void uart_text_input_free(UART_TextInput *uart_text_input)
 {
     furi_assert(uart_text_input);
     with_view_model(
-        uart_text_input->view, 
-        UART_TextInputModel * model, 
-        { furi_string_free(model->validator_text); }, 
+        uart_text_input->view,
+        UART_TextInputModel * model,
+        { furi_string_free(model->validator_text); },
         false);
 
     // Send stop command
@@ -921,11 +921,11 @@ View *uart_text_input_get_view(UART_TextInput *uart_text_input)
 }
 
 void uart_text_input_set_result_callback(
-    UART_TextInput *uart_text_input, 
-    UART_TextInputCallback callback, 
-    void *callback_context, 
-    char *text_buffer, 
-    size_t text_buffer_size, 
+    UART_TextInput *uart_text_input,
+    UART_TextInputCallback callback,
+    void *callback_context,
+    char *text_buffer,
+    size_t text_buffer_size,
     bool clear_default_text)
 {
     with_view_model(
@@ -948,8 +948,8 @@ void uart_text_input_set_result_callback(
 }
 
 void uart_text_input_set_validator(
-    UART_TextInput *uart_text_input, 
-    UART_TextInputValidatorCallback callback, 
+    UART_TextInput *uart_text_input,
+    UART_TextInputValidatorCallback callback,
     void *callback_context)
 {
     with_view_model(
@@ -962,14 +962,14 @@ void uart_text_input_set_validator(
         true);
 }
 
-UART_TextInputValidatorCallback 
+UART_TextInputValidatorCallback
 uart_text_input_get_validator_callback(UART_TextInput *uart_text_input)
 {
     UART_TextInputValidatorCallback validator_callback = NULL;
     with_view_model(
-        uart_text_input->view, 
-        UART_TextInputModel * model, 
-        { validator_callback = model->validator_callback; }, 
+        uart_text_input->view,
+        UART_TextInputModel * model,
+        { validator_callback = model->validator_callback; },
         false);
     return validator_callback;
 }
@@ -978,9 +978,9 @@ void *uart_text_input_get_validator_callback_context(UART_TextInput *uart_text_i
 {
     void *validator_callback_context = NULL;
     with_view_model(
-        uart_text_input->view, 
-        UART_TextInputModel * model, 
-        { validator_callback_context = model->validator_callback_context; }, 
+        uart_text_input->view,
+        UART_TextInputModel * model,
+        { validator_callback_context = model->validator_callback_context; },
         false);
     return validator_callback_context;
 }
