@@ -132,6 +132,11 @@ void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInChangePasswordInput);
         uart_text_input_free(app->text_input_logged_in_change_password);
     }
+    if (app->text_input_logged_in_change_bio)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInChangeBioInput);
+        uart_text_input_free(app->text_input_logged_in_change_bio);
+    }
     if (app->text_input_logged_in_compose_pre_save_input)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInComposeAddPreSaveInput);
@@ -156,6 +161,16 @@ void flip_social_app_free(FlipSocialApp *app)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput);
         uart_text_input_free(app->text_input_logged_in_messages_new_message_user_choices);
+    }
+    if (app->text_input_logged_in_explore)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInExploreInput);
+        uart_text_input_free(app->text_input_logged_in_explore);
+    }
+    if (app->text_input_logged_in_message_users)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessageUsersInput);
+        uart_text_input_free(app->text_input_logged_in_message_users);
     }
 
     // Free Widget(s)
@@ -209,10 +224,20 @@ void flip_social_app_free(FlipSocialApp *app)
         free(app->change_password_logged_in);
     if (app->change_password_logged_in_temp_buffer)
         free(app->change_password_logged_in_temp_buffer);
+    if (app->change_bio_logged_in)
+        free(app->change_bio_logged_in);
     if (app->compose_pre_save_logged_in)
         free(app->compose_pre_save_logged_in);
     if (app->compose_pre_save_logged_in_temp_buffer)
         free(app->compose_pre_save_logged_in_temp_buffer);
+    if (app->explore_logged_in)
+        free(app->explore_logged_in);
+    if (app->explore_logged_in_temp_buffer)
+        free(app->explore_logged_in_temp_buffer);
+    if (app->message_users_logged_in)
+        free(app->message_users_logged_in);
+    if (app->message_users_logged_in_temp_buffer)
+        free(app->message_users_logged_in_temp_buffer);
     if (app->wifi_ssid_logged_in)
         free(app->wifi_ssid_logged_in);
     if (app->wifi_ssid_logged_in_temp_buffer)
@@ -239,6 +264,8 @@ void flip_social_app_free(FlipSocialApp *app)
         free(last_explore_response);
     if (selected_message)
         free(selected_message);
+    if (app->explore_user_bio)
+        free(app->explore_user_bio);
 
     if (app->input_event && app->input_event_queue)
         furi_pubsub_unsubscribe(app->input_event_queue, app->input_event);

@@ -48,7 +48,6 @@ void save_playlist(const PreSavedPlaylist *playlist)
 }
 
 // Function to load the playlist
-// Function to load the playlist
 bool load_playlist(PreSavedPlaylist *playlist)
 {
     // Ensure playlist is not NULL
@@ -143,6 +142,7 @@ void save_settings(
     const char *login_username_logged_in,
     const char *login_password_logged_out,
     const char *change_password_logged_in,
+    const char *change_bio_logged_in,
     const char *is_logged_in)
 {
     // Create the directory for saving settings
@@ -219,6 +219,14 @@ void save_settings(
         FURI_LOG_E(TAG, "Failed to write is_logged_in");
     }
 
+    // Save the change_bio_logged_in length and data
+    size_t change_bio_length = strlen(change_bio_logged_in) + 1; // Include null terminator
+    if (storage_file_write(file, &change_bio_length, sizeof(size_t)) != sizeof(size_t) ||
+        storage_file_write(file, change_bio_logged_in, change_bio_length) != change_bio_length)
+    {
+        FURI_LOG_E(TAG, "Failed to write change_bio_logged_in");
+    }
+
     storage_file_close(file);
     storage_file_free(file);
     furi_record_close(RECORD_STORAGE);
@@ -237,6 +245,8 @@ bool load_settings(
     size_t password_out_size,
     char *change_password_logged_in,
     size_t change_password_size,
+    char *change_bio_logged_in,
+    size_t change_bio_size,
     char *is_logged_in,
     size_t is_logged_in_size)
 {
@@ -361,6 +371,22 @@ bool load_settings(
     else
     {
         is_logged_in[is_logged_in_length - 1] = '\0'; // Ensure null-termination
+    }
+
+    // Load the change_bio_logged_in
+    size_t change_bio_length;
+    if (storage_file_read(file, &change_bio_length, sizeof(size_t)) != sizeof(size_t) || change_bio_length > change_bio_size ||
+        storage_file_read(file, change_bio_logged_in, change_bio_length) != change_bio_length)
+    {
+        FURI_LOG_E(TAG, "Failed to read change_bio_logged_in");
+        // storage_file_close(file);
+        // storage_file_free(file);
+        // furi_record_close(RECORD_STORAGE);
+        //  return false;
+    }
+    else
+    {
+        change_bio_logged_in[change_bio_length - 1] = '\0'; // Ensure null-termination
     }
 
     storage_file_close(file);

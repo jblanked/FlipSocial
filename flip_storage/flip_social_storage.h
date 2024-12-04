@@ -16,6 +16,7 @@ void save_settings(
     const char *login_username_logged_in,
     const char *login_password_logged_out,
     const char *change_password_logged_in,
+    const char *change_bio_logged_in,
     const char *is_logged_in);
 
 bool load_settings(
@@ -31,6 +32,8 @@ bool load_settings(
     size_t password_out_size,
     char *change_password_logged_in,
     size_t change_password_size,
+    char *change_bio_logged_in,
+    size_t change_bio_size,
     char *is_logged_in,
     size_t is_logged_in_size);
 
