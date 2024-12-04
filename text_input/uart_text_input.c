@@ -4,6 +4,7 @@
 #include <gui/elements.h>
 #include "flip_social_icons.h"
 #include <furi.h>
+#include "rpc_keyboard.h"
 
 struct UART_TextInput
 {
@@ -24,6 +25,9 @@ typedef struct
     char *text_buffer;
     size_t text_buffer_size;
     bool clear_default_text;
+
+    FuriPubSubSubscription *keyboard_subscription;
+    bool invoke_callback;
 
     UART_TextInputCallback callback;
     void *callback_context;
@@ -280,6 +284,21 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
     // uint8_t text_length = model->text_buffer ? strlen(model->text_buffer) : 0;
     uint8_t needed_string_width = canvas_width(canvas) - 8;
     uint8_t start_pos = 4;
+
+    if (model->invoke_callback)
+    {
+        model->invoke_callback = false;
+        if (model->validator_callback && (!model->validator_callback(model->text_buffer, model->validator_text, model->validator_callback_context)))
+        {
+            model->valadator_message_visible = true;
+        }
+        else if (model->callback != 0)
+        {
+            // We hijack the current thread to invoke the callback (we aren't doing a draw).
+            model->callback(model->callback_context);
+            return;
+        }
+    }
 
     const char *text = model->text_buffer;
 
@@ -634,10 +653,197 @@ void uart_text_input_timer_callback(void *context)
     UART_TextInput *uart_text_input = context;
 
     with_view_model(
-        uart_text_input->view,
-        UART_TextInputModel * model,
-        { model->valadator_message_visible = false; },
+        uart_text_input->view, 
+        UART_TextInputModel * model, 
+        { model->valadator_message_visible = false; }, 
         true);
+}
+
+static void text_input_keyboard_callback_line(UART_TextInput *text_input, const RpcKeyboardEvent *event)
+{
+    with_view_model(
+        text_input->view,
+        UART_TextInputModel * model,
+        {
+            if (model->text_buffer != NULL && model->text_buffer_size > 0)
+            {
+                if (event->data.length > 0)
+                {
+                    furi_mutex_acquire(event->data.mutex, FuriWaitForever);
+                    size_t len = event->data.length;
+                    if (len >= model->text_buffer_size)
+                    {
+                        len = model->text_buffer_size - 1;
+                    }
+
+                    bool newline = false;
+                    bool substitutions = false;
+                    size_t copy_index = 0;
+                    for (size_t i = 0; i < len; i++)
+                    {
+                        char ch = event->data.message[i];
+                        if ((ch >= 0x20 && ch <= 0x7E) || ch == '\n' || ch == '\r')
+                        {
+                            model->text_buffer[copy_index++] = ch;
+                            if (ch == '\n' || ch == '\r')
+                            {
+                                newline = event->data.newline_enabled && !substitutions; // TODO: No min-length check?
+                                break;
+                            }
+                        }
+                    }
+                    model->text_buffer[copy_index] = '\0';
+                    furi_mutex_release(event->data.mutex);
+                    FURI_LOG_D("text_input", "copy: %d, %d, %s", len, copy_index, model->text_buffer);
+
+                    // Set focus on Save
+                    model->selected_row = 3;
+                    model->selected_column = 8;
+
+                    // Hijack the next draw to invoke the callback if newline is true.
+                    model->invoke_callback = newline;
+                }
+            }
+        },
+        true);
+}
+
+static void text_input_keyboard_type_key(UART_TextInput *text_input, char selected)
+{
+    with_view_model(
+        text_input->view,
+        UART_TextInputModel * model,
+        {
+            size_t text_length = strlen(model->text_buffer);
+            char search_key = isupper(selected) ? tolower(selected) : selected == ' ' ? '_'
+                                                                                      : selected;
+            bool found = false;
+            for (int row = 0; row < keyboard_row_count; row++)
+            {
+                const UART_TextInputKey *keys = get_row(row);
+                for (int column = 0; column < get_row_size(row); column++)
+                {
+                    if (keys[column].text == search_key)
+                    {
+                        model->selected_row = row;
+                        model->selected_column = column;
+                        found = true;
+                    }
+                }
+            }
+            if (!found)
+            {
+                // Set focus on Backspace
+                model->selected_row = 2;
+                model->selected_column = 9;
+            }
+
+            if (selected == ENTER_KEY)
+            {
+                if (model->validator_callback && (!model->validator_callback(model->text_buffer, model->validator_text, model->validator_callback_context)))
+                {
+                    model->valadator_message_visible = true;
+                    furi_timer_start(text_input->timer, furi_kernel_get_tick_frequency() * 4);
+                }
+                else if (model->callback != 0)
+                { // TODO: no min-length check
+                    model->callback(model->callback_context);
+                }
+            }
+            else if (selected == BACKSPACE_KEY)
+            {
+                uart_text_input_backspace_cb(model);
+            }
+            else
+            {
+                if (model->clear_default_text)
+                {
+                    text_length = 0;
+                }
+                if (selected == RPC_KEYBOARD_KEY_LEFT || selected == RPC_KEYBOARD_KEY_RIGHT)
+                {
+                    // ignore these keys for now
+                }
+                else if (text_length < (model->text_buffer_size - 1))
+                {
+                    model->text_buffer[text_length] = selected;
+                    model->text_buffer[text_length + 1] = 0;
+                }
+            }
+            model->clear_default_text = false;
+        },
+        true);
+}
+
+static void text_input_keyboard_callback(const void *message, void *context)
+{
+    UART_TextInput *text_input = context;
+    const RpcKeyboardEvent *event = message;
+
+    if (event == NULL)
+    {
+        return;
+    }
+
+    switch (event->type)
+    {
+    case RpcKeyboardEventTypeTextEntered:
+        text_input_keyboard_callback_line(text_input, event);
+        break;
+    case RpcKeyboardEventTypeCharEntered:
+        char ch = event->data.message[0];
+        FURI_LOG_I("text_input", "char: %c", ch);
+        text_input_keyboard_type_key(text_input, ch);
+        break;
+    case RpcKeyboardEventTypeMacroEntered:
+        furi_mutex_acquire(event->data.mutex, FuriWaitForever);
+        FURI_LOG_I("text_input", "macro: %s", event->data.message);
+        for (size_t i = 0; i < event->data.length; i++)
+        {
+            text_input_keyboard_type_key(text_input, event->data.message[i]);
+        }
+        furi_mutex_release(event->data.mutex);
+        break;
+    }
+}
+
+static void text_input_view_enter_callback(void *context)
+{
+    furi_assert(context);
+    UART_TextInput *text_input = context;
+    if (furi_record_exists(RECORD_RPC_KEYBOARD))
+    {
+        RpcKeyboard *rpc_keyboard = furi_record_open(RECORD_RPC_KEYBOARD);
+        FuriPubSub *rpc_keyboard_pubsub = rpc_keyboard_get_pubsub(rpc_keyboard);
+        if (rpc_keyboard_pubsub != NULL)
+        {
+            with_view_model(text_input->view, UART_TextInputModel * model, { model->keyboard_subscription = furi_pubsub_subscribe(rpc_keyboard_pubsub, text_input_keyboard_callback, text_input); }, false);
+        }
+        furi_record_close(RECORD_RPC_KEYBOARD);
+    }
+}
+
+static void text_input_view_exit_callback(void *context)
+{
+    furi_assert(context);
+    UART_TextInput *text_input = context;
+    if (furi_record_exists(RECORD_RPC_KEYBOARD))
+    {
+        RpcKeyboard *rpc_keyboard = furi_record_open(RECORD_RPC_KEYBOARD);
+        FuriPubSub *rpc_keyboard_pubsub = rpc_keyboard_get_pubsub(rpc_keyboard);
+        if (rpc_keyboard_pubsub != NULL)
+        {
+            with_view_model(
+                text_input->view,
+                UART_TextInputModel * model,
+                {
+                    furi_pubsub_unsubscribe(rpc_keyboard_pubsub, model->keyboard_subscription);
+                    model->keyboard_subscription = NULL;
+                },
+                false);
+        }
+        furi_record_close(RECORD_RPC_KEYBOARD);
+    }
 }
 
 UART_TextInput *uart_text_input_alloc()
@@ -648,6 +854,8 @@ UART_TextInput *uart_text_input_alloc()
     view_allocate_model(uart_text_input->view, ViewModelTypeLocking, sizeof(UART_TextInputModel));
     view_set_draw_callback(uart_text_input->view, uart_text_input_view_draw_callback);
     view_set_input_callback(uart_text_input->view, uart_text_input_view_input_callback);
+    view_set_enter_callback(uart_text_input->view, text_input_view_enter_callback);
+    view_set_exit_callback(uart_text_input->view, text_input_view_exit_callback);
 
     uart_text_input->timer =
         furi_timer_alloc(uart_text_input_timer_callback, FuriTimerTypeOnce, uart_text_input);
@@ -732,7 +940,7 @@ void uart_text_input_set_result_callback(
             if (text_buffer && text_buffer[0] != '\0')
             {
                 // Set focus on Save
-                model->selected_row = 2;
+                model->selected_row = 3;
                 model->selected_column = 8;
             }
         },
