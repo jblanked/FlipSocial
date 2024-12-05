@@ -117,7 +117,7 @@ bool flip_social_parse_json_friends()
     submenu_set_header(app_instance->submenu_friends, "Friends");
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("friends", data_cstr, MAX_TOKENS);
+    char *json_users = get_json_value("friends", data_cstr, 128);
     if (json_users == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse friends array.");

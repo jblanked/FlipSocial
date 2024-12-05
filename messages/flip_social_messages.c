@@ -40,7 +40,7 @@ FlipSocialMessage *flip_social_user_messages_alloc()
         FURI_LOG_E(TAG, "Failed to allocate memory for messages");
         return NULL;
     }
-    for (size_t i = 0; i < MAX_MESSAGE_USERS; i++)
+    for (size_t i = 0; i < MAX_MESSAGES; i++)
     {
         if (messages->usernames[i] == NULL)
         {
@@ -410,15 +410,15 @@ bool flip_social_parse_json_messages()
     for (int i = 0; i < MAX_MESSAGES; i++)
     {
         // Parse each item in the array
-        char *item = get_json_array_value("conversations", i, data_cstr, 128);
+        char *item = get_json_array_value("conversations", i, data_cstr, 64);
         if (item == NULL)
         {
             break;
         }
 
         // Extract individual fields from the JSON object
-        char *sender = get_json_value("sender", item, 32);
-        char *content = get_json_value("content", item, 32);
+        char *sender = get_json_value("sender", item, 8);
+        char *content = get_json_value("content", item, 8);
 
         if (sender == NULL || content == NULL)
         {

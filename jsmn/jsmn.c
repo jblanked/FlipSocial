@@ -473,9 +473,6 @@ char *get_json_value(char *key, char *json_data, uint32_t max_tokens)
             return NULL;
         }
 
-        // print amount of tokens
-        FURI_LOG_I("JSMM.H", "Amount of tokens: %d", ret);
-
         // Ensure that the root element is an object
         if (ret < 1 || tokens[0].type != JSMN_OBJECT)
         {
@@ -550,9 +547,6 @@ char *get_json_array_value(char *key, uint32_t index, char *json_data, uint32_t 
         free(array_str);
         return NULL;
     }
-
-    // print amount of tokens
-    FURI_LOG_I("JSMM.H", "Amount of tokens: %d", ret);
 
     // Ensure the root element is an array
     if (ret < 1 || tokens[0].type != JSMN_ARRAY)
