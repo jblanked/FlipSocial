@@ -295,7 +295,7 @@ static void uart_text_input_view_draw_callback(Canvas *canvas, void *_model)
         else if (model->callback != 0)
         {
             // We hijack the current thread to invoke the callback (we aren't doing a draw).
-            model->callback(model->callback_context);
+            // model->callback(model->callback_context);
             return;
         }
     }
@@ -653,9 +653,9 @@ void uart_text_input_timer_callback(void *context)
     UART_TextInput *uart_text_input = context;
 
     with_view_model(
-        uart_text_input->view, 
-        UART_TextInputModel * model, 
-        { model->valadator_message_visible = false; }, 
+        uart_text_input->view,
+        UART_TextInputModel * model,
+        { model->valadator_message_visible = false; },
         true);
 }
 
