@@ -11,13 +11,13 @@
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
-#define MAX_EXPLORE_USERS 100     // Maximum number of users to explore
+#define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 640            // Adjust based on expected JSON tokens
+#define MAX_TOKENS 576            // Adjust based on expected JSON tokens
 #define MAX_FEED_ITEMS 50         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
-#define MAX_MESSAGE_USERS 20 // Maximum number of users to display in the submenu
+#define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
 
 #define SETTINGS_PATH STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/settings.bin"
@@ -125,12 +125,15 @@ typedef enum
     FlipSocialViewLoggedInCompose,  // The compose screen
     FlipSocialViewLoggedInSettings, // The settings screen
     //
+    FlipSocialViewLoggedInChangeBioInput,         // Text input screen for bio input on profile screen
     FlipSocialViewLoggedInChangePasswordInput,    // Text input screen for password input on change password screen
     FlipSocialViewLoggedInComposeAddPreSaveInput, // Text input screen for add text input on compose screen
     //
     FlipSocialViewLoggedInMessagesNewMessageInput,            // Text input screen for new message input on messages screen
     FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput, // Text input screen for new message input on messages screen
     FlipSocialViewLoggedInMessagesUserChoices,                // the view after clicking [New Message] - select a user to message, then direct to input view
+    FlipSocialViewLoggedInExploreInput,                       // Text input screen for explore input on explore screen
+    FlipSocialViewLoggedInMessageUsersInput,
     //
     FlipSocialViewLoggedInSettingsAbout,             // The about screen
     FlipSocialViewLoggedInSettingsWifi,              // The wifi settings screen
@@ -189,12 +192,16 @@ typedef struct
     UART_TextInput *text_input_logged_out_register_password_2;    // Text input for password 2 input on register screen
     //
     UART_TextInput *text_input_logged_in_change_password;        // Text input for password input on change password screen
+    UART_TextInput *text_input_logged_in_change_bio;             // Text input for bio input on profile screen
     UART_TextInput *text_input_logged_in_compose_pre_save_input; // Text input for pre save input on compose screen
     UART_TextInput *text_input_logged_in_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
     UART_TextInput *text_input_logged_in_wifi_settings_password; // Text input for password input on wifi settings screen
     //
     UART_TextInput *text_input_logged_in_messages_new_message;              // Text input for new message input on messages screen
     UART_TextInput *text_input_logged_in_messages_new_message_user_choices; //
+    //
+    UART_TextInput *text_input_logged_in_explore; // Text input for explore input on explore screen
+    UART_TextInput *text_input_logged_in_message_users;
 
     VariableItem *variable_item_logged_out_wifi_settings_ssid;     // Reference to the ssid configuration item
     VariableItem *variable_item_logged_out_wifi_settings_password; // Reference to the password configuration item
@@ -208,16 +215,15 @@ typedef struct
     //
     VariableItem *variable_item_logged_in_profile_username;        // Reference to the username configuration item
     VariableItem *variable_item_logged_in_profile_change_password; // Reference to the change password configuration item
-    VariableItem *variable_item_logged_in_settings_about;          // Reference to the about configuration item
-    VariableItem *variable_item_logged_in_settings_wifi;           // Reference to the wifi settings configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_ssid;      // Reference to the ssid configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_password;  // Reference to the password configuration item
+    VariableItem *variable_item_logged_in_profile_change_bio;      // Reference to the change bio configuration item
+    //
+    VariableItem *variable_item_logged_in_settings_about;         // Reference to the about configuration item
+    VariableItem *variable_item_logged_in_settings_wifi;          // Reference to the wifi settings configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_ssid;     // Reference to the ssid configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_password; // Reference to the password configuration item
     //
     VariableItem *variable_item_logged_in_profile_friends; // Reference to the friends configuration item
     //
-    FuriPubSub *input_event_queue;
-    FuriPubSubSubscription *input_event;
-
     PreSavedPlaylist pre_saved_messages; // Pre-saved messages for the feed screen
 
     char *is_logged_in;         // Store the login status
@@ -227,6 +233,10 @@ typedef struct
     char *login_username_logged_in_temp_buffer;         // Temporary buffer for login username text input
     uint32_t login_username_logged_in_temp_buffer_size; // Size of the login username temporary buffer
 
+    char *change_bio_logged_in;                     // Store the entered bio
+    char *change_bio_logged_in_temp_buffer;         // Temporary buffer for bio text input
+    uint32_t change_bio_logged_in_temp_buffer_size; // Size of the bio temporary buffer
+    //
     char *wifi_ssid_logged_out;                     // Store the entered wifi ssid
     char *wifi_ssid_logged_out_temp_buffer;         // Temporary buffer for wifi ssid text input
     uint32_t wifi_ssid_logged_out_temp_buffer_size; // Size of the wifi ssid temporary buffer
@@ -280,6 +290,14 @@ typedef struct
     char *message_user_choice_logged_in;                     // Store the entered message to send to the selected user
     char *message_user_choice_logged_in_temp_buffer;         // Temporary buffer for message to send to the selected user
     uint32_t message_user_choice_logged_in_temp_buffer_size; // Size of the message to send to the selected user temporary buffer
+    //
+    char *explore_logged_in;                     // Store the entered explore
+    char *explore_logged_in_temp_buffer;         // Temporary buffer for explore text input
+    uint32_t explore_logged_in_temp_buffer_size; // Size of the explore temporary buffer
+
+    char *message_users_logged_in;                     // Store the entered message users
+    char *message_users_logged_in_temp_buffer;         // Temporary buffer for message users text input
+    uint32_t message_users_logged_in_temp_buffer_size; // Size of the message users temporary buffer
 
     Loading *loading; // The loading screen
     DialogEx *dialog_explore;
@@ -287,6 +305,8 @@ typedef struct
     DialogEx *dialog_messages;
     DialogEx *dialog_compose;
     DialogEx *dialog_feed;
+
+    char *explore_user_bio; // Store the bio of the selected user
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);
@@ -306,7 +326,6 @@ extern bool flip_social_register_success;
 extern bool flip_social_dialog_shown;
 extern bool flip_social_dialog_stop;
 extern bool flip_social_send_message;
-extern char *last_explore_response;
 extern char *selected_message;
 extern char auth_headers[256];
 

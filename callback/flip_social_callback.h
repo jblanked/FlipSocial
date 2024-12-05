@@ -8,8 +8,6 @@
 #include <feed/flip_social_feed.h>
 #include <flip_storage/flip_social_storage.h>
 
-void flip_social_request_error_draw(Canvas *canvas);
-
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
  * @param context The context - unused
@@ -223,6 +221,7 @@ void flip_social_logged_in_profile_change_password_updated(void *context);
  * @param index The index of the selected item.
  * @return void
  */
+void flip_social_logged_in_profile_change_bio_updated(void *context);
 void flip_social_text_input_logged_in_profile_item_selected(void *context, uint32_t index);
 
 /**
@@ -253,6 +252,8 @@ void flip_social_logged_in_messages_new_message_updated(void *context);
  * @return void
  */
 void flip_social_text_input_logged_out_register_item_selected(void *context, uint32_t index);
+void flip_social_logged_in_explore_updated(void *context);
+void flip_social_logged_in_message_users_updated(void *context);
 
 // Add edits by Derek Jamison
 typedef enum DataState DataState;

@@ -66,14 +66,45 @@ bool flip_social_get_explore(void)
         FURI_LOG_E(TAG, "HTTP state is INACTIVE");
         return false;
     }
+    char *keyword = !app_instance->explore_logged_in || strlen(app_instance->explore_logged_in) == 0 ? "a" : app_instance->explore_logged_in;
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/users.json");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s.json",
+        keyword);
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
-    if (!flipper_http_get_request_with_headers("https://www.flipsocial.net/api/user/users/", auth_headers))
+    char url[256];
+    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
+    if (!flipper_http_get_request_with_headers(url, auth_headers))
+    {
+        FURI_LOG_E(TAG, "Failed to send HTTP request for explore");
+        fhttp.state = ISSUE;
+        return false;
+    }
+    fhttp.state = RECEIVING;
+    return true;
+}
+bool flip_social_get_explore_2(void)
+{
+    if (fhttp.state == INACTIVE)
+    {
+        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        return false;
+    }
+    char *keyword = !app_instance->message_users_logged_in || strlen(app_instance->message_users_logged_in) == 0 ? "a" : app_instance->message_users_logged_in;
+    snprintf(
+        fhttp.file_path,
+        sizeof(fhttp.file_path),
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s.json",
+        keyword);
+
+    fhttp.save_received_data = true;
+    auth_headers_alloc();
+    char url[256];
+    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
+    if (!flipper_http_get_request_with_headers(url, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for explore");
         fhttp.state = ISSUE;
@@ -116,11 +147,10 @@ bool flip_social_parse_json_explore()
     // set submenu
     submenu_reset(app_instance->submenu_explore);
     submenu_set_header(app_instance->submenu_explore, "Explore");
-
     // Parse the JSON array of usernames
     for (size_t i = 0; i < MAX_EXPLORE_USERS; i++)
     {
-        char *username = get_json_array_value("users", i, data_cstr, MAX_TOKENS); // currently its 330 tokens
+        char *username = get_json_array_value("users", i, data_cstr, 64); // currently its 53 tokens (with max explore users at 50)
         if (username == NULL)
         {
             break;

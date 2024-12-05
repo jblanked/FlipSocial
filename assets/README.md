@@ -6,7 +6,7 @@ The highlight of this app is customizable pre-saves, which, as explained below, 
 FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
 
 ## Requirements
-- WiFi Developer Board or Raspberry Pi Pico W with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
+- WiFi Developer Board, Raspberry Pi, or ESP32 Device with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
 - WiFi Access Point
 
 
@@ -60,7 +60,7 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 - Loading screens.
 
 **v0.8**
-- Improve User Profile (Bio, friend count, block)
+- Improve User Profile
 - Improve Explore Page
 
 **v1.0**
