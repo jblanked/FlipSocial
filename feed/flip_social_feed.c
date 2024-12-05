@@ -167,11 +167,11 @@ bool flip_social_load_feed_post(int post_id)
     }
 
     // Extract individual fields from the JSON object
-    char *username = get_json_value("username", data_cstr, 40);
-    char *message = get_json_value("message", data_cstr, 40);
-    char *flipped = get_json_value("flipped", data_cstr, 40);
-    char *flips = get_json_value("flip_count", data_cstr, 40);
-    char *id = get_json_value("id", data_cstr, 40);
+    char *username = get_json_value("username", data_cstr, 16);
+    char *message = get_json_value("message", data_cstr, 16);
+    char *flipped = get_json_value("flipped", data_cstr, 16);
+    char *flips = get_json_value("flip_count", data_cstr, 16);
+    char *id = get_json_value("id", data_cstr, 16);
 
     if (username == NULL || message == NULL || flipped == NULL || id == NULL)
     {

@@ -150,7 +150,7 @@ bool flip_social_parse_json_explore()
     // Parse the JSON array of usernames
     for (size_t i = 0; i < MAX_EXPLORE_USERS; i++)
     {
-        char *username = get_json_array_value("users", i, data_cstr, MAX_TOKENS); // currently its 330 tokens
+        char *username = get_json_array_value("users", i, data_cstr, 64); // currently its 53 tokens (with max explore users at 50)
         if (username == NULL)
         {
             break;

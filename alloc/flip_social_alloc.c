@@ -181,10 +181,6 @@ FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
-    if (!easy_flipper_set_buffer(&last_explore_response, app->message_user_choice_logged_in_temp_buffer_size))
-    {
-        return NULL;
-    }
     if (!easy_flipper_set_buffer(&app->explore_logged_in, app->explore_logged_in_temp_buffer_size))
     {
         return NULL;

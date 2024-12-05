@@ -17,7 +17,7 @@
 #define MAX_TOKENS 640            // Adjust based on expected JSON tokens
 #define MAX_FEED_ITEMS 50         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
-#define MAX_MESSAGE_USERS 20 // Maximum number of users to display in the submenu
+#define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
 
 #define SETTINGS_PATH STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/settings.bin"
@@ -224,9 +224,6 @@ typedef struct
     //
     VariableItem *variable_item_logged_in_profile_friends; // Reference to the friends configuration item
     //
-    FuriPubSub *input_event_queue;
-    FuriPubSubSubscription *input_event;
-
     PreSavedPlaylist pre_saved_messages; // Pre-saved messages for the feed screen
 
     char *is_logged_in;         // Store the login status
@@ -329,7 +326,6 @@ extern bool flip_social_register_success;
 extern bool flip_social_dialog_shown;
 extern bool flip_social_dialog_stop;
 extern bool flip_social_send_message;
-extern char *last_explore_response;
 extern char *selected_message;
 extern char auth_headers[256];
 

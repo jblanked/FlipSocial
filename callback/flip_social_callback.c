@@ -481,7 +481,6 @@ uint32_t flip_social_callback_to_explore_logged_in(void *context)
 {
     UNUSED(context);
     flip_social_dialog_stop = false;
-    last_explore_response = "";
     flip_social_dialog_shown = false;
     if (flip_social_explore)
     {
@@ -499,7 +498,6 @@ uint32_t flip_social_callback_to_friends_logged_in(void *context)
 {
     UNUSED(context);
     flip_social_dialog_stop = false;
-    last_explore_response = "";
     flip_social_dialog_shown = false;
     flip_social_friends->index = 0;
     return FlipSocialViewLoggedInFriendsSubmenu;

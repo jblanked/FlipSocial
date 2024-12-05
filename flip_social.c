@@ -15,7 +15,6 @@ bool flip_social_register_success = false;
 bool flip_social_dialog_shown = false;
 bool flip_social_dialog_stop = false;
 bool flip_social_send_message = false;
-char *last_explore_response = NULL;
 char *selected_message = NULL;
 
 char auth_headers[256] = {0};
@@ -260,15 +259,10 @@ void flip_social_app_free(FlipSocialApp *app)
         free(app->message_user_choice_logged_in);
     if (app->message_user_choice_logged_in_temp_buffer)
         free(app->message_user_choice_logged_in_temp_buffer);
-    if (last_explore_response)
-        free(last_explore_response);
     if (selected_message)
         free(selected_message);
     if (app->explore_user_bio)
         free(app->explore_user_bio);
-
-    if (app->input_event && app->input_event_queue)
-        furi_pubsub_unsubscribe(app->input_event_queue, app->input_event);
 
     // DeInit UART
     flipper_http_deinit();
