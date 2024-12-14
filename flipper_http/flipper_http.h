@@ -19,7 +19,7 @@
 #define UART_CH (FuriHalSerialIdUsart)    // UART channel
 #define TIMEOUT_DURATION_TICKS (8 * 1000) // 8 seconds (increased for Pico W)
 #define BAUDRATE (115200)                 // UART baudrate
-#define RX_BUF_SIZE 128                   // UART RX buffer size
+#define RX_BUF_SIZE 2048                  // UART RX buffer size
 #define RX_LINE_BUFFER_SIZE 7000          // UART RX line buffer size (increase for large responses)
 #define MAX_FILE_SHOW 7000                // Maximum data from file to show
 #define FILE_BUFFER_SIZE 512              // File buffer size

@@ -7,7 +7,9 @@
 #include <flipper_http/flipper_http.h>
 #include <input/input.h>
 #include <flip_social_icons.h>
+
 #define TAG "FlipSocial"
+#define VERSION_TAG TAG " v1.0"
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
