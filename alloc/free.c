@@ -1,11 +1,21 @@
 #include <alloc/free.h>
-void free_all()
+void free_all(bool should_free_variable_item_list)
 {
     free_text_input();
     flip_social_free_friends();
     flip_social_free_messages();
     flip_social_free_explore();
     flip_social_free_feed_dialog();
+    flip_social_free_compose_dialog();
+    flip_social_free_explore_dialog();
+    flip_social_free_friends_dialog();
+    flip_social_free_messages_dialog();
+    flip_feed_info_free();
+    free_pre_saved_messages();
+    free_about_widget(true);
+    free_about_widget(false);
+    if (should_free_variable_item_list)
+        free_variable_item_list();
 }
 void free_text_input()
 {
@@ -63,24 +73,6 @@ void flip_social_free_feed_dialog()
     }
 }
 
-bool about_widget_alloc(bool is_logged_in)
-{
-    if (!is_logged_in)
-    {
-        if (!app_instance->widget_logged_out_about)
-        {
-            return easy_flipper_set_widget(&app_instance->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app_instance->view_dispatcher);
-        }
-    }
-    else
-    {
-        if (!app_instance->widget_logged_in_about)
-        {
-            return easy_flipper_set_widget(&app_instance->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.flipsocial.net\n---\nPress BACK to return.", flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher);
-        }
-    }
-    return true;
-}
 void free_about_widget(bool is_logged_in)
 {
     if (is_logged_in && app_instance->widget_logged_in_about)
@@ -95,36 +87,6 @@ void free_about_widget(bool is_logged_in)
         app_instance->widget_logged_out_about = NULL;
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedOutAbout);
     }
-}
-bool pre_saved_messages_alloc(void)
-{
-    if (!app_instance)
-    {
-        return false;
-    }
-    if (!app_instance->submenu_compose)
-    {
-        if (!easy_flipper_set_submenu(&app_instance->submenu_compose, FlipSocialViewLoggedInCompose, "Create A Post", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
-        {
-            return false;
-        }
-        submenu_reset(app_instance->submenu_compose);
-        submenu_add_item(app_instance->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app_instance);
-
-        // Load the playlist
-        if (load_playlist(&app_instance->pre_saved_messages))
-        {
-            // Update the playlist submenu
-            for (uint32_t i = 0; i < app_instance->pre_saved_messages.count; i++)
-            {
-                if (app_instance->pre_saved_messages.messages[i][0] != '\0') // Check if the string is not empty
-                {
-                    submenu_add_item(app_instance->submenu_compose, app_instance->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app_instance);
-                }
-            }
-        }
-    }
-    return true;
 }
 
 void free_pre_saved_messages(void)
@@ -150,5 +112,25 @@ void flip_social_free_friends(void)
         submenu_free(app_instance->submenu_friends);
         app_instance->submenu_friends = NULL;
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
+    }
+}
+
+void flip_feed_info_free(void)
+{
+    if (!flip_feed_info)
+    {
+        return;
+    }
+    free(flip_feed_info);
+    flip_feed_info = NULL;
+}
+
+void free_variable_item_list(void)
+{
+    if (app_instance->variable_item_list)
+    {
+        variable_item_list_free(app_instance->variable_item_list);
+        app_instance->variable_item_list = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewVariableItemList);
     }
 }

@@ -298,7 +298,6 @@ void flip_social_loader_draw_callback(Canvas *canvas, void *model);
 void flip_social_loader_init(View *view);
 
 void flip_social_loader_free_model(View *view);
-char *updated_user_message(const char *user_message);
 bool flip_social_custom_event_callback(void *context, uint32_t index);
 void messages_dialog_callback(DialogExResult result, void *context);
 void feed_dialog_callback(DialogExResult result, void *context);

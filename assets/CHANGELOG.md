@@ -1,3 +1,7 @@
+## 1.0 - Official Release
+- Final memory improvements
+- Updated the New Message option in the Messages view to allow the user to search for users to send a message to.
+
 ## 0.8 - New Features
 - Added support for RPC_KEYBOARD (thanks to Derek Jamison).
 - Introduced a bio feature in the Profile section: View and update your bio.

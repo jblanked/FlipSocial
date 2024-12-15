@@ -160,6 +160,7 @@ typedef enum
     FlipSocialViewFeedDialog,     // The dialog for the feed screen
     //
     FlipSocialViewTextInput, // The text input screen
+    FlipSocialViewVariableItemList,
 } FlipSocialView;
 
 // Define the application structure
@@ -178,6 +179,8 @@ typedef struct
     Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
     Widget *widget_logged_out_about;        // The about screen (logged out)
     Widget *widget_logged_in_about;         // The about screen (logged in)
+
+    VariableItemList *variable_item_list; // The main menu
 
     VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
     VariableItemList *variable_item_list_logged_out_login;         // The login menu
@@ -314,6 +317,4 @@ extern bool flip_social_dialog_stop;
 extern bool flip_social_send_message;
 extern char *selected_message;
 extern char auth_headers[256];
-
-void flip_feed_info_free(void);
 #endif

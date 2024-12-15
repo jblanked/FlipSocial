@@ -66,33 +66,34 @@ static void flip_social_request_error_draw(Canvas *canvas)
 static bool flip_social_login_fetch(DataLoaderModel *model)
 {
     UNUSED(model);
-    if (!app_instance->login_username_logged_out || !app_instance->login_password_logged_out || strlen(app_instance->login_username_logged_out) == 0 || strlen(app_instance->login_password_logged_out) == 0)
+    if (!app_instance)
     {
+        FURI_LOG_E(TAG, "app_instance is NULL");
         return false;
     }
-    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+    if (!app_instance->login_username_logged_out || !app_instance->login_password_logged_out || strlen(app_instance->login_username_logged_out) == 0 || strlen(app_instance->login_password_logged_out) == 0)
     {
-        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
     auth_headers_alloc();
-    if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/login/", auth_headers, buffer))
-    {
-        fhttp.state = RECEIVING;
-        return true;
-    }
-    else
-    {
-        fhttp.state = ISSUE;
-        return false;
-    }
+    return flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/login/", auth_headers, buffer);
 }
 
 static char *flip_social_login_parse(DataLoaderModel *model)
 {
     UNUSED(model);
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "app_instance is NULL");
+        return "Failed to login...";
+    }
+    if (!fhttp.last_response)
+    {
+        flipper_http_deinit();
+        return "Failed to login...";
+    }
     // read response
     if (strstr(fhttp.last_response, "[SUCCESS]") != NULL || strstr(fhttp.last_response, "User found") != NULL)
     {
@@ -148,25 +149,10 @@ static bool flip_social_register_fetch(DataLoaderModel *model)
         FURI_LOG_E(TAG, "Passwords do not match");
         return false;
     }
-    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-    {
-        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-        return false;
-    }
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->register_username_logged_out, app_instance->register_password_logged_out);
 
-    if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer))
-    {
-        // Set the state to RECEIVING to ensure we continue to see the receiving message
-        fhttp.state = RECEIVING;
-        return true;
-    }
-    else
-    {
-        fhttp.state = ISSUE;
-        return false;
-    }
+    return flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
 }
 
 static char *flip_social_register_parse(DataLoaderModel *model)
@@ -260,6 +246,7 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     flip_social_free_friends_dialog();
     flip_social_free_messages_dialog();
     flip_social_free_compose_dialog();
+
     return FlipSocialViewLoggedInSubmenu;
 }
 
@@ -273,7 +260,7 @@ uint32_t flip_social_callback_to_login_logged_out(void *context)
     UNUSED(context);
     flip_social_sent_login_request = false;
     flip_social_login_success = false;
-    return FlipSocialViewLoggedOutLogin;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -286,7 +273,7 @@ uint32_t flip_social_callback_to_register_logged_out(void *context)
     UNUSED(context);
     flip_social_sent_register_request = false;
     flip_social_register_success = false;
-    return FlipSocialViewLoggedOutRegister;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -297,7 +284,7 @@ uint32_t flip_social_callback_to_register_logged_out(void *context)
 uint32_t flip_social_callback_to_wifi_settings_logged_out(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedOutWifiSettings;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -308,7 +295,7 @@ uint32_t flip_social_callback_to_wifi_settings_logged_out(void *context)
 uint32_t flip_social_callback_to_wifi_settings_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInSettingsWifi;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -319,7 +306,7 @@ uint32_t flip_social_callback_to_wifi_settings_logged_in(void *context)
 uint32_t flip_social_callback_to_settings_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInSettings;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -341,7 +328,7 @@ uint32_t flip_social_callback_to_compose_logged_in(void *context)
 uint32_t flip_social_callback_to_profile_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInProfile;
+    return FlipSocialViewVariableItemList;
 }
 
 /**
@@ -406,9 +393,8 @@ uint32_t flip_social_callback_exit_app(void *context)
 {
     // Exit the application
     UNUSED(context);
-    free_all();
-
-    return VIEW_NONE; // Return VIEW_NONE to exit the app
+    free_all(true);
+    return VIEW_NONE;
 }
 
 static void explore_dialog_callback(DialogExResult result, void *context)
@@ -426,6 +412,7 @@ static void explore_dialog_callback(DialogExResult result, void *context)
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
             flip_social_free_explore_dialog();
+            furi_delay_ms(1000);
             flipper_http_deinit();
         }
     }
@@ -440,6 +427,7 @@ static void explore_dialog_callback(DialogExResult result, void *context)
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/add-friend/", auth_headers, add_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
             flip_social_free_explore_dialog();
+            furi_delay_ms(1000);
             flipper_http_deinit();
         }
     }
@@ -459,6 +447,7 @@ static void friends_dialog_callback(DialogExResult result, void *context)
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
             flip_social_free_friends_dialog();
+            furi_delay_ms(1000);
             flipper_http_deinit();
         }
     }
@@ -511,7 +500,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
     }
     else if (result == DialogExResultCenter) // new message
     {
-        free_all();
+        free_all(true);
         if (!alloc_text_input(FlipSocialViewLoggedInMessagesNewMessageInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -740,89 +729,6 @@ void feed_dialog_callback(DialogExResult result, void *context)
     }
 }
 
-char *updated_user_message(const char *user_message)
-{
-    if (user_message == NULL)
-    {
-        FURI_LOG_E(TAG, "User message is NULL.");
-        return NULL;
-    }
-
-    size_t msg_length = strlen(user_message);
-    size_t start = 0;
-    int line_num = 0;
-
-    // Allocate memory for the updated message
-    char *updated_message = malloc(MAX_MESSAGE_LENGTH + 10);
-    if (updated_message == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to allocate memory for updated_message.");
-        return NULL;
-    }
-    size_t current_pos = 0;    // Tracks the current position in updated_message
-    updated_message[0] = '\0'; // Initialize as empty string
-
-    while (start < msg_length && line_num < 4)
-    {
-        size_t remaining = msg_length - start;
-        size_t len = (remaining > MAX_LINE_LENGTH) ? MAX_LINE_LENGTH : remaining;
-
-        // Adjust length to the last space if the line exceeds MAX_LINE_LENGTH
-        if (remaining > MAX_LINE_LENGTH)
-        {
-            size_t last_space = len;
-            while (last_space > 0 && user_message[start + last_space - 1] != ' ')
-            {
-                last_space--;
-            }
-
-            if (last_space > 0)
-            {
-                len = last_space; // Adjust len to the position of the last space
-            }
-        }
-
-        // Check if the new line fits in the updated_message buffer
-        if (current_pos + len + 1 >= (MAX_MESSAGE_LENGTH + 10))
-        {
-            FURI_LOG_E(TAG, "Updated message exceeds maximum length.");
-            // break and return what we have so far
-            break;
-        }
-
-        // Copy the line and append a newline character
-        memcpy(updated_message + current_pos, user_message + start, len);
-        current_pos += len;
-        updated_message[current_pos++] = '\n'; // Append newline
-
-        // Update the start position for the next line
-        start += len;
-
-        // Skip any spaces to avoid leading spaces on the next line
-        while (start < msg_length && user_message[start] == ' ')
-        {
-            start++;
-        }
-
-        // Increment the line number
-        line_num++;
-    }
-
-    // Null-terminate the final string
-    if (current_pos < (MAX_MESSAGE_LENGTH + 10))
-    {
-        updated_message[current_pos] = '\0';
-    }
-    else
-    {
-        FURI_LOG_E(TAG, "Buffer overflow while null-terminating.");
-        free(updated_message);
-        return NULL;
-    }
-
-    return updated_message;
-}
-
 static bool flip_social_get_user_info()
 {
     if (!flipper_http_init(flipper_http_rx_callback, app_instance))
@@ -894,12 +800,24 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
     case FlipSocialSubmenuLoggedOutIndexLogin:
         flip_social_sent_login_request = false;
         flip_social_login_success = false;
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLogin);
+        free_all(true);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedOutLogin))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedOutIndexRegister:
         flip_social_sent_register_request = false;
         flip_social_register_success = false;
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegister);
+        free_all(true);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedOutRegister))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedOutIndexAbout:
         if (!about_widget_alloc(false))
@@ -909,13 +827,25 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutAbout);
         break;
     case FlipSocialSubmenuLoggedOutIndexWifiSettings:
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettings);
+        free_all(false);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedOutWifiSettings))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate text input");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInIndexProfile:
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
+        free_all(true);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedInProfile))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInIndexMessages:
-        free_all();
+        free_all(true);
         flipper_http_loading_task(
             flip_social_get_message_users,         // get the message users
             flip_social_parse_json_message_users,  // parse the message users
@@ -924,10 +854,17 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             &app->view_dispatcher);                // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessageUsersInput);
+        // they need to search for the user to send a message
+        free_text_input();
+        if (!alloc_text_input(FlipSocialViewLoggedInMessageUsersInput))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate text input");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
-        free_all();
+        free_all(true);
         if (!flip_social_load_initial_feed(true))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
@@ -935,7 +872,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         }
         break;
     case FlipSocialSubmenuExploreIndex:
-        free_all();
+        free_all(true);
         if (!alloc_text_input(FlipSocialViewLoggedInExploreInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -944,7 +881,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case FlipSocialSubmenuLoggedInIndexCompose:
-        free_all();
+        free_all(true);
         if (!pre_saved_messages_alloc())
         {
             FURI_LOG_E(TAG, "Failed to allocate pre-saved messages");
@@ -953,10 +890,16 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
         break;
     case FlipSocialSubmenuLoggedInIndexSettings:
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
+        free_all(true);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettings))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInSignOutButton:
-        free_all();
+        free_all(true);
         app->is_logged_in = "false";
 
         save_settings(app->wifi_ssid_logged_out, app->wifi_password_logged_out, app->login_username_logged_out, app->login_username_logged_in, app->login_password_logged_out, app->change_password_logged_in, app->change_bio_logged_in, app->is_logged_in);
@@ -964,7 +907,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
         break;
     case FlipSocialSubmenuComposeIndexAddPreSave:
-        free_all();
+        free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedInComposeAddPreSaveInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1146,7 +1089,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_explore->index = index - FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart;
-            free_all();
+            free_text_input();
             if (!alloc_text_input(FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput))
             {
                 FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1195,17 +1138,22 @@ void flip_social_logged_out_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        if (flipper_http_init(flipper_http_rx_callback, app_instance))
         {
-            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+            {
+                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            }
+            furi_delay_ms(500);
+            flipper_http_deinit();
         }
     }
 
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettings);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1240,17 +1188,22 @@ void flip_social_logged_out_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        if (flipper_http_init(flipper_http_rx_callback, app_instance))
         {
-            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+            {
+                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            }
+            furi_delay_ms(500);
+            flipper_http_deinit();
         }
     }
 
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettings);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1271,7 +1224,7 @@ void flip_social_text_input_logged_out_wifi_settings_item_selected(void *context
     {
     case 0: // Input SSID
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettingsSSIDInput);
-        free_all();
+        free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedOutWifiSettingsSSIDInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1281,7 +1234,7 @@ void flip_social_text_input_logged_out_wifi_settings_item_selected(void *context
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettingsPasswordInput);
-        free_all();
+        free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedOutWifiSettingsPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1327,7 +1280,7 @@ void flip_social_logged_out_login_username_updated(void *context)
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLogin);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1364,7 +1317,7 @@ void flip_social_logged_out_login_password_updated(void *context)
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLogin);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1385,7 +1338,7 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
     {
     case 0: // Input Username
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLoginUsernameInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedOutLoginUsernameInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1395,7 +1348,7 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLoginPasswordInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedOutLoginPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1404,6 +1357,11 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Login Button
+        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        {
+            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+            return;
+        }
         flip_social_login_switch_to_view(app);
         break;
     default:
@@ -1437,7 +1395,7 @@ void flip_social_logged_out_register_username_updated(void *context)
         variable_item_set_current_value_text(app->variable_item_logged_out_register_username, app->register_username_logged_out);
     }
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegister);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1465,7 +1423,7 @@ void flip_social_logged_out_register_password_updated(void *context)
         variable_item_set_current_value_text(app->variable_item_logged_out_register_password, app->register_password_logged_out);
     }
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegister);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1493,7 +1451,7 @@ void flip_social_logged_out_register_password_2_updated(void *context)
         variable_item_set_current_value_text(app->variable_item_logged_out_register_password_2, app->register_password_2_logged_out);
     }
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegister);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1514,7 +1472,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
     {
     case 0: // Input Username
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterUsernameInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterUsernameInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1524,7 +1482,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPasswordInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1534,7 +1492,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         break;
     case 2: // Input Password 2
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPassword2Input);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPassword2Input))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1543,6 +1501,11 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Register button
+        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        {
+            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+            return;
+        }
         flip_social_register_switch_to_view(app);
         break;
     default:
@@ -1586,14 +1549,19 @@ void flip_social_logged_in_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+        if (flipper_http_init(flipper_http_rx_callback, app_instance))
         {
-            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+            {
+                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            }
+            furi_delay_ms(500);
+            flipper_http_deinit();
         }
     }
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsWifi);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1632,14 +1600,19 @@ void flip_social_logged_in_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+        if (flipper_http_init(flipper_http_rx_callback, app_instance))
         {
-            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+            {
+                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            }
+            furi_delay_ms(500);
+            flipper_http_deinit();
         }
     }
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsWifi);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
 }
 
 /**
@@ -1660,7 +1633,7 @@ void flip_social_text_input_logged_in_wifi_settings_item_selected(void *context,
     {
     case 0: // Input SSID
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsSSIDInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsSSIDInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input for SSID");
@@ -1670,12 +1643,13 @@ void flip_social_text_input_logged_in_wifi_settings_item_selected(void *context,
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsPasswordInput);
-        free_all();
+        free_all(false);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input for Password");
             return;
         }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1856,7 +1830,9 @@ static char *flip_social_parse_friends(DataLoaderModel *model)
     }
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
     flipper_http_deinit(); // deinit the HTTP
-    return "Friends loaded";
+    // for some reason the user sometimes sees the message below instead of the friends list
+    // so we return an error message to restart the Flipper
+    return "[ERROR] Restart your Flipper.";
 }
 static void flip_social_friends_switch_to_view(FlipSocialApp *app)
 {
@@ -1903,8 +1879,8 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Friends
-        flip_social_free_friends();
-        free_all();
+
+        free_all(false);
         if (!app->submenu_friends)
         {
             if (!easy_flipper_set_submenu(&app->submenu_friends, FlipSocialViewLoggedInFriendsSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app->view_dispatcher))
@@ -1943,7 +1919,7 @@ void flip_social_text_input_logged_in_settings_item_selected(void *context, uint
     switch (index)
     {
     case 0: // About
-        free_all();
+        free_all(false);
         if (!about_widget_alloc(true))
         {
             return;
@@ -1951,8 +1927,17 @@ void flip_social_text_input_logged_in_settings_item_selected(void *context, uint
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsAbout);
         break;
     case 1: // Wifi
-        free_all();
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsWifi);
+            // CHANGE THIS TO JUST WIFI SETTINGS (REMOVE ABOUT)
+        // the view before is a variable item list too, so we should switch to another view first
+        // then switch to the wifi settings view
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+        free_all(true); // free everything, including the previous variable item list
+        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettingsWifi))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list for wifi settings");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     default:
         break;
@@ -2018,8 +2003,26 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     }
     furi_timer_stop(fhttp.get_timeout_timer);
     flipper_http_deinit();
-    // add user to the message list
-    strncpy(flip_social_message_users->usernames[flip_social_message_users->count], flip_social_explore->usernames[flip_social_explore->index], strlen(flip_social_explore->usernames[flip_social_explore->index]));
+    // add user to the top of the list if not already there
+    for (int i = 0; i < flip_social_message_users->count; i++)
+    {
+        if (strcmp(flip_social_message_users->usernames[i], flip_social_explore->usernames[flip_social_explore->index]) == 0)
+        {
+            // remove the user from the list
+            for (int j = i; j < flip_social_message_users->count - 1; j++)
+            {
+                strncpy(flip_social_message_users->usernames[j], flip_social_message_users->usernames[j + 1], strlen(flip_social_message_users->usernames[j + 1]));
+            }
+            flip_social_message_users->count--;
+            break;
+        }
+    }
+    // add the user to the top of the list
+    for (int i = flip_social_message_users->count; i > 0; i--)
+    {
+        strncpy(flip_social_message_users->usernames[i], flip_social_message_users->usernames[i - 1], strlen(flip_social_message_users->usernames[i - 1]));
+    }
+    strncpy(flip_social_message_users->usernames[0], flip_social_explore->usernames[flip_social_explore->index], strlen(flip_social_explore->usernames[flip_social_explore->index]));
     flip_social_message_users->count++;
 
     // redraw submenu
@@ -2445,7 +2448,7 @@ static void flip_social_loader_process_callback(void *context)
                 }
                 else
                 {
-                    flip_social_widget_set_text(model->data_text != NULL ? model->data_text : "Empty result", &app_instance->widget_result);
+                    flip_social_widget_set_text(model->data_text != NULL ? model->data_text : "", &app_instance->widget_result);
                     if (model->data_text != NULL)
                     {
                         free(model->data_text);

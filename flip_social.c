@@ -58,38 +58,6 @@ void flip_social_app_free(FlipSocialApp *app)
         submenu_free(app->submenu_messages_user_choices);
     }
 
-    // Free Variable Item List(s)
-    if (app->variable_item_list_logged_out_wifi_settings)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutWifiSettings);
-        variable_item_list_free(app->variable_item_list_logged_out_wifi_settings);
-    }
-    if (app->variable_item_list_logged_out_login)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutLogin);
-        variable_item_list_free(app->variable_item_list_logged_out_login);
-    }
-    if (app->variable_item_list_logged_out_register)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutRegister);
-        variable_item_list_free(app->variable_item_list_logged_out_register);
-    }
-    if (app->variable_item_list_logged_in_profile)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
-        variable_item_list_free(app->variable_item_list_logged_in_profile);
-    }
-    if (app->variable_item_list_logged_in_settings)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
-        variable_item_list_free(app->variable_item_list_logged_in_settings);
-    }
-    if (app->variable_item_list_logged_in_settings_wifi)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsWifi);
-        variable_item_list_free(app->variable_item_list_logged_in_settings_wifi);
-    }
-
     // Free Widget(s)
     if (app->widget_result)
     {
@@ -185,14 +153,4 @@ void flip_social_app_free(FlipSocialApp *app)
     // Free the app structure
     if (app_instance)
         free(app_instance);
-}
-
-void flip_feed_info_free(void)
-{
-    if (!flip_feed_info)
-    {
-        return;
-    }
-    free(flip_feed_info);
-    flip_feed_info = NULL;
 }
