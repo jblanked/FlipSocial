@@ -280,7 +280,6 @@ typedef struct
     char *message_users_logged_in_temp_buffer;         // Temporary buffer for message users text input
     uint32_t message_users_logged_in_temp_buffer_size; // Size of the message users temporary buffer
 
-    Loading *loading; // The loading screen
     DialogEx *dialog_explore;
     DialogEx *dialog_friends;
     DialogEx *dialog_messages;

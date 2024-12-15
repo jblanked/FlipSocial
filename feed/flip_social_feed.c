@@ -214,12 +214,16 @@ bool flip_social_load_initial_feed(bool alloc_http)
         FURI_LOG_E(TAG, "HTTP state is INACTIVE");
         return false;
     }
-    if (!easy_flipper_set_loading(&app_instance->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+    Loading *loading;
+    int32_t loading_view_id = 987654321; // Random ID
+    loading = loading_alloc();
+    if (!loading)
     {
         FURI_LOG_E(TAG, "Failed to set loading screen");
         return false;
     }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoading);
+    view_dispatcher_add_view(app_instance->view_dispatcher, loading_view_id, loading_get_view(loading));
+    view_dispatcher_switch_to_view(app_instance->view_dispatcher, loading_view_id);
     if (flip_social_get_feed(alloc_http)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
@@ -230,8 +234,8 @@ bool flip_social_load_initial_feed(bool alloc_http)
         FURI_LOG_E(HTTP_TAG, "Failed to send request");
         fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
@@ -247,8 +251,8 @@ bool flip_social_load_initial_feed(bool alloc_http)
     {
         FURI_LOG_E(TAG, "Failed to parse JSON feed");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
 
@@ -257,21 +261,21 @@ bool flip_social_load_initial_feed(bool alloc_http)
     {
         FURI_LOG_E(TAG, "Failed to load feed post");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
     if (!feed_dialog_alloc())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
-    view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-    loading_free(app_instance->loading);
+    view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+    loading_free(loading);
 
     return true;
 }
