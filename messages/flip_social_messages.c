@@ -16,18 +16,6 @@ FlipSocialModel2 *flip_social_messages_alloc()
         FURI_LOG_E(TAG, "Failed to allocate memory for message users");
         return NULL;
     }
-    for (size_t i = 0; i < MAX_MESSAGE_USERS; i++)
-    {
-        if (users->usernames[i] == NULL)
-        {
-            users->usernames[i] = malloc(MAX_USER_LENGTH);
-            if (users->usernames[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
-    }
     return users;
 }
 
@@ -157,7 +145,7 @@ bool flip_social_get_messages_with_user()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
-    if (!flip_social_message_users->usernames[flip_social_message_users->index] || strlen(flip_social_message_users->usernames[flip_social_message_users->index]) == 0)
+    if (strlen(flip_social_message_users->usernames[flip_social_message_users->index]) == 0)
     {
         FURI_LOG_E(TAG, "Username is NULL");
         return false;

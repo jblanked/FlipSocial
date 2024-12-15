@@ -82,14 +82,14 @@ typedef struct
 
 typedef struct
 {
-    char *usernames[MAX_EXPLORE_USERS];
+    char usernames[MAX_EXPLORE_USERS][MAX_USER_LENGTH];
     int count;
     int index;
 } FlipSocialModel;
 
 typedef struct
 {
-    char *usernames[MAX_MESSAGE_USERS];
+    char usernames[MAX_MESSAGE_USERS][MAX_USER_LENGTH];
     int count;
     int index;
 } FlipSocialModel2;

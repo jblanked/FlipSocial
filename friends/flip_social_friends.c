@@ -4,17 +4,10 @@ FlipSocialModel *flip_social_friends_alloc()
 {
     // Allocate memory for each username only if not already allocated
     FlipSocialModel *friends = malloc(sizeof(FlipSocialModel));
-    for (size_t i = 0; i < MAX_FRIENDS; i++)
+    if (friends == NULL)
     {
-        if (friends->usernames[i] == NULL)
-        {
-            friends->usernames[i] = malloc(MAX_USER_LENGTH);
-            if (friends->usernames[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
+        FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
+        return NULL;
     }
     return friends;
 }

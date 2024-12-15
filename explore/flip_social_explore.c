@@ -22,18 +22,6 @@ FlipSocialModel *flip_social_explore_alloc(void)
         FURI_LOG_E(TAG, "Failed to allocate memory for explore model.");
         return NULL;
     }
-    for (size_t i = 0; i < MAX_EXPLORE_USERS; i++)
-    {
-        if (explore->usernames[i] == NULL)
-        {
-            explore->usernames[i] = malloc(MAX_USER_LENGTH);
-            if (explore->usernames[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
-    }
     return explore;
 }
 
