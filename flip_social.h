@@ -158,6 +158,8 @@ typedef enum
     FlipSocialViewMessagesDialog, // The dialog for the messages screen
     FlipSocialViewComposeDialog,  // The dialog for the compose screen
     FlipSocialViewFeedDialog,     // The dialog for the feed screen
+    //
+    FlipSocialViewTextInput, // The text input screen
 } FlipSocialView;
 
 // Define the application structure
@@ -185,25 +187,7 @@ typedef struct
     VariableItemList *variable_item_list_logged_in_settings;      // The settings menu
     VariableItemList *variable_item_list_logged_in_settings_wifi; // The wifi settings menu
 
-    UART_TextInput *text_input_logged_out_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
-    UART_TextInput *text_input_logged_out_wifi_settings_password; // Text input for password input on wifi settings screen
-    UART_TextInput *text_input_logged_out_login_username;         // Text input for username input on login screen
-    UART_TextInput *text_input_logged_out_login_password;         // Text input for password input on login screen
-    UART_TextInput *text_input_logged_out_register_username;      // Text input for username input on register screen
-    UART_TextInput *text_input_logged_out_register_password;      // Text input for password input on register screen
-    UART_TextInput *text_input_logged_out_register_password_2;    // Text input for password 2 input on register screen
-    //
-    UART_TextInput *text_input_logged_in_change_password;        // Text input for password input on change password screen
-    UART_TextInput *text_input_logged_in_change_bio;             // Text input for bio input on profile screen
-    UART_TextInput *text_input_logged_in_compose_pre_save_input; // Text input for pre save input on compose screen
-    UART_TextInput *text_input_logged_in_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
-    UART_TextInput *text_input_logged_in_wifi_settings_password; // Text input for password input on wifi settings screen
-    //
-    UART_TextInput *text_input_logged_in_messages_new_message;              // Text input for new message input on messages screen
-    UART_TextInput *text_input_logged_in_messages_new_message_user_choices; //
-    //
-    UART_TextInput *text_input_logged_in_explore; // Text input for explore input on explore screen
-    UART_TextInput *text_input_logged_in_message_users;
+    UART_TextInput *text_input; // The text input
 
     VariableItem *variable_item_logged_out_wifi_settings_ssid;     // Reference to the ssid configuration item
     VariableItem *variable_item_logged_out_wifi_settings_password; // Reference to the password configuration item
@@ -331,7 +315,5 @@ extern bool flip_social_send_message;
 extern char *selected_message;
 extern char auth_headers[256];
 
-void auth_headers_alloc(void);
-FlipSocialFeedMini *flip_feed_info_alloc(void);
 void flip_feed_info_free(void);
 #endif

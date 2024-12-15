@@ -7,6 +7,8 @@
 #include <explore/flip_social_explore.h>
 #include <feed/flip_social_feed.h>
 #include <flip_storage/flip_social_storage.h>
+#include <alloc/free.h>
+#include <alloc/alloc.h>
 
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
@@ -296,9 +298,8 @@ void flip_social_loader_draw_callback(Canvas *canvas, void *model);
 void flip_social_loader_init(View *view);
 
 void flip_social_loader_free_model(View *view);
-
+char *updated_user_message(const char *user_message);
 bool flip_social_custom_event_callback(void *context, uint32_t index);
-
-bool messages_dialog_alloc(bool free_first);
-bool feed_dialog_alloc();
+void messages_dialog_callback(DialogExResult result, void *context);
+void feed_dialog_callback(DialogExResult result, void *context);
 #endif
