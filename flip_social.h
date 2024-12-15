@@ -182,14 +182,6 @@ typedef struct
 
     VariableItemList *variable_item_list; // The main menu
 
-    VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
-    VariableItemList *variable_item_list_logged_out_login;         // The login menu
-    VariableItemList *variable_item_list_logged_out_register;      // The register menu
-    //
-    VariableItemList *variable_item_list_logged_in_profile;       // The profile menu
-    VariableItemList *variable_item_list_logged_in_settings;      // The settings menu
-    VariableItemList *variable_item_list_logged_in_settings_wifi; // The wifi settings menu
-
     UART_TextInput *text_input; // The text input
 
     VariableItem *variable_item_logged_out_wifi_settings_ssid;     // Reference to the ssid configuration item
