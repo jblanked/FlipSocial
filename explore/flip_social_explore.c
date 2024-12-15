@@ -61,9 +61,9 @@ void flip_social_free_explore(void)
 // as the feed is upgraded, then we can port more to the explore view
 bool flip_social_get_explore(void)
 {
-    if (fhttp.state == INACTIVE)
+    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     char *keyword = !app_instance->explore_logged_in || strlen(app_instance->explore_logged_in) == 0 ? "a" : app_instance->explore_logged_in;
@@ -88,9 +88,9 @@ bool flip_social_get_explore(void)
 }
 bool flip_social_get_explore_2(void)
 {
-    if (fhttp.state == INACTIVE)
+    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     char *keyword = !app_instance->message_users_logged_in || strlen(app_instance->message_users_logged_in) == 0 ? "a" : app_instance->message_users_logged_in;
@@ -123,6 +123,9 @@ bool flip_social_parse_json_explore()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
+
+    flipper_http_deinit();
+
     char *data_cstr = (char *)furi_string_get_cstr(user_data);
     if (data_cstr == NULL)
     {

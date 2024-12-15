@@ -264,9 +264,6 @@ void flip_social_app_free(FlipSocialApp *app)
     if (app->explore_user_bio)
         free(app->explore_user_bio);
 
-    // DeInit UART
-    flipper_http_deinit();
-
     // Free the app structure
     if (app_instance)
         free(app_instance);

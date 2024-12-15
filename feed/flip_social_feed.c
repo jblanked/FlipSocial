@@ -1,15 +1,15 @@
 #include "flip_social_feed.h"
 
-bool flip_social_get_feed()
+bool flip_social_get_feed(bool alloc_http)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "FlipSocialApp is NULL");
         return false;
     }
-    if (fhttp.state == INACTIVE)
+    if (alloc_http && !flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     // Get the feed from the server
@@ -46,6 +46,7 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return NULL;
     }
+    flipper_http_deinit();
     char *data_cstr = (char *)furi_string_get_cstr(feed_data);
     if (data_cstr == NULL)
     {
@@ -208,7 +209,7 @@ bool flip_social_load_feed_post(int post_id)
     return true;
 }
 
-bool flip_social_load_initial_feed()
+bool flip_social_load_initial_feed(bool alloc_http)
 {
     if (fhttp.state == INACTIVE)
     {
@@ -221,7 +222,7 @@ bool flip_social_load_initial_feed()
         return false;
     }
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-    if (flip_social_get_feed()) // start the async request
+    if (flip_social_get_feed(alloc_http)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp.state = RECEIVING;
@@ -247,7 +248,6 @@ bool flip_social_load_initial_feed()
     if (!flip_feed_info || flip_feed_info->count < 1)
     {
         FURI_LOG_E(TAG, "Failed to parse JSON feed");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
         loading_free(app_instance->loading);
@@ -258,7 +258,6 @@ bool flip_social_load_initial_feed()
     if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
     {
         FURI_LOG_E(TAG, "Failed to load feed post");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
         loading_free(app_instance->loading);
@@ -267,7 +266,6 @@ bool flip_social_load_initial_feed()
     if (!feed_dialog_alloc())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
         loading_free(app_instance->loading);

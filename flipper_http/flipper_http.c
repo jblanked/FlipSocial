@@ -379,6 +379,7 @@ bool flipper_http_init(FlipperHTTP_Callback callback, void *context)
     }
 
     // FURI_LOG_I(HTTP_TAG, "UART initialized successfully.");
+    fhttp.state = IDLE; // set idle for easy use
     return true;
 }
 

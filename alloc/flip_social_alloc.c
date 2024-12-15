@@ -8,13 +8,6 @@ FlipSocialApp *flip_social_app_alloc()
     // Initialize gui
     Gui *gui = furi_record_open(RECORD_GUI);
 
-    // Initialize UART
-    if (!flipper_http_init(flipper_http_rx_callback, app))
-    {
-        FURI_LOG_E(TAG, "Failed to initialize UART");
-        return NULL;
-    }
-
     // Allocate ViewDispatcher
     if (!easy_flipper_set_view_dispatcher(&app->view_dispatcher, gui, app))
     {

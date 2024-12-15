@@ -141,9 +141,9 @@ bool flip_social_get_message_users()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
-    if (fhttp.state == INACTIVE)
+    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     char command[128];
@@ -168,9 +168,9 @@ bool flip_social_get_message_users()
 // Get all the messages between the logged in user and the selected user
 bool flip_social_get_messages_with_user()
 {
-    if (fhttp.state == INACTIVE)
+    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     if (app_instance->login_username_logged_out == NULL)
@@ -213,6 +213,7 @@ bool flip_social_parse_json_message_users()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
+    flipper_http_deinit();
     char *data_cstr = (char *)furi_string_get_cstr(message_data);
     if (data_cstr == NULL)
     {
@@ -299,6 +300,9 @@ bool flip_social_parse_json_message_user_choices()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
+
+    flipper_http_deinit();
+
     char *data_cstr = (char *)furi_string_get_cstr(user_data);
     if (data_cstr == NULL)
     {
@@ -385,6 +389,7 @@ bool flip_social_parse_json_messages()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
+    flipper_http_deinit();
     char *data_cstr = (char *)furi_string_get_cstr(message_data);
     if (data_cstr == NULL)
     {

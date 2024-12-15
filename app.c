@@ -25,6 +25,8 @@ int32_t main_flip_social(void *p)
     // initialize the http
     if (flipper_http_init(flipper_http_rx_callback, app_instance))
     {
+        fhttp.state = INACTIVE; // set inactive for the ping
+
         if (!flipper_http_ping())
         {
             FURI_LOG_E(TAG, "Failed to ping the device");

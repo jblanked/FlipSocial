@@ -28,11 +28,6 @@ bool flip_social_get_friends()
         FURI_LOG_E(TAG, "App instance is NULL");
         return false;
     }
-    if (fhttp.state == INACTIVE)
-    {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
-        return false;
-    }
     // will return true unless the devboard is not connected
     char url[100];
     snprintf(
@@ -84,13 +79,6 @@ bool flip_social_parse_json_friends()
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
-    char *data_cstr = (char *)furi_string_get_cstr(friend_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(friend_data);
-        return false;
-    }
 
     // Allocate memory for each username only if not already allocated
     flip_social_friends = flip_social_friends_alloc();
@@ -98,15 +86,7 @@ bool flip_social_parse_json_friends()
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
         furi_string_free(friend_data);
-        free(data_cstr);
         return false;
-    }
-
-    // Remove newlines
-    char *pos = data_cstr;
-    while ((pos = strchr(pos, '\n')) != NULL)
-    {
-        *pos = ' ';
     }
 
     // Initialize friends count
@@ -117,54 +97,20 @@ bool flip_social_parse_json_friends()
     submenu_set_header(app_instance->submenu_friends, "Friends");
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("friends", data_cstr, 128);
-    if (json_users == NULL)
+    for (int i = 0; i < MAX_FRIENDS; i++)
     {
-        FURI_LOG_E(TAG, "Failed to parse friends array.");
-        furi_string_free(friend_data);
-        free(data_cstr);
-        return false;
-    }
-
-    // Manual tokenization for comma-separated values
-    char *start = json_users + 1; // Skip the opening bracket
-    char *end;
-    while ((end = strchr(start, ',')) != NULL && flip_social_friends->count < MAX_FRIENDS)
-    {
-        *end = '\0'; // Null-terminate the current token
-
-        // Remove quotes
-        if (*start == '"')
-            start++;
-        if (*(end - 1) == '"')
-            *(end - 1) = '\0';
-
-        // Copy username to pre-allocated memory
-        snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
-        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
+        char *friend = get_json_array_value("friends", i, (char *)furi_string_get_cstr(friend_data), 256);
+        if (friend == NULL)
+        {
+            FURI_LOG_E(TAG, "Failed to parse friend %d.", i);
+            furi_string_free(friend_data);
+            break;
+        }
+        snprintf(flip_social_friends->usernames[i], MAX_USER_LENGTH, "%s", friend);
+        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
         flip_social_friends->count++;
-        start = end + 1;
+        free(friend);
     }
-
-    // Handle the last token
-    if (*start != '\0' && flip_social_friends->count < MAX_FRIENDS)
-    {
-        if (*start == '"')
-            start++;
-        if (*(start + strlen(start) - 1) == ']')
-            *(start + strlen(start) - 1) = '\0';
-        if (*(start + strlen(start) - 1) == '"')
-            *(start + strlen(start) - 1) = '\0';
-
-        snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
-        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
-        flip_social_friends->count++;
-    }
-
     furi_string_free(friend_data);
-    free(data_cstr);
-    free(json_users);
-    free(start);
-    free(end);
     return true;
 }
