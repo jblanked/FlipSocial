@@ -96,8 +96,8 @@ typedef struct
 
 typedef struct
 {
-    char *usernames[MAX_MESSAGES];
-    char *messages[MAX_MESSAGES];
+    char usernames[MAX_MESSAGES][MAX_USER_LENGTH];
+    char messages[MAX_MESSAGES][MAX_MESSAGE_LENGTH];
     int count;
     int index;
 } FlipSocialMessage;

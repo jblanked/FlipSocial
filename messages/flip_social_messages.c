@@ -40,27 +40,6 @@ FlipSocialMessage *flip_social_user_messages_alloc()
         FURI_LOG_E(TAG, "Failed to allocate memory for messages");
         return NULL;
     }
-    for (size_t i = 0; i < MAX_MESSAGES; i++)
-    {
-        if (messages->usernames[i] == NULL)
-        {
-            messages->usernames[i] = malloc(MAX_USER_LENGTH);
-            if (messages->usernames[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
-        if (messages->messages[i] == NULL)
-        {
-            messages->messages[i] = malloc(MAX_MESSAGE_LENGTH);
-            if (messages->messages[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for message %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
-    }
     return messages;
 }
 
