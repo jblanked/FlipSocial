@@ -58,7 +58,7 @@ typedef enum
 // Define the ScriptPlaylist structure
 typedef struct
 {
-    char *messages[MAX_PRE_SAVED_MESSAGES];
+    char messages[MAX_PRE_SAVED_MESSAGES][MAX_MESSAGE_LENGTH];
     size_t count;
     size_t index;
 } PreSavedPlaylist;
@@ -66,8 +66,8 @@ typedef struct
 // Define a FlipSocialFeed individual item
 typedef struct
 {
-    char *username;
-    char *message;
+    char username[MAX_USER_LENGTH];
+    char message[MAX_MESSAGE_LENGTH];
     bool is_flipped;
     int id;
     int flips;

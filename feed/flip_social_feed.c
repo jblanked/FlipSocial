@@ -163,8 +163,6 @@ bool flip_social_load_feed_post(int post_id)
             free(data_cstr);
             return false;
         }
-        flip_feed_item->username = malloc(MAX_USER_LENGTH);
-        flip_feed_item->message = malloc(MAX_MESSAGE_LENGTH);
     }
 
     // Extract individual fields from the JSON object

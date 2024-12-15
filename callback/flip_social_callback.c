@@ -57,13 +57,14 @@ static bool pre_saved_messages_alloc(void)
         }
         submenu_reset(app_instance->submenu_compose);
         submenu_add_item(app_instance->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app_instance);
-        // load the playlist
+
+        // Load the playlist
         if (load_playlist(&app_instance->pre_saved_messages))
         {
             // Update the playlist submenu
             for (uint32_t i = 0; i < app_instance->pre_saved_messages.count; i++)
             {
-                if (app_instance->pre_saved_messages.messages[i])
+                if (app_instance->pre_saved_messages.messages[i][0] != '\0') // Check if the string is not empty
                 {
                     submenu_add_item(app_instance->submenu_compose, app_instance->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app_instance);
                 }
@@ -72,6 +73,7 @@ static bool pre_saved_messages_alloc(void)
     }
     return true;
 }
+
 static void free_pre_saved_messages(void)
 {
     if (app_instance->submenu_compose)
@@ -80,14 +82,14 @@ static void free_pre_saved_messages(void)
         app_instance->submenu_compose = NULL;
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInCompose);
     }
-    for (uint32_t i = 0; i < app_instance->pre_saved_messages.count; i++)
-    {
-        if (app_instance->pre_saved_messages.messages[i])
-        {
-            free(app_instance->pre_saved_messages.messages[i]);
-            app_instance->pre_saved_messages.messages[i] = NULL;
-        }
-    }
+    // for (uint32_t i = 0; i < app_instance->pre_saved_messages.count; i++)
+    // {
+    //     if (app_instance->pre_saved_messages.messages[i])
+    //     {
+    //         free(app_instance->pre_saved_messages.messages[i]);
+    //         app_instance->pre_saved_messages.messages[i] = NULL;
+    //     }
+    // }
 }
 
 static void flip_social_free_friends(void)
@@ -703,30 +705,48 @@ static void compose_dialog_callback(DialogExResult result, void *context)
     FlipSocialApp *app = (FlipSocialApp *)context;
     if (result == DialogExResultLeft) // Delete
     {
-        // delete message
-        app->pre_saved_messages.messages[app_instance->pre_saved_messages.index] = NULL;
-
-        for (uint32_t i = app->pre_saved_messages.index; i < app->pre_saved_messages.count - 1; i++)
+        // Ensure index is within bounds
+        if (app_instance->pre_saved_messages.index >= app_instance->pre_saved_messages.count)
         {
-            app->pre_saved_messages.messages[i] = app->pre_saved_messages.messages[i + 1];
+            FURI_LOG_E(TAG, "Invalid index for deletion: %zu", app_instance->pre_saved_messages.index);
+            return;
         }
-        app->pre_saved_messages.count--;
 
-        // add the item to the submenu
+        // Shift messages to remove the selected message
+        for (size_t i = app_instance->pre_saved_messages.index; i < app_instance->pre_saved_messages.count - 1; i++)
+        {
+            strncpy(app_instance->pre_saved_messages.messages[i],
+                    app_instance->pre_saved_messages.messages[i + 1],
+                    MAX_MESSAGE_LENGTH);
+        }
+
+        // Clear the last message after shifting
+        memset(app_instance->pre_saved_messages.messages[app_instance->pre_saved_messages.count - 1], 0, MAX_MESSAGE_LENGTH);
+        app_instance->pre_saved_messages.count--;
+
+        // Reset and rebuild the submenu
         submenu_reset(app_instance->submenu_compose);
-
         submenu_add_item(app_instance->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
 
-        for (uint32_t i = 0; i < app->pre_saved_messages.count; i++)
+        for (size_t i = 0; i < app_instance->pre_saved_messages.count; i++)
         {
-            submenu_add_item(app_instance->submenu_compose, app->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app);
+            submenu_add_item(app_instance->submenu_compose,
+                             app_instance->pre_saved_messages.messages[i],
+                             FlipSocialSubemnuComposeIndexStartIndex + i,
+                             flip_social_callback_submenu_choices,
+                             app);
         }
 
-        // save playlist
+        // Save the updated playlist
         save_playlist(&app_instance->pre_saved_messages);
+
+        // Switch back to the compose view
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+
+        // Free the dialog resources
         flip_social_free_compose_dialog();
     }
+
     else if (result == DialogExResultRight) // Post
     {
         // post the message
@@ -793,7 +813,8 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             flip_feed_info->index--;
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_dialog();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -819,7 +840,8 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             flip_feed_info->index++;
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_dialog();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -881,7 +903,8 @@ static void feed_dialog_callback(DialogExResult result, void *context)
             // }
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettings);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_dialog();
         if (feed_dialog_alloc())
         {
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
@@ -889,8 +912,8 @@ static void feed_dialog_callback(DialogExResult result, void *context)
         else
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-            fhttp.state = ISSUE;
         }
+        furi_delay_ms(1000);
         flipper_http_deinit();
     }
 }
@@ -1817,7 +1840,7 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
         return;
     }
 
-    // check if the message is empty or if adding in the message would exceed the MAX_PRE_SAVED_MESSAGES
+    // Check if the message is empty or if adding the message would exceed MAX_PRE_SAVED_MESSAGES
     if (app->compose_pre_save_logged_in_temp_buffer_size == 0 || app->pre_saved_messages.count >= MAX_PRE_SAVED_MESSAGES)
     {
         FURI_LOG_E(TAG, "Message is empty or would exceed the maximum number of pre-saved messages");
@@ -1825,28 +1848,41 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
         return;
     }
 
-    // Store the entered message
-    strncpy(app->compose_pre_save_logged_in, app->compose_pre_save_logged_in_temp_buffer, app->compose_pre_save_logged_in_temp_buffer_size);
+    // Copy the entered message into the next available slot
+    strncpy(
+        app->pre_saved_messages.messages[app->pre_saved_messages.count],
+        app->compose_pre_save_logged_in_temp_buffer,
+        MAX_MESSAGE_LENGTH - 1);
 
     // Ensure null-termination
-    app->compose_pre_save_logged_in[app->compose_pre_save_logged_in_temp_buffer_size - 1] = '\0';
+    app->pre_saved_messages.messages[app->pre_saved_messages.count][MAX_MESSAGE_LENGTH - 1] = '\0';
 
-    // add the item to the submenu
-    submenu_reset(app->submenu_compose);
-
-    // loop through the items and add them to the submenu
-    app->pre_saved_messages.messages[app->pre_saved_messages.count] = app->compose_pre_save_logged_in;
+    // Increment the count
     app->pre_saved_messages.count++;
 
-    submenu_add_item(app->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
-    for (uint32_t i = 0; i < app->pre_saved_messages.count; i++)
+    // Rebuild the submenu
+    submenu_reset(app->submenu_compose);
+    submenu_add_item(
+        app->submenu_compose,
+        "Add Pre-Save",
+        FlipSocialSubmenuComposeIndexAddPreSave,
+        flip_social_callback_submenu_choices,
+        app);
+
+    for (size_t i = 0; i < app->pre_saved_messages.count; i++)
     {
-        submenu_add_item(app->submenu_compose, app->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app);
+        submenu_add_item(
+            app->submenu_compose,
+            app->pre_saved_messages.messages[i],
+            FlipSocialSubemnuComposeIndexStartIndex + i,
+            flip_social_callback_submenu_choices,
+            app);
     }
 
-    // save playlist
+    // Save the updated playlist
     save_playlist(&app->pre_saved_messages);
 
+    // Switch back to the compose view
     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
 }
 

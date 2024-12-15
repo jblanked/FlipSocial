@@ -20,7 +20,7 @@ FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
     flip_social_loader_init(app->view_loader);
-    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "Error, try again.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
+    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
     {
         return NULL;
     }
