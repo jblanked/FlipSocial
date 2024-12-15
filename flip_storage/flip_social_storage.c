@@ -382,8 +382,13 @@ bool flip_social_save_post(char *post_id, char *json_feed_data)
     Storage *storage = furi_record_open(RECORD_STORAGE);
     File *file = storage_file_alloc(storage);
 
+    // Create the directory for saving the feed
+    char directory_path[128];
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed");
+    storage_common_mkdir(storage, directory_path);
+
     char file_path[128];
-    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed_post_%s.json", post_id);
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%s.json", post_id);
 
     if (!storage_file_open(file, file_path, FSAM_WRITE, FSOM_CREATE_ALWAYS))
     {

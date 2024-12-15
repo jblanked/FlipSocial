@@ -135,7 +135,7 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
 bool flip_social_load_feed_post(int post_id)
 {
     char file_path[128];
-    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed_post_%d.json", post_id);
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%d.json", post_id);
 
     // load the received data from the saved file
     FuriString *feed_data = flipper_http_load_from_file(file_path);
