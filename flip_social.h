@@ -16,7 +16,6 @@
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 576            // Adjust based on expected JSON tokens
 #define MAX_FEED_ITEMS 50         // Maximum number of feed items
 #define MAX_LINE_LENGTH 30
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
@@ -28,10 +27,14 @@
 // Define the submenu items for our Hello World application
 typedef enum
 {
-    FlipSocialSubmenuLoggedOutIndexLogin,        // click to go to the login screen
-    FlipSocialSubmenuLoggedOutIndexRegister,     // click to go to the register screen
+    FlipSocialSubmenuLoggedOutIndexLogin,    // click to go to the login screen
+    FlipSocialSubmenuLoggedOutIndexRegister, // click to go to the register screen
+    //
     FlipSocialSubmenuLoggedOutIndexAbout,        // click to go to the about screen
     FlipSocialSubmenuLoggedOutIndexWifiSettings, // click to go to the wifi settings screen
+    //
+    FlipSocialSubmenuLoggedInIndexAbout,        // click to go to the about screen
+    FlipSocialSubmenuLoggedInIndexWifiSettings, // click to go to the wifi settings screen
     //
     FlipSocialSubmenuLoggedInIndexProfile,  // click to go to the profile screen
     FlipSocialSubmenuExploreIndex,          // click to go to the explore
@@ -161,6 +164,8 @@ typedef enum
     //
     FlipSocialViewTextInput, // The text input screen
     FlipSocialViewVariableItemList,
+    //
+    FlipSocialViewSubmenu,
 } FlipSocialView;
 
 // Define the application structure
@@ -177,8 +182,12 @@ typedef struct
     Submenu *submenu_friends;               // The application submenu (friends)
     Submenu *submenu_messages;              // The application submenu (messages)
     Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
-    Widget *widget_logged_out_about;        // The about screen (logged out)
-    Widget *widget_logged_in_about;         // The about screen (logged in)
+    Submenu *submenu_logged_in_settings;    // The application submenu (settings)
+    //
+    Submenu *submenu;
+    //
+    Widget *widget_logged_out_about; // The about screen (logged out)
+    Widget *widget_logged_in_about;  // The about screen (logged in)
 
     VariableItemList *variable_item_list; // The main menu
 

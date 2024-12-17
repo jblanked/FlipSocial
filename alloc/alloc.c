@@ -350,6 +350,30 @@ bool pre_saved_messages_alloc(void)
     return true;
 }
 
+bool alloc_submenu(uint32_t view_id)
+{
+    if (!app_instance)
+    {
+        return false;
+    }
+    if (!app_instance->submenu)
+    {
+        switch (view_id)
+        {
+        case FlipSocialViewLoggedInSettings:
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Settings", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            {
+                return false;
+            }
+            submenu_reset(app_instance->submenu);
+            submenu_add_item(app_instance->submenu, "About", FlipSocialSubmenuLoggedInIndexAbout, flip_social_callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "WiFi", FlipSocialSubmenuLoggedInIndexWifiSettings, flip_social_callback_submenu_choices, app_instance);
+            break;
+        }
+    }
+    return true;
+}
+
 bool alloc_variable_item_list(uint32_t view_id)
 {
     if (!app_instance)
@@ -402,14 +426,6 @@ bool alloc_variable_item_list(uint32_t view_id)
             variable_item_set_current_value_text(app_instance->variable_item_logged_in_profile_username, app_instance->login_username_logged_in);
         if (app_instance->change_bio_logged_in)
             variable_item_set_current_value_text(app_instance->variable_item_logged_in_profile_change_bio, app_instance->change_bio_logged_in);
-        return true;
-    case FlipSocialViewLoggedInSettings:
-        if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_in_settings_item_selected, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
-        {
-            return false;
-        }
-        app_instance->variable_item_logged_in_settings_about = variable_item_list_add(app_instance->variable_item_list, "About", 0, NULL, app_instance);
-        app_instance->variable_item_logged_in_settings_wifi = variable_item_list_add(app_instance->variable_item_list, "WiFi", 0, NULL, app_instance);
         return true;
     case FlipSocialViewLoggedInSettingsWifi:
         if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_in_wifi_settings_item_selected, flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))

@@ -114,21 +114,12 @@ bool flip_social_parse_json_explore()
 
     flipper_http_deinit();
 
-    char *data_cstr = (char *)furi_string_get_cstr(user_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(user_data);
-        return false;
-    }
-
     // Allocate memory for each username only if not already allocated
     flip_social_explore = flip_social_explore_alloc();
     if (flip_social_explore == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for explore usernames.");
         furi_string_free(user_data);
-        free(data_cstr);
         return false;
     }
 
@@ -141,17 +132,16 @@ bool flip_social_parse_json_explore()
     // Parse the JSON array of usernames
     for (size_t i = 0; i < MAX_EXPLORE_USERS; i++)
     {
-        char *username = get_json_array_value("users", i, data_cstr, 64); // currently its 53 tokens (with max explore users at 50)
+        FuriString *username = get_json_array_value_furi("users", i, user_data); // currently its 53 tokens (with max explore users at 50)
         if (username == NULL)
         {
             break;
         }
-        snprintf(flip_social_explore->usernames[i], MAX_USER_LENGTH, "%s", username);
+        snprintf(flip_social_explore->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(username));
         submenu_add_item(app_instance->submenu_explore, flip_social_explore->usernames[i], FlipSocialSubmenuExploreIndexStartIndex + i, flip_social_callback_submenu_choices, app_instance);
         flip_social_explore->count++;
-        free(username);
+        furi_string_free(username);
     }
-    free(data_cstr);
     furi_string_free(user_data);
     return flip_social_explore->count > 0;
 }

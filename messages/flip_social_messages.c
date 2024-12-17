@@ -203,7 +203,7 @@ bool flip_social_parse_json_message_users()
     flip_social_message_users->count = 0;
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("users", data_cstr, 64);
+    char *json_users = get_json_value("users", data_cstr);
     if (json_users == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse users array.");
@@ -292,7 +292,7 @@ bool flip_social_parse_json_message_user_choices()
     flip_social_explore->count = 0;
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("users", data_cstr, 64);
+    char *json_users = get_json_value("users", data_cstr);
     if (json_users == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse users array.");
@@ -357,13 +357,6 @@ bool flip_social_parse_json_messages()
         return false;
     }
     flipper_http_deinit();
-    char *data_cstr = (char *)furi_string_get_cstr(message_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(message_data);
-        return false;
-    }
 
     // Allocate memory for each message only if not already allocated
     flip_social_messages = flip_social_user_messages_alloc();
@@ -371,7 +364,6 @@ bool flip_social_parse_json_messages()
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for messages.");
         furi_string_free(message_data);
-        free(data_cstr);
         return false;
     }
 
@@ -382,40 +374,38 @@ bool flip_social_parse_json_messages()
     for (int i = 0; i < MAX_MESSAGES; i++)
     {
         // Parse each item in the array
-        char *item = get_json_array_value("conversations", i, data_cstr, 64);
+        FuriString *item = get_json_array_value_furi("conversations", i, message_data);
         if (item == NULL)
         {
             break;
         }
 
         // Extract individual fields from the JSON object
-        char *sender = get_json_value("sender", item, 8);
-        char *content = get_json_value("content", item, 8);
+        FuriString *sender = get_json_value_furi("sender", item);
+        FuriString *content = get_json_value_furi("content", item);
 
         if (sender == NULL || content == NULL)
         {
             FURI_LOG_E(TAG, "Failed to parse item fields.");
-            free(item);
+            furi_string_free(item);
             continue;
         }
 
         // Store parsed values in pre-allocated memory
-        snprintf(flip_social_messages->usernames[i], MAX_USER_LENGTH, "%s", sender);
-        snprintf(flip_social_messages->messages[i], MAX_MESSAGE_LENGTH, "%s", content);
+        snprintf(flip_social_messages->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(sender));
+        snprintf(flip_social_messages->messages[i], MAX_MESSAGE_LENGTH, "%s", furi_string_get_cstr(content));
         flip_social_messages->count++;
 
-        free(item);
-        free(sender);
-        free(content);
+        furi_string_free(item);
+        furi_string_free(sender);
+        furi_string_free(content);
     }
     if (!messages_dialog_alloc(true))
     {
         FURI_LOG_E(TAG, "Failed to allocate and set messages dialog.");
         furi_string_free(message_data);
-        free(data_cstr);
         return false;
     }
     furi_string_free(message_data);
-    free(data_cstr);
     return true;
 }

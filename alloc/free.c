@@ -1,5 +1,5 @@
 #include <alloc/free.h>
-void free_all(bool should_free_variable_item_list)
+void free_all(bool should_free_variable_item_list, bool should_free_submenu)
 {
     free_text_input();
     flip_social_free_friends();
@@ -16,6 +16,8 @@ void free_all(bool should_free_variable_item_list)
     free_about_widget(false);
     if (should_free_variable_item_list)
         free_variable_item_list();
+    if (should_free_submenu)
+        free_submenu();
 }
 void free_text_input()
 {
@@ -132,5 +134,19 @@ void free_variable_item_list(void)
         variable_item_list_free(app_instance->variable_item_list);
         app_instance->variable_item_list = NULL;
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewVariableItemList);
+    }
+}
+
+void free_submenu(void)
+{
+    if (!app_instance)
+    {
+        return;
+    }
+    if (app_instance->submenu)
+    {
+        submenu_free(app_instance->submenu);
+        app_instance->submenu = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewSubmenu);
     }
 }

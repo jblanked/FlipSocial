@@ -306,7 +306,7 @@ uint32_t flip_social_callback_to_wifi_settings_logged_in(void *context)
 uint32_t flip_social_callback_to_settings_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewVariableItemList;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -393,7 +393,7 @@ uint32_t flip_social_callback_exit_app(void *context)
 {
     // Exit the application
     UNUSED(context);
-    free_all(true);
+    free_all(true, true);
     return VIEW_NONE;
 }
 
@@ -500,7 +500,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
     }
     else if (result == DialogExResultCenter) // new message
     {
-        free_all(true);
+        free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedInMessagesNewMessageInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -760,8 +760,8 @@ static bool flip_social_parse_user_info()
         FURI_LOG_E(TAG, "App instance is NULL");
         return false;
     }
-    char *bio = get_json_value("bio", fhttp.last_response, 32);
-    char *friends = get_json_value("friends", fhttp.last_response, 32);
+    char *bio = get_json_value("bio", fhttp.last_response);
+    char *friends = get_json_value("friends", fhttp.last_response);
     bool parse_success = false;
     if (bio && friends)
     {
@@ -800,7 +800,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
     case FlipSocialSubmenuLoggedOutIndexLogin:
         flip_social_sent_login_request = false;
         flip_social_login_success = false;
-        free_all(true);
+        free_all(true, true);
         if (!alloc_variable_item_list(FlipSocialViewLoggedOutLogin))
         {
             FURI_LOG_E(TAG, "Failed to allocate variable item list");
@@ -811,7 +811,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
     case FlipSocialSubmenuLoggedOutIndexRegister:
         flip_social_sent_register_request = false;
         flip_social_register_success = false;
-        free_all(true);
+        free_all(true, true);
         if (!alloc_variable_item_list(FlipSocialViewLoggedOutRegister))
         {
             FURI_LOG_E(TAG, "Failed to allocate variable item list");
@@ -827,7 +827,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutAbout);
         break;
     case FlipSocialSubmenuLoggedOutIndexWifiSettings:
-        free_all(false);
+        free_all(false, false);
         if (!alloc_variable_item_list(FlipSocialViewLoggedOutWifiSettings))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -836,7 +836,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInIndexProfile:
-        free_all(true);
+        free_all(true, true);
         if (!alloc_variable_item_list(FlipSocialViewLoggedInProfile))
         {
             FURI_LOG_E(TAG, "Failed to allocate variable item list");
@@ -845,7 +845,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInIndexMessages:
-        free_all(true);
+        free_all(true, true);
         flipper_http_loading_task(
             flip_social_get_message_users,         // get the message users
             flip_social_parse_json_message_users,  // parse the message users
@@ -864,7 +864,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
-        free_all(true);
+        free_all(true, true);
         if (!flip_social_load_initial_feed(true))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
@@ -872,7 +872,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         }
         break;
     case FlipSocialSubmenuExploreIndex:
-        free_all(true);
+        free_all(true, true);
         if (!alloc_text_input(FlipSocialViewLoggedInExploreInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -881,7 +881,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case FlipSocialSubmenuLoggedInIndexCompose:
-        free_all(true);
+        free_all(true, true);
         if (!pre_saved_messages_alloc())
         {
             FURI_LOG_E(TAG, "Failed to allocate pre-saved messages");
@@ -890,8 +890,26 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
         break;
     case FlipSocialSubmenuLoggedInIndexSettings:
-        free_all(true);
-        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettings))
+        free_all(true, true);
+        if (!alloc_submenu(FlipSocialViewLoggedInSettings))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate submenu");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+        break;
+    case FlipSocialSubmenuLoggedInIndexAbout:
+        free_all(true, false);
+        if (!about_widget_alloc(true))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate about widget");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsAbout);
+        break;
+    case FlipSocialSubmenuLoggedInIndexWifiSettings:
+        free_all(true, false);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettingsWifi))
         {
             FURI_LOG_E(TAG, "Failed to allocate variable item list");
             return;
@@ -899,7 +917,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedInSignOutButton:
-        free_all(true);
+        free_all(true, true);
         app->is_logged_in = "false";
 
         save_settings(app->wifi_ssid_logged_out, app->wifi_password_logged_out, app->login_username_logged_out, app->login_username_logged_in, app->login_password_logged_out, app->change_password_logged_in, app->change_bio_logged_in, app->is_logged_in);
@@ -1338,7 +1356,7 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
     {
     case 0: // Input Username
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLoginUsernameInput);
-        free_all(false);
+        free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutLoginUsernameInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1348,7 +1366,7 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutLoginPasswordInput);
-        free_all(false);
+        free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutLoginPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1472,7 +1490,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
     {
     case 0: // Input Username
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterUsernameInput);
-        free_all(false);
+        free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterUsernameInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1482,7 +1500,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPasswordInput);
-        free_all(false);
+        free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1492,7 +1510,7 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         break;
     case 2: // Input Password 2
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPassword2Input);
-        free_all(false);
+        free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPassword2Input))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input");
@@ -1633,7 +1651,7 @@ void flip_social_text_input_logged_in_wifi_settings_item_selected(void *context,
     {
     case 0: // Input SSID
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsSSIDInput);
-        free_all(false);
+        free_all(false, false);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsSSIDInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input for SSID");
@@ -1643,7 +1661,7 @@ void flip_social_text_input_logged_in_wifi_settings_item_selected(void *context,
         break;
     case 1: // Input Password
         // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsPasswordInput);
-        free_all(false);
+        free_all(false, false);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsPasswordInput))
         {
             FURI_LOG_E(TAG, "Failed to allocate text input for Password");
@@ -1766,7 +1784,8 @@ void flip_social_logged_in_profile_change_password_updated(void *context)
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
+    // instead of going to a view, just show a success message
+    easy_flipper_dialog("Success", "Password updated successfully\n\n\nPress BACK to return :D");
 }
 
 void flip_social_logged_in_profile_change_bio_updated(void *context)
@@ -1801,12 +1820,14 @@ void flip_social_logged_in_profile_change_bio_updated(void *context)
             FURI_LOG_E(TAG, "Failed to send post request to change bio");
             FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
         }
+        furi_delay_ms(500);
         flipper_http_deinit();
     }
     // Save the settings
-    save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
+    save_settings(app->wifi_ssid_logged_out, app->wifi_password_logged_out, app->login_username_logged_out, app->login_username_logged_in, app->login_password_logged_out, app->change_password_logged_in, app->change_bio_logged_in, app->is_logged_in);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInProfile);
+    // instead of going to a view, just show a success message
+    easy_flipper_dialog("Success", "Bio updated successfully\n\n\nPress BACK to return :D");
 }
 
 static bool flip_social_fetch_friends(DataLoaderModel *model)
@@ -1879,8 +1900,7 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Friends
-
-        free_all(false);
+        free_all(false, true);
         if (!app->submenu_friends)
         {
             if (!easy_flipper_set_submenu(&app->submenu_friends, FlipSocialViewLoggedInFriendsSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app->view_dispatcher))
@@ -1898,48 +1918,6 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
-        break;
-    }
-}
-
-/**
- * @brief Callback when a user selects a menu item in the settings (logged in) screen.
- * @param context The context - FlipSocialApp object.
- * @param index The index of the selected item.
- * @return void
- */
-void flip_social_text_input_logged_in_settings_item_selected(void *context, uint32_t index)
-{
-    FlipSocialApp *app = (FlipSocialApp *)context;
-    if (!app)
-    {
-        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
-        return;
-    }
-    switch (index)
-    {
-    case 0: // About
-        free_all(false);
-        if (!about_widget_alloc(true))
-        {
-            return;
-        }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSettingsAbout);
-        break;
-    case 1: // Wifi
-            // CHANGE THIS TO JUST WIFI SETTINGS (REMOVE ABOUT)
-        // the view before is a variable item list too, so we should switch to another view first
-        // then switch to the wifi settings view
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        free_all(true); // free everything, including the previous variable item list
-        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettingsWifi))
-        {
-            FURI_LOG_E(TAG, "Failed to allocate variable item list for wifi settings");
-            return;
-        }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
-        break;
-    default:
         break;
     }
 }

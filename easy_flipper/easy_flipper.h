@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <jsmn/jsmn.h>
+#include <jsmn/jsmn_furi.h>
 
 #define EASY_TAG "EasyFlipper"
 

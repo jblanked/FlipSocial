@@ -92,17 +92,17 @@ bool flip_social_parse_json_friends()
     // Extract the users array from the JSON
     for (int i = 0; i < MAX_FRIENDS; i++)
     {
-        char *friend = get_json_array_value("friends", i, (char *)furi_string_get_cstr(friend_data), 256);
+        FuriString *friend = get_json_array_value_furi("friends", i, friend_data);
         if (friend == NULL)
         {
             FURI_LOG_E(TAG, "Failed to parse friend %d.", i);
             furi_string_free(friend_data);
             break;
         }
-        snprintf(flip_social_friends->usernames[i], MAX_USER_LENGTH, "%s", friend);
+        snprintf(flip_social_friends->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(friend));
         submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
         flip_social_friends->count++;
-        free(friend);
+        furi_string_free(friend);
     }
     furi_string_free(friend_data);
     return true;
