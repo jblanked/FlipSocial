@@ -471,7 +471,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             dialog_ex_set_right_button_text(app->dialog_messages, "Next");
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
             flip_social_free_messages_dialog();
             messages_dialog_alloc(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
@@ -492,7 +492,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             }
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
             flip_social_free_messages_dialog();
             messages_dialog_alloc(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);

@@ -172,7 +172,7 @@ bool feed_dialog_alloc()
                 flip_feed_item->username,
                 0,
                 0,
-                updated_message,
+                real_message,
                 0,
                 10,
                 flip_feed_info->index != 0 ? "Prev" : NULL,
