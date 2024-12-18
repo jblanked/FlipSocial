@@ -174,15 +174,9 @@ typedef struct
     View *view_loader;
     Widget *widget_result;
     //
-    ViewDispatcher *view_dispatcher;        // Switches between our views
-    Submenu *submenu_logged_out;            // The application submenu (logged out)
-    Submenu *submenu_logged_in;             // The application submenu (logged in)
-    Submenu *submenu_compose;               // The application submenu (compose)
-    Submenu *submenu_explore;               // The application submenu (explore)
-    Submenu *submenu_friends;               // The application submenu (friends)
-    Submenu *submenu_messages;              // The application submenu (messages)
-    Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
-    Submenu *submenu_logged_in_settings;    // The application submenu (settings)
+    ViewDispatcher *view_dispatcher; // Switches between our views
+    Submenu *submenu_logged_out;     // The application submenu (logged out)
+    Submenu *submenu_logged_in;      // The application submenu (logged in)
     //
     Submenu *submenu;
     //

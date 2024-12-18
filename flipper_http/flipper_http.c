@@ -1591,5 +1591,5 @@ void flipper_http_loading_task_2(bool (*http_request)(void),
     // Switch to the success view
     view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
     view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
-    loading_free(loading);
+    // loading_free(loading);
 }

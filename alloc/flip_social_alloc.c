@@ -201,11 +201,6 @@ FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
 
-    if (!easy_flipper_set_submenu(&app->submenu_messages_user_choices, FlipSocialViewLoggedInMessagesUserChoices, "Users", flip_social_callback_to_messages_logged_in, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-
     submenu_add_item(app->submenu_logged_out, "Login", FlipSocialSubmenuLoggedOutIndexLogin, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_out, "Register", FlipSocialSubmenuLoggedOutIndexRegister, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_out, "About", FlipSocialSubmenuLoggedOutIndexAbout, flip_social_callback_submenu_choices, app);

@@ -2,13 +2,6 @@
 
 FlipSocialModel2 *flip_social_messages_alloc()
 {
-    if (!app_instance->submenu_messages)
-    {
-        if (!easy_flipper_set_submenu(&app_instance->submenu_messages, FlipSocialViewLoggedInMessagesSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
-        {
-            return NULL;
-        }
-    }
     // Allocate memory for each username only if not already allocated
     FlipSocialModel2 *users = malloc(sizeof(FlipSocialModel2));
     if (users == NULL)
@@ -43,12 +36,6 @@ void flip_social_free_message_users()
 
 void flip_social_free_messages()
 {
-    if (app_instance->submenu_messages)
-    {
-        submenu_free(app_instance->submenu_messages);
-        app_instance->submenu_messages = NULL;
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
-    }
     if (flip_social_messages == NULL)
     {
         return;
@@ -59,7 +46,12 @@ void flip_social_free_messages()
 
 bool flip_social_update_messages_submenu()
 {
-    if (app_instance->submenu_messages == NULL)
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
+    if (app_instance->submenu == NULL)
     {
         FURI_LOG_E(TAG, "Submenu is NULL");
         return false;
@@ -69,19 +61,24 @@ bool flip_social_update_messages_submenu()
         FURI_LOG_E(TAG, "Message users model is NULL");
         return false;
     }
-    submenu_reset(app_instance->submenu_messages);
-    submenu_set_header(app_instance->submenu_messages, "Messages");
-    submenu_add_item(app_instance->submenu_messages, "[New Message]", FlipSocialSubmenuLoggedInIndexMessagesNewMessage, flip_social_callback_submenu_choices, app_instance);
+    submenu_reset(app_instance->submenu);
+    submenu_set_header(app_instance->submenu, "Messages");
+    submenu_add_item(app_instance->submenu, "[New Message]", FlipSocialSubmenuLoggedInIndexMessagesNewMessage, flip_social_callback_submenu_choices, app_instance);
     for (int i = 0; i < flip_social_message_users->count; i++)
     {
-        submenu_add_item(app_instance->submenu_messages, flip_social_message_users->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUsersStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_message_users->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUsersStart + i, flip_social_callback_submenu_choices, app_instance);
     }
     return true;
 }
 
 bool flip_social_update_submenu_user_choices()
 {
-    if (app_instance->submenu_messages_user_choices == NULL)
+    if (app_instance == NULL)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
+    if (app_instance->submenu == NULL)
     {
         FURI_LOG_E(TAG, "Submenu is NULL");
         return false;
@@ -91,11 +88,11 @@ bool flip_social_update_submenu_user_choices()
         FURI_LOG_E(TAG, "Explore model is NULL");
         return false;
     }
-    submenu_reset(app_instance->submenu_messages_user_choices);
-    submenu_set_header(app_instance->submenu_messages_user_choices, "Users");
+    submenu_reset(app_instance->submenu);
+    submenu_set_header(app_instance->submenu, "Users");
     for (int i = 0; i < flip_social_explore->count; i++)
     {
-        submenu_add_item(app_instance->submenu_messages_user_choices, flip_social_explore->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_explore->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + i, flip_social_callback_submenu_choices, app_instance);
     }
     return true;
 }
@@ -113,11 +110,17 @@ bool flip_social_get_message_users()
         FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
+    char directory[128];
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages");
+
+    // Create the directory
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, directory);
     char command[128];
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/message_users.json");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages/message_users.json");
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
@@ -126,6 +129,7 @@ bool flip_social_get_message_users()
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for messages");
         fhttp.state = ISSUE;
+        flipper_http_deinit();
         return false;
     }
     fhttp.state = RECEIVING;
@@ -150,11 +154,18 @@ bool flip_social_get_messages_with_user()
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    char directory[128];
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages");
+
+    // Create the directory
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, directory);
+
     char command[256];
     snprintf(
         fhttp.file_path,
         sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s_messages.json",
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages/%s_messages.json",
         flip_social_message_users->usernames[flip_social_message_users->index]);
 
     fhttp.save_received_data = true;
@@ -178,16 +189,10 @@ bool flip_social_parse_json_message_users()
     if (message_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
+        flipper_http_deinit();
         return false;
     }
     flipper_http_deinit();
-    char *data_cstr = (char *)furi_string_get_cstr(message_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(message_data);
-        return false;
-    }
 
     // Allocate memory for each username only if not already allocated
     flip_social_message_users = flip_social_messages_alloc();
@@ -195,65 +200,29 @@ bool flip_social_parse_json_message_users()
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for message users.");
         furi_string_free(message_data);
-        free(data_cstr);
         return false;
     }
 
     // Initialize message users count
     flip_social_message_users->count = 0;
 
-    // Extract the users array from the JSON
-    char *json_users = get_json_value("users", data_cstr);
-    if (json_users == NULL)
+    for (int i = 0; i < MAX_MESSAGE_USERS; i++)
     {
-        FURI_LOG_E(TAG, "Failed to parse users array.");
-        furi_string_free(message_data);
-        free(data_cstr);
-        return false;
-    }
-
-    // Manual tokenization for comma-separated values
-    char *start = json_users + 1; // Skip the opening bracket
-    char *end;
-    while ((end = strchr(start, ',')) != NULL && flip_social_message_users->count < MAX_MESSAGE_USERS)
-    {
-        *end = '\0'; // Null-terminate the current token
-
-        // Remove quotes
-        if (*start == '"')
-            start++;
-        if (*(end - 1) == '"')
-            *(end - 1) = '\0';
-
-        // Copy username to pre-allocated memory
-        snprintf(flip_social_message_users->usernames[flip_social_message_users->count], MAX_USER_LENGTH, "%s", start);
+        FuriString *user = get_json_array_value_furi("users", i, message_data);
+        if (user == NULL)
+        {
+            break;
+        }
+        snprintf(flip_social_message_users->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(user));
         flip_social_message_users->count++;
-        start = end + 1;
-    }
-
-    // Handle the last token
-    if (*start != '\0' && flip_social_message_users->count < MAX_MESSAGE_USERS)
-    {
-        if (*start == '"')
-            start++;
-        if (*(start + strlen(start) - 1) == ']')
-            *(start + strlen(start) - 1) = '\0';
-        if (*(start + strlen(start) - 1) == '"')
-            *(start + strlen(start) - 1) = '\0';
-
-        snprintf(flip_social_message_users->usernames[flip_social_message_users->count], MAX_USER_LENGTH, "%s", start);
-        flip_social_message_users->count++;
+        furi_string_free(user);
     }
 
     // Add submenu items for the users
     flip_social_update_messages_submenu();
 
     // Free the JSON data
-    free(json_users);
-    free(start);
-    free(end);
     furi_string_free(message_data);
-    free(data_cstr);
     return true;
 }
 
@@ -265,18 +234,11 @@ bool flip_social_parse_json_message_user_choices()
     if (user_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
+        flipper_http_deinit();
         return false;
     }
 
     flipper_http_deinit();
-
-    char *data_cstr = (char *)furi_string_get_cstr(user_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(user_data);
-        return false;
-    }
 
     // Allocate memory for each username only if not already allocated
     flip_social_explore = flip_social_explore_alloc();
@@ -284,66 +246,30 @@ bool flip_social_parse_json_message_user_choices()
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for explore usernames.");
         furi_string_free(user_data);
-        free(data_cstr);
         return false;
     }
 
     // Initialize explore count
     flip_social_explore->count = 0;
 
-    // Extract the users array from the JSON
-    char *json_users = get_json_value("users", data_cstr);
-    if (json_users == NULL)
+    for (int i = 0; i < MAX_MESSAGE_USERS; i++)
     {
-        FURI_LOG_E(TAG, "Failed to parse users array.");
-        furi_string_free(user_data);
-        free(data_cstr);
-        return false;
-    }
-
-    // Manual tokenization for comma-separated values
-    char *start = json_users + 1; // Skip the opening bracket
-    char *end;
-    while ((end = strchr(start, ',')) != NULL && flip_social_explore->count < MAX_EXPLORE_USERS)
-    {
-        *end = '\0'; // Null-terminate the current token
-
-        // Remove quotes
-        if (*start == '"')
-            start++;
-        if (*(end - 1) == '"')
-            *(end - 1) = '\0';
-
-        // Copy username to pre-allocated memory
-        snprintf(flip_social_explore->usernames[flip_social_explore->count], MAX_USER_LENGTH, "%s", start);
+        FuriString *user = get_json_array_value_furi("users", i, user_data);
+        if (user == NULL)
+        {
+            break;
+        }
+        snprintf(flip_social_explore->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(user));
         flip_social_explore->count++;
-        start = end + 1;
-    }
-
-    // Handle the last token
-    if (*start != '\0' && flip_social_explore->count < MAX_EXPLORE_USERS)
-    {
-        if (*start == '"')
-            start++;
-        if (*(start + strlen(start) - 1) == ']')
-            *(start + strlen(start) - 1) = '\0';
-        if (*(start + strlen(start) - 1) == '"')
-            *(start + strlen(start) - 1) = '\0';
-
-        snprintf(flip_social_explore->usernames[flip_social_explore->count], MAX_USER_LENGTH, "%s", start);
-        flip_social_explore->count++;
+        furi_string_free(user);
     }
 
     // Add submenu items for the users
     flip_social_update_submenu_user_choices();
 
     // Free the JSON data
-    free(json_users);
-    free(start);
-    free(end);
     furi_string_free(user_data);
-    free(data_cstr);
-    return true;
+    return flip_social_explore->count > 0;
 }
 
 // parse messages between the logged in user and the selected user
@@ -354,6 +280,7 @@ bool flip_social_parse_json_messages()
     if (message_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
+        flipper_http_deinit();
         return false;
     }
     flipper_http_deinit();

@@ -44,6 +44,7 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
     if (feed_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
+        flipper_http_deinit();
         return NULL;
     }
     flipper_http_deinit();

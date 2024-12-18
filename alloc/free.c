@@ -1,23 +1,33 @@
 #include <alloc/free.h>
 void free_all(bool should_free_variable_item_list, bool should_free_submenu)
 {
+
+    if (should_free_submenu)
+    {
+        flip_social_free_explore();
+        free_submenu();
+    }
+    if (should_free_variable_item_list)
+    {
+        free_variable_item_list();
+    }
     free_text_input();
     flip_social_free_friends();
     flip_social_free_messages();
-    flip_social_free_explore();
     flip_social_free_feed_dialog();
     flip_social_free_compose_dialog();
     flip_social_free_explore_dialog();
     flip_social_free_friends_dialog();
     flip_social_free_messages_dialog();
     flip_feed_info_free();
-    free_pre_saved_messages();
     free_about_widget(true);
     free_about_widget(false);
-    if (should_free_variable_item_list)
-        free_variable_item_list();
-    if (should_free_submenu)
-        free_submenu();
+
+    if (went_to_friends)
+    {
+        flipper_http_deinit();
+        went_to_friends = false;
+    }
 }
 void free_text_input()
 {
@@ -91,16 +101,6 @@ void free_about_widget(bool is_logged_in)
     }
 }
 
-void free_pre_saved_messages(void)
-{
-    if (app_instance->submenu_compose)
-    {
-        submenu_free(app_instance->submenu_compose);
-        app_instance->submenu_compose = NULL;
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInCompose);
-    }
-}
-
 void flip_social_free_friends(void)
 {
     if (!flip_social_friends)
@@ -109,12 +109,6 @@ void flip_social_free_friends(void)
     }
     free(flip_social_friends);
     flip_social_friends = NULL;
-    if (app_instance->submenu_friends)
-    {
-        submenu_free(app_instance->submenu_friends);
-        app_instance->submenu_friends = NULL;
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
-    }
 }
 
 void flip_feed_info_free(void)

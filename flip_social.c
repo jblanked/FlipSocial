@@ -52,11 +52,6 @@ void flip_social_app_free(FlipSocialApp *app)
         submenu_free(app->submenu_logged_in);
     }
     //
-    if (app->submenu_messages_user_choices)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesUserChoices);
-        submenu_free(app->submenu_messages_user_choices);
-    }
 
     // Free Widget(s)
     if (app->widget_result)

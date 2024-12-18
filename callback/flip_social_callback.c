@@ -317,7 +317,7 @@ uint32_t flip_social_callback_to_settings_logged_in(void *context)
 uint32_t flip_social_callback_to_compose_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInCompose;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -334,7 +334,7 @@ uint32_t flip_social_callback_to_profile_logged_in(void *context)
 /**
  * @brief Navigation callback to bring the user back to the Explore submenu
  * @param context The context - unused
- * @return next view id (FlipSocialViewLoggedInExploreSubmenu)
+ * @return next view id (FlipSocialViewSubmenu)
  */
 uint32_t flip_social_callback_to_explore_logged_in(void *context)
 {
@@ -345,7 +345,7 @@ uint32_t flip_social_callback_to_explore_logged_in(void *context)
     {
         flip_social_explore->index = 0;
     }
-    return FlipSocialViewLoggedInExploreSubmenu;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -359,7 +359,7 @@ uint32_t flip_social_callback_to_friends_logged_in(void *context)
     flip_social_dialog_stop = false;
     flip_social_dialog_shown = false;
     flip_social_friends->index = 0;
-    return FlipSocialViewLoggedInFriendsSubmenu;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -370,7 +370,7 @@ uint32_t flip_social_callback_to_friends_logged_in(void *context)
 uint32_t flip_social_callback_to_messages_logged_in(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInMessagesSubmenu;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -381,7 +381,7 @@ uint32_t flip_social_callback_to_messages_logged_in(void *context)
 uint32_t flip_social_callback_to_messages_user_choices(void *context)
 {
     UNUSED(context);
-    return FlipSocialViewLoggedInMessagesUserChoices;
+    return FlipSocialViewSubmenu;
 }
 
 /**
@@ -410,7 +410,7 @@ static void explore_dialog_callback(DialogExResult result, void *context)
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
             auth_headers_alloc();
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_explore_dialog();
             furi_delay_ms(1000);
             flipper_http_deinit();
@@ -425,7 +425,7 @@ static void explore_dialog_callback(DialogExResult result, void *context)
             snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
             auth_headers_alloc();
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/add-friend/", auth_headers, add_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInExploreSubmenu);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_explore_dialog();
             furi_delay_ms(1000);
             flipper_http_deinit();
@@ -445,7 +445,7 @@ static void friends_dialog_callback(DialogExResult result, void *context)
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
             auth_headers_alloc();
             flipper_http_post_request_with_headers("https://www.flipsocial.net/api/user/remove-friend/", auth_headers, remove_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_friends_dialog();
             furi_delay_ms(1000);
             flipper_http_deinit();
@@ -536,12 +536,12 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         app_instance->pre_saved_messages.count--;
 
         // Reset and rebuild the submenu
-        submenu_reset(app_instance->submenu_compose);
-        submenu_add_item(app_instance->submenu_compose, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
+        submenu_reset(app_instance->submenu);
+        submenu_add_item(app_instance->submenu, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app);
 
         for (size_t i = 0; i < app_instance->pre_saved_messages.count; i++)
         {
-            submenu_add_item(app_instance->submenu_compose,
+            submenu_add_item(app_instance->submenu,
                              app_instance->pre_saved_messages.messages[i],
                              FlipSocialSubemnuComposeIndexStartIndex + i,
                              flip_social_callback_submenu_choices,
@@ -552,7 +552,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         save_playlist(&app_instance->pre_saved_messages);
 
         // Switch back to the compose view
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 
         // Free the dialog resources
         flip_social_free_compose_dialog();
@@ -846,12 +846,17 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexMessages:
         free_all(true, true);
+        if (!alloc_submenu(FlipSocialViewLoggedInMessagesSubmenu))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate submenu");
+            return;
+        }
         flipper_http_loading_task(
-            flip_social_get_message_users,         // get the message users
-            flip_social_parse_json_message_users,  // parse the message users
-            FlipSocialViewLoggedInMessagesSubmenu, // switch to the messages submenu if successful
-            FlipSocialViewLoggedInSubmenu,         // switch back to the main submenu if failed
-            &app->view_dispatcher);                // view dispatcher
+            flip_social_get_message_users,        // get the message users
+            flip_social_parse_json_message_users, // parse the message users
+            FlipSocialViewSubmenu,                // switch to the messages submenu if successful
+            FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
+            &app->view_dispatcher);               // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
         // they need to search for the user to send a message
@@ -882,12 +887,12 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexCompose:
         free_all(true, true);
-        if (!pre_saved_messages_alloc())
+        if (!alloc_submenu(FlipSocialViewLoggedInCompose))
         {
-            FURI_LOG_E(TAG, "Failed to allocate pre-saved messages");
+            FURI_LOG_E(TAG, "Failed to allocate submenu");
             return;
         }
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
         break;
     case FlipSocialSubmenuLoggedInIndexSettings:
         free_all(true, true);
@@ -1112,7 +1117,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             {
                 FURI_LOG_E(TAG, "Failed to allocate text input");
                 return;
-            }
+            } // switch to the text input view
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         }
         else
@@ -1489,7 +1494,6 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
     switch (index)
     {
     case 0: // Input Username
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterUsernameInput);
         free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterUsernameInput))
         {
@@ -1499,7 +1503,6 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 1: // Input Password
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPasswordInput);
         free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPasswordInput))
         {
@@ -1509,7 +1512,6 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Input Password 2
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutRegisterPassword2Input);
         free_all(false, true);
         if (!alloc_text_input(FlipSocialViewLoggedOutRegisterPassword2Input))
         {
@@ -1693,7 +1695,7 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
     if (app->compose_pre_save_logged_in_temp_buffer_size == 0 || app->pre_saved_messages.count >= MAX_PRE_SAVED_MESSAGES)
     {
         FURI_LOG_E(TAG, "Message is empty or would exceed the maximum number of pre-saved messages");
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
         return;
     }
 
@@ -1710,9 +1712,9 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
     app->pre_saved_messages.count++;
 
     // Rebuild the submenu
-    submenu_reset(app->submenu_compose);
+    submenu_reset(app->submenu);
     submenu_add_item(
-        app->submenu_compose,
+        app->submenu,
         "Add Pre-Save",
         FlipSocialSubmenuComposeIndexAddPreSave,
         flip_social_callback_submenu_choices,
@@ -1721,7 +1723,7 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
     for (size_t i = 0; i < app->pre_saved_messages.count; i++)
     {
         submenu_add_item(
-            app->submenu_compose,
+            app->submenu,
             app->pre_saved_messages.messages[i],
             FlipSocialSubemnuComposeIndexStartIndex + i,
             flip_social_callback_submenu_choices,
@@ -1732,7 +1734,7 @@ void flip_social_logged_in_compose_pre_save_updated(void *context)
     save_playlist(&app->pre_saved_messages);
 
     // Switch back to the compose view
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInCompose);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 }
 
 /**
@@ -1830,36 +1832,6 @@ void flip_social_logged_in_profile_change_bio_updated(void *context)
     easy_flipper_dialog("Success", "Bio updated successfully\n\n\nPress BACK to return :D");
 }
 
-static bool flip_social_fetch_friends(DataLoaderModel *model)
-{
-    UNUSED(model);
-    if (!flip_social_get_friends())
-    {
-        FURI_LOG_E(TAG, "Failed to get friends");
-        return false;
-    }
-    return true;
-}
-static char *flip_social_parse_friends(DataLoaderModel *model)
-{
-    UNUSED(model);
-    if (!flip_social_parse_json_friends())
-    {
-        FURI_LOG_E(TAG, "Failed to parse friends");
-        flipper_http_deinit(); // deinit the HTTP
-        return "Failed to parse friends";
-    }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFriendsSubmenu);
-    flipper_http_deinit(); // deinit the HTTP
-    // for some reason the user sometimes sees the message below instead of the friends list
-    // so we return an error message to restart the Flipper
-    return "[ERROR] Restart your Flipper.";
-}
-static void flip_social_friends_switch_to_view(FlipSocialApp *app)
-{
-    flip_social_generic_switch_to_view(app, "Friends", flip_social_fetch_friends, flip_social_parse_friends, 1, flip_social_callback_to_profile_logged_in, FlipSocialViewLoader);
-}
-
 /**
  * @brief Callback when a user selects a menu item in the profile (logged in) screen.
  * @param context The context - FlipSocialApp object.
@@ -1901,20 +1873,22 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
         break;
     case 3: // Friends
         free_all(false, true);
-        if (!app->submenu_friends)
+        if (!alloc_submenu(FlipSocialViewLoggedInFriendsSubmenu))
         {
-            if (!easy_flipper_set_submenu(&app->submenu_friends, FlipSocialViewLoggedInFriendsSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app->view_dispatcher))
-            {
-                FURI_LOG_DEV(TAG, "Failed to set submenu for friends");
-                return;
-            }
+            FURI_LOG_E(TAG, "Failed to allocate submenu for friends");
+            return;
         }
         if (!flipper_http_init(flipper_http_rx_callback, app))
         {
             FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
             return;
         }
-        flip_social_friends_switch_to_view(app);
+        flipper_http_loading_task(
+            flip_social_get_friends,
+            flip_social_parse_json_friends,
+            FlipSocialViewSubmenu,
+            FlipSocialViewVariableItemList,
+            &app->view_dispatcher);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1940,7 +1914,7 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     if (app->message_user_choice_logged_in_temp_buffer_size == 0)
     {
         FURI_LOG_E(TAG, "Message is empty");
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         return;
     }
 
@@ -1962,24 +1936,12 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_explore->usernames[flip_social_explore->index], app->message_user_choice_logged_in);
 
-    if (flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
-    {
-        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-        fhttp.state = RECEIVING;
-    }
-    else
+    if (!flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        fhttp.state = ISSUE;
-        return;
     }
-    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-    {
-        // Wait for the request to be received
-        furi_delay_ms(100);
-    }
-    furi_timer_stop(fhttp.get_timeout_timer);
+    furi_delay_ms(1000);
     flipper_http_deinit();
     // add user to the top of the list if not already there
     for (int i = 0; i < flip_social_message_users->count; i++)
@@ -2005,7 +1967,7 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
 
     // redraw submenu
     flip_social_update_messages_submenu();
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 }
 
 /**
@@ -2047,27 +2009,14 @@ void flip_social_logged_in_messages_new_message_updated(void *context)
     char payload[256];
     snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
-
-    if (flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
-    {
-        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-        fhttp.state = RECEIVING;
-    }
-    else
+    if (!flipper_http_post_request_with_headers(url, auth_headers, payload))
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        fhttp.state = ISSUE;
-        return;
     }
-    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
-    {
-        // Wait for the request to be received
-        furi_delay_ms(10);
-    }
-    furi_timer_stop(fhttp.get_timeout_timer);
+    furi_delay_ms(1000);
     flipper_http_deinit();
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInMessagesSubmenu);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 }
 
 void flip_social_logged_in_explore_updated(void *context)
@@ -2093,14 +2042,22 @@ void flip_social_logged_in_explore_updated(void *context)
 
     // Ensure null-termination
     app->explore_logged_in[app->explore_logged_in_temp_buffer_size - 1] = '\0';
+    free_submenu();
+
+    if (!alloc_submenu(FlipSocialViewLoggedInExploreSubmenu))
+    {
+        FURI_LOG_E(TAG, "Failed to allocate submenu for explore");
+        return;
+    }
 
     flipper_http_loading_task(
-        flip_social_get_explore,              // get the explore users
-        flip_social_parse_json_explore,       // parse the explore users
-        FlipSocialViewLoggedInExploreSubmenu, // switch to the explore submenu if successful
-        FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
-        &app->view_dispatcher);               // view dispatcher
+        flip_social_get_explore,        // get the explore users
+        flip_social_parse_json_explore, // parse the explore users
+        FlipSocialViewSubmenu,          // switch to the explore submenu if successful
+        FlipSocialViewLoggedInSubmenu,  // switch back to the main submenu if failed
+        &app->view_dispatcher);         // view dispatcher
 }
+
 void flip_social_logged_in_message_users_updated(void *context)
 {
     FlipSocialApp *app = (FlipSocialApp *)context;
@@ -2111,7 +2068,7 @@ void flip_social_logged_in_message_users_updated(void *context)
     }
 
     // check if the message is empty
-    if (app->message_users_logged_in_temp_buffer_size == 0)
+    if (!app->message_users_logged_in_temp_buffer || app->message_users_logged_in_temp_buffer_size == 0)
     {
         FURI_LOG_E(TAG, "Message is empty");
         strncpy(app->message_users_logged_in, "a", 2);
@@ -2125,10 +2082,19 @@ void flip_social_logged_in_message_users_updated(void *context)
     // Ensure null-termination
     app->message_users_logged_in[app->message_users_logged_in_temp_buffer_size - 1] = '\0';
 
+    free_submenu();
+
+    if (!alloc_submenu(FlipSocialViewLoggedInExploreSubmenu))
+    {
+        FURI_LOG_E(TAG, "Failed to allocate submenu for explore");
+        return;
+    }
+
+    // get users
     flipper_http_loading_task(
         flip_social_get_explore_2,                   // get the explore users
         flip_social_parse_json_message_user_choices, // parse the explore users
-        FlipSocialViewLoggedInMessagesUserChoices,   // switch to the user choices if successful
+        FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
         FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
         &app->view_dispatcher);                      // view dispatcher
 }
