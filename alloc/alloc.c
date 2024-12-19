@@ -48,7 +48,7 @@ bool messages_dialog_alloc(bool free_first)
                 flip_social_messages->usernames[flip_social_messages->index],
                 0,
                 0,
-                flip_social_messages->messages[flip_social_messages->index],
+                updated_user_message(flip_social_messages->messages[flip_social_messages->index]),
                 0,
                 10,
                 flip_social_messages->index != 0 ? "Prev" : NULL,
@@ -65,7 +65,7 @@ bool messages_dialog_alloc(bool free_first)
     }
     return false;
 }
-static char *updated_user_message(const char *user_message)
+char *updated_user_message(const char *user_message)
 {
     if (user_message == NULL)
     {

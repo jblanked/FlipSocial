@@ -463,7 +463,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             flip_social_messages->index--;
             dialog_ex_reset(app->dialog_messages);
             dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
-            dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, updated_user_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
             if (flip_social_messages->index != 0)
             {
                 dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
@@ -484,7 +484,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             flip_social_messages->index++;
             dialog_ex_reset(app->dialog_messages);
             dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
-            dialog_ex_set_text(app->dialog_messages, flip_social_messages->messages[flip_social_messages->index], 0, 10, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, updated_user_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
             dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
             if (flip_social_messages->index != flip_social_messages->count - 1)
             {
@@ -958,7 +958,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                         "New Feed Post",
                         0,
                         0,
-                        selected_message,
+                        updated_user_message(selected_message),
                         0,
                         10,
                         "Delete",
@@ -1005,7 +1005,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                             flip_social_explore->usernames[flip_social_explore->index],
                             0,
                             0,
-                            app->explore_user_bio,
+                            updated_user_message(app->explore_user_bio),
                             0,
                             10,
                             "Remove", // remove if user is a friend (future update)

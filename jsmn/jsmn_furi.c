@@ -531,7 +531,9 @@ FuriString *get_json_value_furi(const char *key, const FuriString *json_data)
 
     free(tokens);
     furi_string_free(key_str);
-    FURI_LOG_E("JSMM.H", "Failed to find the key in the JSON.");
+    char warning[128];
+    snprintf(warning, sizeof(warning), "Failed to find the key \"%s\" in the JSON.", key);
+    FURI_LOG_E("JSMM.H", warning);
     return NULL;
 }
 

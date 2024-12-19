@@ -508,7 +508,9 @@ char *get_json_value(char *key, const char *json_data)
     {
         FURI_LOG_E("JSMM.H", "JSON data is NULL");
     }
-    FURI_LOG_E("JSMM.H", "Failed to find the key in the JSON.");
+    char warning[128];
+    snprintf(warning, sizeof(warning), "Failed to find the key \"%s\" in the JSON.", key);
+    FURI_LOG_E("JSMM.H", warning);
     return NULL; // Return NULL if something goes wrong
 }
 
