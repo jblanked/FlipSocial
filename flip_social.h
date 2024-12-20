@@ -7,6 +7,7 @@
 #include <flipper_http/flipper_http.h>
 #include <input/input.h>
 #include <flip_social_icons.h>
+#include <font/font.h>
 
 #define TAG "FlipSocial"
 #define VERSION_TAG TAG " v1.0"
@@ -17,7 +18,7 @@
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
 #define MAX_FEED_ITEMS 50         // Maximum number of feed items
-#define MAX_LINE_LENGTH 29
+#define MAX_LINE_LENGTH 27
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
 
@@ -71,6 +72,7 @@ typedef struct
 {
     char username[MAX_USER_LENGTH];
     char message[MAX_MESSAGE_LENGTH];
+    char date_created[MAX_LINE_LENGTH];
     bool is_flipped;
     int id;
     int flips;
@@ -288,6 +290,8 @@ typedef struct
     DialogEx *dialog_messages;
     DialogEx *dialog_compose;
     DialogEx *dialog_feed;
+
+    View *view_feed;
 
     char *explore_user_bio; // Store the bio of the selected user
 } FlipSocialApp;

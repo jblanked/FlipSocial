@@ -377,7 +377,7 @@ bool load_settings(
     return true;
 }
 
-bool flip_social_save_post(char *post_id, char *json_feed_data)
+bool flip_social_save_post(const char *post_id, const char *json_feed_data)
 {
     Storage *storage = furi_record_open(RECORD_STORAGE);
     File *file = storage_file_alloc(storage);

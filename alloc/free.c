@@ -14,7 +14,7 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu)
     free_text_input();
     flip_social_free_friends();
     flip_social_free_messages();
-    flip_social_free_feed_dialog();
+    flip_social_free_feed_view();
     flip_social_free_compose_dialog();
     flip_social_free_explore_dialog();
     flip_social_free_friends_dialog();
@@ -75,13 +75,13 @@ void flip_social_free_compose_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewComposeDialog);
     }
 }
-void flip_social_free_feed_dialog()
+void flip_social_free_feed_view()
 {
-    if (app_instance->dialog_feed)
+    if (app_instance->view_feed)
     {
-        dialog_ex_free(app_instance->dialog_feed);
-        app_instance->dialog_feed = NULL;
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
+        view_free(app_instance->view_feed);
+        app_instance->view_feed = NULL;
+        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
     }
 }
 

@@ -26,7 +26,7 @@ bool flip_social_get_feed(bool alloc_http)
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char command[96];
-    snprintf(command, 96, "https://www.flipsocial.net/api/feed/50/%s/extended/", app_instance->login_username_logged_out);
+    snprintf(command, 96, "https://www.flipsocial.net/api/feed/20/%s/max/", app_instance->login_username_logged_out);
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
@@ -69,32 +69,20 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
         }
 
         // Extract individual fields from the JSON object
-        FuriString *username = get_json_value_furi("username", item);
-        FuriString *message = get_json_value_furi("message", item);
-        FuriString *flipped = get_json_value_furi("flipped", item);
-        FuriString *flips = get_json_value_furi("flip_count", item);
         FuriString *id = get_json_value_furi("id", item);
 
-        if (username == NULL || message == NULL || flipped == NULL || id == NULL)
+        if (id == NULL)
         {
             FURI_LOG_E(TAG, "Failed to parse item fields.");
             furi_string_free(item);
-            furi_string_free(username);
-            furi_string_free(message);
-            furi_string_free(flipped);
-            furi_string_free(flips);
             furi_string_free(id);
             continue;
         }
 
-        if (!flip_social_save_post((char *)furi_string_get_cstr(id), (char *)furi_string_get_cstr(item)))
+        if (!flip_social_save_post(furi_string_get_cstr(id), furi_string_get_cstr(item)))
         {
             FURI_LOG_E(TAG, "Failed to save post.");
             furi_string_free(item);
-            furi_string_free(username);
-            furi_string_free(message);
-            furi_string_free(flipped);
-            furi_string_free(flips);
             furi_string_free(id);
             continue;
         }
@@ -103,10 +91,6 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
 
         // Furi_string_free allocated memory
         furi_string_free(item);
-        furi_string_free(username);
-        furi_string_free(message);
-        furi_string_free(flipped);
-        furi_string_free(flips);
         furi_string_free(id);
     }
 
@@ -148,16 +132,15 @@ bool flip_social_load_feed_post(int post_id)
     FuriString *message = get_json_value_furi("message", feed_data);
     FuriString *flipped = get_json_value_furi("flipped", feed_data);
     FuriString *flips = get_json_value_furi("flip_count", feed_data);
-    FuriString *id = get_json_value_furi("id", feed_data);
-
-    if (username == NULL || message == NULL || flipped == NULL || id == NULL)
+    FuriString *date_created = get_json_value_furi("date_created", feed_data);
+    if (username == NULL || message == NULL || flipped == NULL || flips == NULL || date_created == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse item fields.");
         furi_string_free(username);
         furi_string_free(message);
         furi_string_free(flipped);
         furi_string_free(flips);
-        furi_string_free(id);
+        furi_string_free(date_created);
         furi_string_free(feed_data);
         return false;
     }
@@ -165,10 +148,11 @@ bool flip_social_load_feed_post(int post_id)
     // Safely copy strings with bounds checking
     snprintf(flip_feed_item->username, MAX_USER_LENGTH, "%s", furi_string_get_cstr(username));
     snprintf(flip_feed_item->message, MAX_MESSAGE_LENGTH, "%s", furi_string_get_cstr(message));
+    snprintf(flip_feed_item->date_created, MAX_LINE_LENGTH, "%s", furi_string_get_cstr(date_created));
 
     // Store boolean and integer values
     flip_feed_item->is_flipped = strstr(furi_string_get_cstr(flipped), "true") != NULL;
-    flip_feed_item->id = atoi(furi_string_get_cstr(id));
+    flip_feed_item->id = post_id;
     flip_feed_item->flips = atoi(furi_string_get_cstr(flips));
 
     // Free allocated memory
@@ -176,9 +160,8 @@ bool flip_social_load_feed_post(int post_id)
     furi_string_free(message);
     furi_string_free(flipped);
     furi_string_free(flips);
-    furi_string_free(id);
+    furi_string_free(date_created);
     furi_string_free(feed_data);
-
     return true;
 }
 
@@ -240,7 +223,7 @@ bool flip_social_load_initial_feed(bool alloc_http)
         loading_free(loading);
         return false;
     }
-    if (!feed_dialog_alloc())
+    if (!feed_view_alloc())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
@@ -248,7 +231,7 @@ bool flip_social_load_initial_feed(bool alloc_http)
         loading_free(loading);
         return false;
     }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
+    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
     view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
     loading_free(loading);
 

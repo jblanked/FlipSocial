@@ -148,49 +148,319 @@ char *updated_user_message(const char *user_message)
     return updated_message;
 }
 
-bool feed_dialog_alloc()
+typedef enum
 {
+    ActionNone,
+    ActionBack,
+    ActionNext,
+    ActionPrev,
+    ActionFlip,
+} Action;
+
+static Action action = ActionNone;
+
+void on_input(const void *event, void *ctx)
+{
+    UNUSED(ctx);
+
+    InputKey key = ((InputEvent *)event)->key;
+    InputType type = ((InputEvent *)event)->type;
+
+    if (type != InputTypeRelease)
+    {
+        return;
+    }
+
+    switch (key)
+    {
+    case InputKeyOk:
+        action = ActionFlip;
+        break;
+    case InputKeyBack:
+        action = ActionBack;
+        break;
+    case InputKeyRight:
+        action = ActionNext;
+        break;
+    case InputKeyLeft:
+        action = ActionPrev;
+        break;
+    case InputKeyUp:
+        action = ActionPrev;
+        break;
+    case InputKeyDown:
+        action = ActionNext;
+        break;
+    default:
+        action = ActionNone;
+        break;
+    }
+}
+
+// Make sure to define a suitable MAX_LINE_LENGTH
+// For example:
+
+#define MAX_LINES 4
+
+static void draw_user_message(Canvas *canvas, const char *user_message, int x, int y)
+{
+    if (!user_message)
+    {
+        FURI_LOG_E(TAG, "User message is NULL.");
+        return;
+    }
+
+    // We'll copy the user_message into a buffer we can safely tokenize
+    char buffer[256]; // Adjust size if needed
+    strncpy(buffer, user_message, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    char *token = strtok(buffer, " ");
+    char line[MAX_LINE_LENGTH + 1];
+    size_t line_len = 0;
+    int line_num = 0;
+
+    // Clear the line buffer
+    line[0] = '\0';
+
+    while (token && line_num < MAX_LINES)
+    {
+        size_t token_len = strlen(token);
+
+        // If it's the first word in a line, add it directly if it fits
+        if (line_len == 0)
+        {
+            if (token_len <= MAX_LINE_LENGTH)
+            {
+                strcpy(line, token);
+                line_len = token_len;
+            }
+            else
+            {
+                // Single word longer than MAX_LINE_LENGTH; we must truncate or skip it
+                // Truncation logic: Just take as many chars as fit.
+                strncpy(line, token, MAX_LINE_LENGTH);
+                line[MAX_LINE_LENGTH] = '\0';
+                line_len = MAX_LINE_LENGTH;
+            }
+        }
+        else
+        {
+            // Check if adding this word plus a space would exceed MAX_LINE_LENGTH
+            if (line_len + 1 + token_len <= MAX_LINE_LENGTH)
+            {
+                // Append " space + token"
+                line[line_len] = ' ';
+                strcpy(&line[line_len + 1], token);
+                line_len += 1 + token_len;
+            }
+            else
+            {
+                // Current word doesn't fit in this line
+                // Draw the current line first
+                canvas_draw_str_aligned(canvas, x, y + line_num * 10, AlignLeft, AlignTop, line);
+                line_num++;
+
+                // Start a new line with the current word (or truncated if too long)
+                if (line_num < MAX_LINES)
+                {
+                    if (token_len <= MAX_LINE_LENGTH)
+                    {
+                        strcpy(line, token);
+                        line_len = token_len;
+                    }
+                    else
+                    {
+                        strncpy(line, token, MAX_LINE_LENGTH);
+                        line[MAX_LINE_LENGTH] = '\0';
+                        line_len = MAX_LINE_LENGTH;
+                    }
+                }
+            }
+        }
+
+        token = strtok(NULL, " ");
+    }
+
+    // Draw any remaining text in the buffer if we still have space
+    if (line_len > 0 && line_num < MAX_LINES)
+    {
+        canvas_draw_str_aligned(canvas, x, y + line_num * 10, AlignLeft, AlignTop, line);
+    }
+}
+
+static void flip_social_feed_draw_callback(Canvas *canvas, void *model)
+{
+    UNUSED(model);
+    canvas_clear(canvas);
+    UNUSED(model);
+    canvas_clear(canvas);
+    canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
+    canvas_draw_str(canvas, 0, 7, flip_feed_item->username);
+    canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
+    draw_user_message(canvas, flip_feed_item->message, 0, 12);
+    canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+    char flip_message[32];
+    snprintf(flip_message, sizeof(flip_message), "%u %s", flip_feed_item->flips, flip_feed_item->flips == 1 ? "flip" : "flips");
+    canvas_draw_str(canvas, 0, 60, flip_message);                  // Draw the number of flips
+    canvas_draw_str(canvas, 64, 60, flip_feed_item->date_created); // Draw the date
+}
+
+static bool flip_social_feed_input_callback(InputEvent *event, void *context)
+{
+    UNUSED(context);
+    furi_assert(app_instance);
+
+    // if back button is pressed
+    if (event->type == InputTypePress && event->key == InputKeyBack)
+    {
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        return true;
+    }
+
+    if (event->type == InputTypePress && event->key == InputKeyLeft) // Previous message
+    {
+        if (flip_feed_info->index > 0)
+        {
+            flip_feed_info->index--;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_view();
+        // load feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return false;
+        }
+        if (feed_view_alloc())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            fhttp.state = ISSUE;
+            return false;
+        }
+    }
+    else if (event->type == InputTypePress && event->key == InputKeyRight) // Next message
+    {
+        if (flip_feed_info->index < flip_feed_info->count - 1)
+        {
+            flip_feed_info->index++;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_view();
+        // load feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return false;
+        }
+        if (feed_view_alloc())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            fhttp.state = ISSUE;
+            return false;
+        }
+    }
+    else if (event->type == InputTypePress && event->key == InputKeyOk) // Flip/Unflip
+    {
+        // Moved to above the is_flipped check
+        if (!flip_feed_item->is_flipped)
+        {
+            // increase the flip count
+            flip_feed_item->flips++;
+        }
+        else
+        {
+            // decrease the flip count
+            flip_feed_item->flips--;
+        }
+        // change the flip status
+        flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
+        // send post request to flip the message
+        if (app_instance->login_username_logged_in == NULL)
+        {
+            FURI_LOG_E(TAG, "Username is NULL");
+            return false;
+        }
+        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        {
+            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+            return false;
+        }
+        auth_headers_alloc();
+        char payload[256];
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
+        if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", auth_headers, payload))
+        {
+            // save feed item
+            char new_save[256];
+            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s}",
+                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false");
+            // if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
+            // {
+            //     FURI_LOG_E(TAG, "Failed to save the feed post");
+            //     fhttp.state = ISSUE;
+            //     return false;
+            // }
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
+        flip_social_free_feed_view();
+        if (feed_view_alloc())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+        }
+        furi_delay_ms(1000);
+        flipper_http_deinit();
+    }
+    return false;
+}
+
+bool feed_view_alloc()
+{
+    if (!app_instance)
+    {
+        return false;
+    }
     if (!flip_feed_item)
     {
         FURI_LOG_E(TAG, "Feed item is NULL");
         return false;
     }
-    flip_social_free_feed_dialog();
-    if (!app_instance->dialog_feed)
+    flip_social_free_feed_view();
+    if (!app_instance->view_feed)
     {
-        char updated_message[MAX_MESSAGE_LENGTH + 10];
-        snprintf(updated_message, MAX_MESSAGE_LENGTH + 10, "%s (%u %s)", flip_feed_item->message, flip_feed_item->flips, flip_feed_item->flips == 1 ? "flip" : "flips");
-        char *real_message = updated_user_message(updated_message);
-        if (!real_message)
-        {
-            FURI_LOG_E(TAG, "Failed to update the user message");
-            return false;
-        }
-        if (!easy_flipper_set_dialog_ex(
-                &app_instance->dialog_feed,
-                FlipSocialViewFeedDialog,
-                flip_feed_item->username,
-                0,
-                0,
-                real_message,
-                0,
-                10,
-                flip_feed_info->index != 0 ? "Prev" : NULL,
-                flip_feed_info->index != flip_feed_info->count - 1 ? "Next" : NULL,
-                flip_feed_item->is_flipped ? "Unflip" : "Flip",
-                feed_dialog_callback,
+        if (!easy_flipper_set_view(
+                &app_instance->view_feed,
+                FlipSocialViewLoggedInFeed,
+                flip_social_feed_draw_callback,
+                flip_social_feed_input_callback,
                 flip_social_callback_to_submenu_logged_in,
                 &app_instance->view_dispatcher,
                 app_instance))
         {
-            free(real_message);
             return false;
         }
-        free(real_message);
         return true;
     }
     return false;
 }
+
 bool alloc_text_input(uint32_t view_id)
 {
     if (!app_instance)
@@ -202,96 +472,112 @@ bool alloc_text_input(uint32_t view_id)
         switch (view_id)
         {
         case FlipSocialViewLoggedOutWifiSettingsSSIDInput:
+            // memset(app_instance->wifi_ssid_logged_out_temp_buffer, 0, app_instance->wifi_ssid_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_out_temp_buffer, app_instance->wifi_ssid_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutWifiSettingsPasswordInput:
+            // memset(app_instance->wifi_password_logged_out_temp_buffer, 0, app_instance->wifi_password_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_out_temp_buffer, app_instance->wifi_password_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutLoginUsernameInput:
+            // memset(app_instance->login_username_logged_out_temp_buffer, 0, app_instance->login_username_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->login_username_logged_out_temp_buffer, app_instance->login_username_logged_out_temp_buffer_size, flip_social_logged_out_login_username_updated, flip_social_callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutLoginPasswordInput:
+            // memset(app_instance->login_password_logged_out_temp_buffer, 0, app_instance->login_password_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->login_password_logged_out_temp_buffer, app_instance->login_password_logged_out_temp_buffer_size, flip_social_logged_out_login_password_updated, flip_social_callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterUsernameInput:
+            memset(app_instance->register_username_logged_out_temp_buffer, 0, app_instance->register_username_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->register_username_logged_out_temp_buffer, app_instance->register_username_logged_out_temp_buffer_size, flip_social_logged_out_register_username_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterPasswordInput:
+            memset(app_instance->register_password_logged_out_temp_buffer, 0, app_instance->register_password_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->register_password_logged_out_temp_buffer, app_instance->register_password_logged_out_temp_buffer_size, flip_social_logged_out_register_password_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterPassword2Input:
+            memset(app_instance->register_password_2_logged_out_temp_buffer, 0, app_instance->register_password_2_logged_out_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Confirm Password", app_instance->register_password_2_logged_out_temp_buffer, app_instance->register_password_2_logged_out_temp_buffer_size, flip_social_logged_out_register_password_2_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInChangePasswordInput:
+            // memset(app_instance->change_password_logged_in_temp_buffer, 0, app_instance->change_password_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Change Password", app_instance->change_password_logged_in_temp_buffer, app_instance->change_password_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_password_updated, flip_social_callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInChangeBioInput:
+            // memset(app_instance->change_bio_logged_in_temp_buffer, 0, app_instance->change_bio_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Bio", app_instance->change_bio_logged_in_temp_buffer, app_instance->change_bio_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_bio_updated, flip_social_callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInComposeAddPreSaveInput:
+            memset(app_instance->compose_pre_save_logged_in_temp_buffer, 0, app_instance->compose_pre_save_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Pre-Save Message", app_instance->compose_pre_save_logged_in_temp_buffer, app_instance->compose_pre_save_logged_in_temp_buffer_size, flip_social_logged_in_compose_pre_save_updated, flip_social_callback_to_compose_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInWifiSettingsSSIDInput:
+            // memset(app_instance->wifi_ssid_logged_in_temp_buffer, 0, app_instance->wifi_ssid_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_in_temp_buffer, app_instance->wifi_ssid_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInWifiSettingsPasswordInput:
+            // memset(app_instance->wifi_password_logged_in_temp_buffer, 0, app_instance->wifi_password_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_in_temp_buffer, app_instance->wifi_password_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessagesNewMessageInput:
+            memset(app_instance->messages_new_message_logged_in_temp_buffer, 0, app_instance->messages_new_message_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->messages_new_message_logged_in_temp_buffer, app_instance->messages_new_message_logged_in_temp_buffer_size, flip_social_logged_in_messages_new_message_updated, flip_social_callback_to_messages_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput:
+            memset(app_instance->message_user_choice_logged_in_temp_buffer, 0, app_instance->message_user_choice_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->message_user_choice_logged_in_temp_buffer, app_instance->message_user_choice_logged_in_temp_buffer_size, flip_social_logged_in_messages_user_choice_message_updated, flip_social_callback_to_messages_user_choices, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInExploreInput:
+            memset(app_instance->explore_logged_in_temp_buffer, 0, app_instance->explore_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->explore_logged_in_temp_buffer, app_instance->explore_logged_in_temp_buffer_size, flip_social_logged_in_explore_updated, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessageUsersInput:
+            memset(app_instance->message_users_logged_in_temp_buffer, 0, app_instance->message_users_logged_in_temp_buffer_size);
             if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->message_users_logged_in_temp_buffer, app_instance->message_users_logged_in_temp_buffer_size, flip_social_logged_in_message_users_updated, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;

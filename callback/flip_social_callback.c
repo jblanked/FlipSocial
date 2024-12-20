@@ -625,7 +625,7 @@ void feed_dialog_callback(DialogExResult result, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_dialog();
+        flip_social_free_feed_view();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -633,9 +633,9 @@ void feed_dialog_callback(DialogExResult result, void *context)
             fhttp.state = ISSUE;
             return;
         }
-        if (feed_dialog_alloc())
+        if (feed_view_alloc())
         {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
         else
         {
@@ -652,7 +652,7 @@ void feed_dialog_callback(DialogExResult result, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_dialog();
+        flip_social_free_feed_view();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -660,9 +660,9 @@ void feed_dialog_callback(DialogExResult result, void *context)
             fhttp.state = ISSUE;
             return;
         }
-        if (feed_dialog_alloc())
+        if (feed_view_alloc())
         {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
         else
         {
@@ -715,10 +715,10 @@ void feed_dialog_callback(DialogExResult result, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_dialog();
-        if (feed_dialog_alloc())
+        flip_social_free_feed_view();
+        if (feed_view_alloc())
         {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewFeedDialog);
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
         else
         {
