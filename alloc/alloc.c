@@ -200,7 +200,10 @@ void on_input(const void *event, void *ctx)
 // Make sure to define a suitable MAX_LINE_LENGTH
 // For example:
 
-#define MAX_LINES 4
+#define MAX_LINES 6
+#define LINE_HEIGHT 8
+#define MAX_LINE_WIDTH_PX 128 // Adjust this to your display width
+#define TEMP_BUF_SIZE 128
 
 static void draw_user_message(Canvas *canvas, const char *user_message, int x, int y)
 {
@@ -210,82 +213,119 @@ static void draw_user_message(Canvas *canvas, const char *user_message, int x, i
         return;
     }
 
-    // We'll copy the user_message into a buffer we can safely tokenize
-    char buffer[256]; // Adjust size if needed
-    strncpy(buffer, user_message, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = '\0';
+    // We will read through user_message and extract words manually
+    const char *p = user_message;
 
-    char *token = strtok(buffer, " ");
-    char line[MAX_LINE_LENGTH + 1];
+    // Skip leading spaces
+    while (*p == ' ')
+        p++;
+
+    char line[TEMP_BUF_SIZE];
     size_t line_len = 0;
+    line[0] = '\0';
     int line_num = 0;
 
-    // Clear the line buffer
-    line[0] = '\0';
-
-    while (token && line_num < MAX_LINES)
+    while (*p && line_num < MAX_LINES)
     {
-        size_t token_len = strlen(token);
+        // Find the end of the next word
+        const char *word_start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t word_len = p - word_start;
 
-        // If it's the first word in a line, add it directly if it fits
+        // Extract the word into a temporary buffer
+        char word[TEMP_BUF_SIZE];
+        if (word_len > TEMP_BUF_SIZE - 1)
+        {
+            word_len = TEMP_BUF_SIZE - 1; // Just to avoid overflow if extremely large
+        }
+        memcpy(word, word_start, word_len);
+        word[word_len] = '\0';
+
+        // Skip trailing spaces for the next iteration
+        while (*p == ' ')
+            p++;
+
+        if (word_len == 0)
+        {
+            // Empty word (consecutive spaces?), just continue
+            continue;
+        }
+
+        // Check how the word fits into the current line
+        char test_line[TEMP_BUF_SIZE + 128];
         if (line_len == 0)
         {
-            if (token_len <= MAX_LINE_LENGTH)
-            {
-                strcpy(line, token);
-                line_len = token_len;
-            }
-            else
-            {
-                // Single word longer than MAX_LINE_LENGTH; we must truncate or skip it
-                // Truncation logic: Just take as many chars as fit.
-                strncpy(line, token, MAX_LINE_LENGTH);
-                line[MAX_LINE_LENGTH] = '\0';
-                line_len = MAX_LINE_LENGTH;
-            }
+            // If line is empty, the line would just be this word
+            strncpy(test_line, word, sizeof(test_line) - 1);
+            test_line[sizeof(test_line) - 1] = '\0';
         }
         else
         {
-            // Check if adding this word plus a space would exceed MAX_LINE_LENGTH
-            if (line_len + 1 + token_len <= MAX_LINE_LENGTH)
+            // If not empty, we add a space and then the word
+            snprintf(test_line, sizeof(test_line), "%s %s", line, word);
+        }
+
+        uint16_t width = canvas_string_width(canvas, test_line);
+        if (width <= MAX_LINE_WIDTH_PX)
+        {
+            // The word fits on this line
+            strcpy(line, test_line);
+            line_len = strlen(line);
+        }
+        else
+        {
+            // The word doesn't fit on this line
+            // First, draw the current line if it's not empty
+            if (line_len > 0)
             {
-                // Append " space + token"
-                line[line_len] = ' ';
-                strcpy(&line[line_len + 1], token);
-                line_len += 1 + token_len;
+                canvas_draw_str_aligned(canvas, x, y + line_num * LINE_HEIGHT, AlignLeft, AlignTop, line);
+                line_num++;
+                if (line_num >= MAX_LINES)
+                    break;
+            }
+
+            // Now we try to put the current word on a new line
+            // Check if the word itself fits on an empty line
+            width = canvas_string_width(canvas, word);
+            if (width <= MAX_LINE_WIDTH_PX)
+            {
+                // The whole word fits on a new line
+                strcpy(line, word);
+                line_len = word_len;
             }
             else
             {
-                // Current word doesn't fit in this line
-                // Draw the current line first
-                canvas_draw_str_aligned(canvas, x, y + line_num * 10, AlignLeft, AlignTop, line);
-                line_num++;
-
-                // Start a new line with the current word (or truncated if too long)
-                if (line_num < MAX_LINES)
+                // The word alone doesn't fit. We must truncate it.
+                // We'll find the largest substring of the word that fits.
+                size_t truncate_len = word_len;
+                while (truncate_len > 0)
                 {
-                    if (token_len <= MAX_LINE_LENGTH)
+                    char truncated[TEMP_BUF_SIZE];
+                    strncpy(truncated, word, truncate_len);
+                    truncated[truncate_len] = '\0';
+                    if (canvas_string_width(canvas, truncated) <= MAX_LINE_WIDTH_PX)
                     {
-                        strcpy(line, token);
-                        line_len = token_len;
+                        // Found a substring that fits
+                        strcpy(line, truncated);
+                        line_len = truncate_len;
+                        break;
                     }
-                    else
-                    {
-                        strncpy(line, token, MAX_LINE_LENGTH);
-                        line[MAX_LINE_LENGTH] = '\0';
-                        line_len = MAX_LINE_LENGTH;
-                    }
+                    truncate_len--;
+                }
+
+                if (line_len == 0)
+                {
+                    // Could not fit a single character. Skip this word.
                 }
             }
         }
-
-        token = strtok(NULL, " ");
     }
 
-    // Draw any remaining text in the buffer if we still have space
+    // Draw any remaining text in the buffer if we have lines left
     if (line_len > 0 && line_num < MAX_LINES)
     {
-        canvas_draw_str_aligned(canvas, x, y + line_num * 10, AlignLeft, AlignTop, line);
+        canvas_draw_str_aligned(canvas, x, y + line_num * LINE_HEIGHT, AlignLeft, AlignTop, line);
     }
 }
 
