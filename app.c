@@ -22,6 +22,7 @@ int32_t main_flip_social(void *p)
     }
 
     // check if board is connected (Derek Jamison)
+    uint8_t counter = 10;
     // initialize the http
     if (flipper_http_init(flipper_http_rx_callback, app_instance))
     {
@@ -34,7 +35,6 @@ int32_t main_flip_social(void *p)
         }
 
         // Try to wait for pong response.
-        uint8_t counter = 10;
         while (fhttp.state == INACTIVE && --counter > 0)
         {
             FURI_LOG_D(TAG, "Waiting for PONG");
@@ -42,13 +42,36 @@ int32_t main_flip_social(void *p)
         }
 
         if (counter == 0)
+        {
             easy_flipper_dialog("FlipperHTTP Error", "Ensure your WiFi Developer\nBoard or Pico W is connected\nand the latest FlipperHTTP\nfirmware is installed.");
+        }
+        else
+        {
+            save_char("is_connected", "true");
+        }
 
         flipper_http_deinit();
     }
     else
     {
         easy_flipper_dialog("FlipperHTTP Error", "The UART is likely busy.\nEnsure you have the correct\nflash for your board then\nrestart your Flipper Zero.");
+    }
+
+    // if counter is not 0, check notifications
+    if (counter != 0)
+    {
+        char is_connected[5];
+        char is_logged_in[5];
+        load_char("is_connected", is_connected, 5);
+        load_char("is_logged_in", is_logged_in, 5);
+
+        if (strcmp(is_connected, "true") == 0)
+        {
+            if (strcmp(is_logged_in, "true") == 0)
+            {
+                flip_social_home_notification();
+            }
+        }
     }
 
     // Run the view dispatcher

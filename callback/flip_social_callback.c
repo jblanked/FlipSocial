@@ -2557,3 +2557,146 @@ void flip_social_generic_switch_to_view(FlipSocialApp *app, char *title, DataLoa
 
     view_dispatcher_switch_to_view(app->view_dispatcher, view_id);
 }
+
+static bool flip_social_get_home_notification()
+{
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "app_instance is NULL");
+        return false;
+    }
+    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+    {
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        return false;
+    }
+    // Create the directory for saving settings
+    char directory_path[256];
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data");
+
+    // Create the directory
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, directory_path);
+    furi_record_close(RECORD_STORAGE);
+    auth_headers_alloc();
+    snprintf(
+        fhttp.file_path,
+        sizeof(fhttp.file_path),
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data/notification.json");
+
+    fhttp.save_received_data = true;
+    return flipper_http_get_request_with_headers("https://www.flipsocial.net/api/flip-social-notifications/", auth_headers);
+}
+static bool flip_social_parse_home_notification()
+{
+    FuriString *notification = flipper_http_load_from_file(fhttp.file_path);
+    if (notification == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to load notification from file");
+        flipper_http_deinit();
+        return false;
+    }
+    flipper_http_deinit();
+    // check if announcement and analytics key exists
+    FuriString *announcement_json = get_json_value_furi("announcement", notification);
+    FuriString *analytics_json = get_json_value_furi("analytics", notification);
+    if (announcement_json == NULL || analytics_json == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to get announcement or analytics from notification");
+        if (announcement_json)
+        {
+            furi_string_free(announcement_json);
+        }
+        if (analytics_json)
+        {
+            furi_string_free(analytics_json);
+        }
+        return false;
+    }
+    FuriString *announcement_value = get_json_value_furi("content", announcement_json);
+    FuriString *announcement_time = get_json_value_furi("date_created", announcement_json);
+    FuriString *analytics_value = get_json_value_furi("count", analytics_json);
+    FuriString *analytics_time = get_json_value_furi("time", analytics_json);
+    if (!announcement_value || !announcement_time || !analytics_value || !analytics_time)
+    {
+        FURI_LOG_E(TAG, "Failed to get announcement or analytics value from notification");
+        if (announcement_value)
+        {
+            furi_string_free(announcement_value);
+        }
+        if (announcement_time)
+        {
+            furi_string_free(announcement_time);
+        }
+        if (analytics_value)
+        {
+            furi_string_free(analytics_value);
+        }
+        if (analytics_time)
+        {
+            furi_string_free(analytics_time);
+        }
+        return false;
+    }
+    // load previous announcement and analytics times to see if there is a new announcement or analytics
+    char past_analytics_time[32];
+    char past_announcement_time[32];
+    if (load_char("analytics_time", past_analytics_time, sizeof(past_analytics_time)) && load_char("announcement_time", past_announcement_time, sizeof(past_announcement_time)))
+    {
+        // check if the announcement or analytics time has changed
+        if (strcmp(furi_string_get_cstr(announcement_time), past_announcement_time) == 0 && strcmp(furi_string_get_cstr(analytics_time), past_analytics_time) == 0)
+        {
+            FURI_LOG_D(TAG, "No new announcement or analytics");
+            furi_string_free(announcement_value);
+            furi_string_free(announcement_time);
+            furi_string_free(analytics_value);
+            furi_string_free(analytics_time);
+            furi_string_free(announcement_json);
+            furi_string_free(analytics_json);
+            furi_string_free(notification);
+            return true;
+        }
+    }
+    // save the new announcement and analytics time
+    save_char("analytics_time", furi_string_get_cstr(analytics_time));
+    save_char("announcement_time", furi_string_get_cstr(announcement_time));
+    // show the announcement and analytics
+    char analytics_text[128];
+    // if previous analytics posts is not empty, then subtract the current posts from the previous psots and add it to analytics_text
+    if (atoi(furi_string_get_cstr(analytics_value)) > 0)
+    {
+        char past_analytics_value[32];
+        if (load_char("analytics_value", past_analytics_value, sizeof(past_analytics_value)))
+        {
+            int past_posts = atoi(past_analytics_value);
+            int current_posts = atoi(furi_string_get_cstr(analytics_value));
+            int new_posts = current_posts - past_posts;
+            snprintf(analytics_text, sizeof(analytics_text), "%s feed posts\n%d new posts", furi_string_get_cstr(analytics_value), new_posts);
+        }
+        else
+        {
+            snprintf(analytics_text, sizeof(analytics_text), "%s feed posts", furi_string_get_cstr(analytics_value));
+        }
+        save_char("analytics_value", furi_string_get_cstr(analytics_value));
+    }
+    else
+    {
+        snprintf(analytics_text, sizeof(analytics_text), "%s feed posts", furi_string_get_cstr(analytics_value));
+    }
+    easy_flipper_dialog("Announcement", (char *)furi_string_get_cstr(announcement_value));
+    easy_flipper_dialog("Analytics", analytics_text);
+    furi_string_free(announcement_value);
+    furi_string_free(announcement_time);
+    furi_string_free(analytics_value);
+    furi_string_free(analytics_time);
+    furi_string_free(announcement_json);
+    furi_string_free(analytics_json);
+    furi_string_free(notification);
+    return true;
+}
+
+// home notification
+bool flip_social_home_notification()
+{
+    return flipper_http_process_response_async(flip_social_get_home_notification, flip_social_parse_home_notification);
+}

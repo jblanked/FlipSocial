@@ -26,7 +26,7 @@ bool flip_social_get_feed(bool alloc_http)
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char command[96];
-    snprintf(command, 96, "https://www.flipsocial.net/api/feed/20/%s/max/", app_instance->login_username_logged_out);
+    snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/max/", MAX_FEED_ITEMS, app_instance->login_username_logged_out);
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
@@ -70,7 +70,6 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
 
         // Extract individual fields from the JSON object
         FuriString *id = get_json_value_furi("id", item);
-
         if (id == NULL)
         {
             FURI_LOG_E(TAG, "Failed to parse item fields.");
@@ -78,7 +77,6 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
             furi_string_free(id);
             continue;
         }
-
         if (!flip_social_save_post(furi_string_get_cstr(id), furi_string_get_cstr(item)))
         {
             FURI_LOG_E(TAG, "Failed to save post.");

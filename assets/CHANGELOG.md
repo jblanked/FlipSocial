@@ -1,6 +1,11 @@
 ## 1.0 - Official Release
 - Final memory improvements
 - Updated the New Message option in the Messages view to allow the user to search for users to send a message to.
+- Updated the display of the Feed to use a custom view and custom font, and show how long ago the post was created
+- Organized the files saved/utilized in the apps_data folder
+- Fixed bugs in the Direct Messaging View
+- Fixed bugs in the Pre-Save View
+- Added home announcements and notifications.
 
 ## 0.8 - New Features
 - Added support for RPC_KEYBOARD (thanks to Derek Jamison).
