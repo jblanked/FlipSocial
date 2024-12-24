@@ -163,7 +163,7 @@ bool flip_social_load_feed_post(int post_id)
     snprintf(flip_feed_item->date_created, MAX_LINE_LENGTH, "%s", furi_string_get_cstr(date_created));
 
     // Store boolean and integer values
-    flip_feed_item->is_flipped = strstr(furi_string_get_cstr(flipped), "true") != NULL;
+    flip_feed_item->is_flipped = strstr(furi_string_get_cstr(flipped), "true") ? true : false;
     flip_feed_item->id = post_id;
     flip_feed_item->flips = atoi(furi_string_get_cstr(flips));
 
