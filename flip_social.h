@@ -7,16 +7,18 @@
 #include <flipper_http/flipper_http.h>
 #include <input/input.h>
 #include <flip_social_icons.h>
+#include <font/font.h>
+
 #define TAG "FlipSocial"
+#define VERSION_TAG TAG " v1.0"
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_TOKENS 576            // Adjust based on expected JSON tokens
-#define MAX_FEED_ITEMS 50         // Maximum number of feed items
-#define MAX_LINE_LENGTH 30
+#define MAX_FEED_ITEMS 20         // Maximum number of feed items
+#define MAX_LINE_LENGTH 27
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
 
@@ -26,10 +28,15 @@
 // Define the submenu items for our Hello World application
 typedef enum
 {
-    FlipSocialSubmenuLoggedOutIndexLogin,        // click to go to the login screen
-    FlipSocialSubmenuLoggedOutIndexRegister,     // click to go to the register screen
+    FlipSocialSubmenuLoggedOutIndexLogin,    // click to go to the login screen
+    FlipSocialSubmenuLoggedOutIndexRegister, // click to go to the register screen
+    //
     FlipSocialSubmenuLoggedOutIndexAbout,        // click to go to the about screen
     FlipSocialSubmenuLoggedOutIndexWifiSettings, // click to go to the wifi settings screen
+    FlipSocialSubmenuLoggedInIndexUserSettings,  // click to go to the user settings screen
+    //
+    FlipSocialSubmenuLoggedInIndexAbout,        // click to go to the about screen
+    FlipSocialSubmenuLoggedInIndexWifiSettings, // click to go to the wifi settings screen
     //
     FlipSocialSubmenuLoggedInIndexProfile,  // click to go to the profile screen
     FlipSocialSubmenuExploreIndex,          // click to go to the explore
@@ -56,7 +63,7 @@ typedef enum
 // Define the ScriptPlaylist structure
 typedef struct
 {
-    char *messages[MAX_PRE_SAVED_MESSAGES];
+    char messages[MAX_PRE_SAVED_MESSAGES][MAX_MESSAGE_LENGTH];
     size_t count;
     size_t index;
 } PreSavedPlaylist;
@@ -64,8 +71,9 @@ typedef struct
 // Define a FlipSocialFeed individual item
 typedef struct
 {
-    char *username;
-    char *message;
+    char username[MAX_USER_LENGTH];
+    char message[MAX_MESSAGE_LENGTH];
+    char date_created[MAX_LINE_LENGTH];
     bool is_flipped;
     int id;
     int flips;
@@ -76,26 +84,27 @@ typedef struct
     int ids[MAX_FEED_ITEMS];
     size_t count;
     size_t index;
+    int series_index;
 } FlipSocialFeedMini;
 
 typedef struct
 {
-    char *usernames[MAX_EXPLORE_USERS];
+    char usernames[MAX_EXPLORE_USERS][MAX_USER_LENGTH];
     int count;
     int index;
 } FlipSocialModel;
 
 typedef struct
 {
-    char *usernames[MAX_MESSAGE_USERS];
+    char usernames[MAX_MESSAGE_USERS][MAX_USER_LENGTH];
     int count;
     int index;
 } FlipSocialModel2;
 
 typedef struct
 {
-    char *usernames[MAX_MESSAGES];
-    char *messages[MAX_MESSAGES];
+    char usernames[MAX_MESSAGES][MAX_USER_LENGTH];
+    char messages[MAX_MESSAGES][MAX_MESSAGE_LENGTH];
     int count;
     int index;
 } FlipSocialMessage;
@@ -137,6 +146,7 @@ typedef enum
     //
     FlipSocialViewLoggedInSettingsAbout,             // The about screen
     FlipSocialViewLoggedInSettingsWifi,              // The wifi settings screen
+    FlipSocialViewLoggedInSettingsUser,              // The user settings screen
     FlipSocialViewLoggedInWifiSettingsSSIDInput,     // Text input screen for SSID input on wifi screen
     FlipSocialViewLoggedInWifiSettingsPasswordInput, // Text input screen for Password input on wifi screen
     //
@@ -155,7 +165,11 @@ typedef enum
     FlipSocialViewFriendsDialog,  // The dialog for the friends screen
     FlipSocialViewMessagesDialog, // The dialog for the messages screen
     FlipSocialViewComposeDialog,  // The dialog for the compose screen
-    FlipSocialViewFeedDialog,     // The dialog for the feed screen
+    //
+    FlipSocialViewTextInput, // The text input screen
+    FlipSocialViewVariableItemList,
+    //
+    FlipSocialViewSubmenu,
 } FlipSocialView;
 
 // Define the application structure
@@ -164,44 +178,18 @@ typedef struct
     View *view_loader;
     Widget *widget_result;
     //
-    ViewDispatcher *view_dispatcher;        // Switches between our views
-    Submenu *submenu_logged_out;            // The application submenu (logged out)
-    Submenu *submenu_logged_in;             // The application submenu (logged in)
-    Submenu *submenu_compose;               // The application submenu (compose)
-    Submenu *submenu_explore;               // The application submenu (explore)
-    Submenu *submenu_friends;               // The application submenu (friends)
-    Submenu *submenu_messages;              // The application submenu (messages)
-    Submenu *submenu_messages_user_choices; // The application submenu (messages user choices)
-    Widget *widget_logged_out_about;        // The about screen (logged out)
-    Widget *widget_logged_in_about;         // The about screen (logged in)
+    ViewDispatcher *view_dispatcher; // Switches between our views
+    Submenu *submenu_logged_out;     // The application submenu (logged out)
+    Submenu *submenu_logged_in;      // The application submenu (logged in)
+    //
+    Submenu *submenu;
+    //
+    Widget *widget_logged_out_about; // The about screen (logged out)
+    Widget *widget_logged_in_about;  // The about screen (logged in)
 
-    VariableItemList *variable_item_list_logged_out_wifi_settings; // The wifi settings menu
-    VariableItemList *variable_item_list_logged_out_login;         // The login menu
-    VariableItemList *variable_item_list_logged_out_register;      // The register menu
-    //
-    VariableItemList *variable_item_list_logged_in_profile;       // The profile menu
-    VariableItemList *variable_item_list_logged_in_settings;      // The settings menu
-    VariableItemList *variable_item_list_logged_in_settings_wifi; // The wifi settings menu
+    VariableItemList *variable_item_list; // The main menu
 
-    UART_TextInput *text_input_logged_out_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
-    UART_TextInput *text_input_logged_out_wifi_settings_password; // Text input for password input on wifi settings screen
-    UART_TextInput *text_input_logged_out_login_username;         // Text input for username input on login screen
-    UART_TextInput *text_input_logged_out_login_password;         // Text input for password input on login screen
-    UART_TextInput *text_input_logged_out_register_username;      // Text input for username input on register screen
-    UART_TextInput *text_input_logged_out_register_password;      // Text input for password input on register screen
-    UART_TextInput *text_input_logged_out_register_password_2;    // Text input for password 2 input on register screen
-    //
-    UART_TextInput *text_input_logged_in_change_password;        // Text input for password input on change password screen
-    UART_TextInput *text_input_logged_in_change_bio;             // Text input for bio input on profile screen
-    UART_TextInput *text_input_logged_in_compose_pre_save_input; // Text input for pre save input on compose screen
-    UART_TextInput *text_input_logged_in_wifi_settings_ssid;     // Text input for ssid input on wifi settings screen
-    UART_TextInput *text_input_logged_in_wifi_settings_password; // Text input for password input on wifi settings screen
-    //
-    UART_TextInput *text_input_logged_in_messages_new_message;              // Text input for new message input on messages screen
-    UART_TextInput *text_input_logged_in_messages_new_message_user_choices; //
-    //
-    UART_TextInput *text_input_logged_in_explore; // Text input for explore input on explore screen
-    UART_TextInput *text_input_logged_in_message_users;
+    UART_TextInput *text_input; // The text input
 
     VariableItem *variable_item_logged_out_wifi_settings_ssid;     // Reference to the ssid configuration item
     VariableItem *variable_item_logged_out_wifi_settings_password; // Reference to the password configuration item
@@ -217,10 +205,13 @@ typedef struct
     VariableItem *variable_item_logged_in_profile_change_password; // Reference to the change password configuration item
     VariableItem *variable_item_logged_in_profile_change_bio;      // Reference to the change bio configuration item
     //
-    VariableItem *variable_item_logged_in_settings_about;         // Reference to the about configuration item
-    VariableItem *variable_item_logged_in_settings_wifi;          // Reference to the wifi settings configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_ssid;     // Reference to the ssid configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_password; // Reference to the password configuration item
+    VariableItem *variable_item_logged_in_settings_about;              // Reference to the about configuration item
+    VariableItem *variable_item_logged_in_settings_wifi;               // Reference to the wifi settings configuration item
+    VariableItem *variable_item_logged_in_settings_user;               // Reference to the user settings configuration item
+    VariableItem *variable_item_logged_in_user_settings_feed_type;     // Reference to the feed type configuration item
+    VariableItem *variable_item_logged_in_user_settings_notifications; // Reference to the notifications configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_ssid;          // Reference to the ssid configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_password;      // Reference to the password configuration item
     //
     VariableItem *variable_item_logged_in_profile_friends; // Reference to the friends configuration item
     //
@@ -299,12 +290,12 @@ typedef struct
     char *message_users_logged_in_temp_buffer;         // Temporary buffer for message users text input
     uint32_t message_users_logged_in_temp_buffer_size; // Size of the message users temporary buffer
 
-    Loading *loading; // The loading screen
     DialogEx *dialog_explore;
     DialogEx *dialog_friends;
     DialogEx *dialog_messages;
     DialogEx *dialog_compose;
-    DialogEx *dialog_feed;
+
+    View *view_feed;
 
     char *explore_user_bio; // Store the bio of the selected user
 } FlipSocialApp;
@@ -328,8 +319,10 @@ extern bool flip_social_dialog_stop;
 extern bool flip_social_send_message;
 extern char *selected_message;
 extern char auth_headers[256];
-
-void auth_headers_alloc(void);
-FlipSocialFeedMini *flip_feed_info_alloc(void);
-void flip_feed_info_free(void);
+//
+extern char *flip_social_feed_type[];
+extern uint8_t flip_social_feed_type_index;
+//
+extern char *flip_social_notification_type[];
+extern uint8_t flip_social_notification_type_index;
 #endif

@@ -3,11 +3,9 @@ The first social media app for Flipper Zero. Connect with other users directly o
 
 The highlight of this app is customizable pre-saves, which, as explained below, aim to address the challenges of typing with the directional pad.
 
-FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in the WebCrawler app: https://github.com/jblanked/WebCrawler-FlipperZero/tree/main/assets/FlipperHTTP
-
 ## Requirements
 - WiFi Developer Board, Raspberry Pi, or ESP32 Device with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
-- WiFi Access Point
+- 2.4 Ghz WiFi Access Point
 
 
 ## Features
@@ -24,7 +22,7 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 
 **Registration:** Create an account with just a username and password—no email or personal information required or collected.
 
-**Feed:** View up to 50 of the latest posts, create your own posts, and "Flip" a post—FlipSocial’s version of liking or favoriting a post.
+**Feed:** View the latest posts, create your own posts, and "Flip" a post—FlipSocial’s version of liking or favoriting a post.
 
 **Customizable Pre-Saves:** The biggest challenge with a social media app on the Flipper Zero is using only the directional pad for input. To address this, I implemented a pre-saved text system. The pre-saves are stored in a pre_saved_messages.txt file on your SD card. You can edit the pre-saves by opening qFlipper, downloading the file from the /apps_data/flip_social/ folder, adding your pre-saves (separated by new lines), and then copying it back to your SD card. You can also create pre-saves directly within the app.
 
@@ -65,33 +63,3 @@ FlipSocial uses the FlipperHTTP flash for the WiFi Devboard, first introduced in
 
 **v1.0**
 - Official Release
-
-## Contribution
-This is a big project, and I welcome all contributors, especially developers interested in animations and graphics. Fork the repository, create a pull request, and I will review your edits.
-
-## Known Bugs
-1. When clicking any button other than the BACK button in the Feed view, post creation view, messages view, or the friends view, the app doesn't respond to inputs.
-- **Solution:** Restart your Flipper device.
-   
-2. When trying to log in, the app shows "Awaiting response..." and nothing happens for more than 30 seconds.
-- **Solution 1:** Update your WiFi credentials. Sometimes, you just need to hit Save again on either the SSID or password.
-- **Solution 2:** Ensure your WiFi Devboard is plugged in, then restart the app.
-- **Solution 3:** Ensure your WiFi Devboard is plugged in, then restart your Flipper device.
-   
-3. When accessing the Feed, I keep getting the message "Either the feed didn’t load or there was a server error."
-- **Solution 1:** Update your WiFi credentials. Sometimes, you just need to hit Save again on either the SSID or password.
-- **Solution 2:** Ensure your WiFi Devboard is plugged in, then restart the app.
-- **Solution 3:** Ensure your WiFi Devboard is plugged in, then restart your Flipper device.
-   
-4. The Feed is empty.
-- **Solution 1:** Update your WiFi credentials. Sometimes, you just need to hit Save again on either the SSID or password.
-- **Solution 2:** Ensure your WiFi Devboard is plugged in, then restart the app.
-- **Solution 3:** Ensure your WiFi Devboard is plugged in, then restart your Flipper device.
-
-5. Out of memory when starting the app or after visiting the feed and post views back-to-back.
-- **Solution 1:** Restart your Flipper device.
-- **Solution 2:** Update the app to version 0.7 (or higher).
-
-6. I can no longer access the Messages.
-- **Solution 1:** Uppdate the app to version 0.6.3 (or higher)
-- **Solution 2:** Click the logout button then login again. Make sure your password is correct before clicking "Login".

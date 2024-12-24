@@ -4,17 +4,10 @@ FlipSocialModel *flip_social_friends_alloc()
 {
     // Allocate memory for each username only if not already allocated
     FlipSocialModel *friends = malloc(sizeof(FlipSocialModel));
-    for (size_t i = 0; i < MAX_FRIENDS; i++)
+    if (friends == NULL)
     {
-        if (friends->usernames[i] == NULL)
-        {
-            friends->usernames[i] = malloc(MAX_USER_LENGTH);
-            if (friends->usernames[i] == NULL)
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for username %zu", i);
-                return NULL; // Return false on memory allocation failure
-            }
-        }
+        FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
+        return NULL;
     }
     return friends;
 }
@@ -26,11 +19,6 @@ bool flip_social_get_friends()
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "App instance is NULL");
-        return false;
-    }
-    if (fhttp.state == INACTIVE)
-    {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
         return false;
     }
     // will return true unless the devboard is not connected
@@ -55,7 +43,7 @@ bool flip_social_get_friends()
 
 bool flip_social_update_friends()
 {
-    if (!app_instance->submenu_friends)
+    if (!app_instance->submenu)
     {
         FURI_LOG_E(TAG, "Friends submenu is NULL");
         return false;
@@ -66,11 +54,11 @@ bool flip_social_update_friends()
         return false;
     }
     // Add submenu items for the users
-    submenu_reset(app_instance->submenu_friends);
-    submenu_set_header(app_instance->submenu_friends, "Friends");
+    submenu_reset(app_instance->submenu);
+    submenu_set_header(app_instance->submenu, "Friends");
     for (int i = 0; i < flip_social_friends->count; i++)
     {
-        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
     }
     return true;
 }
@@ -82,89 +70,42 @@ bool flip_social_parse_json_friends()
     if (friend_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
-        return false;
-    }
-    char *data_cstr = (char *)furi_string_get_cstr(friend_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(friend_data);
+        flipper_http_deinit();
         return false;
     }
 
-    // Allocate memory for each username only if not already allocated
+    //  Allocate memory for each username only if not already allocated
     flip_social_friends = flip_social_friends_alloc();
     if (flip_social_friends == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
         furi_string_free(friend_data);
-        free(data_cstr);
         return false;
-    }
-
-    // Remove newlines
-    char *pos = data_cstr;
-    while ((pos = strchr(pos, '\n')) != NULL)
-    {
-        *pos = ' ';
     }
 
     // Initialize friends count
     flip_social_friends->count = 0;
 
     // Reset the friends submenu
-    submenu_reset(app_instance->submenu_friends);
-    submenu_set_header(app_instance->submenu_friends, "Friends");
+    submenu_reset(app_instance->submenu);
+    submenu_set_header(app_instance->submenu, "Friends");
 
     // Extract the users array from the JSON
-    char *json_users = get_json_value("friends", data_cstr, 128);
-    if (json_users == NULL)
+    for (int i = 0; i < MAX_FRIENDS; i++)
     {
-        FURI_LOG_E(TAG, "Failed to parse friends array.");
-        furi_string_free(friend_data);
-        free(data_cstr);
-        return false;
-    }
-
-    // Manual tokenization for comma-separated values
-    char *start = json_users + 1; // Skip the opening bracket
-    char *end;
-    while ((end = strchr(start, ',')) != NULL && flip_social_friends->count < MAX_FRIENDS)
-    {
-        *end = '\0'; // Null-terminate the current token
-
-        // Remove quotes
-        if (*start == '"')
-            start++;
-        if (*(end - 1) == '"')
-            *(end - 1) = '\0';
-
-        // Copy username to pre-allocated memory
-        snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
-        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
+        FuriString *friend = get_json_array_value_furi("friends", i, friend_data);
+        if (friend == NULL)
+        {
+            FURI_LOG_E(TAG, "Failed to parse friend %d.", i);
+            furi_string_free(friend_data);
+            break;
+        }
+        snprintf(flip_social_friends->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(friend));
+        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
         flip_social_friends->count++;
-        start = end + 1;
+        furi_string_free(friend);
     }
-
-    // Handle the last token
-    if (*start != '\0' && flip_social_friends->count < MAX_FRIENDS)
-    {
-        if (*start == '"')
-            start++;
-        if (*(start + strlen(start) - 1) == ']')
-            *(start + strlen(start) - 1) = '\0';
-        if (*(start + strlen(start) - 1) == '"')
-            *(start + strlen(start) - 1) = '\0';
-
-        snprintf(flip_social_friends->usernames[flip_social_friends->count], MAX_USER_LENGTH, "%s", start);
-        submenu_add_item(app_instance->submenu_friends, flip_social_friends->usernames[flip_social_friends->count], FlipSocialSubmenuLoggedInIndexFriendsStart + flip_social_friends->count, flip_social_callback_submenu_choices, app_instance);
-        flip_social_friends->count++;
-    }
-
     furi_string_free(friend_data);
-    free(data_cstr);
-    free(json_users);
-    free(start);
-    free(end);
+    // flipper_http_deinit();
     return true;
 }

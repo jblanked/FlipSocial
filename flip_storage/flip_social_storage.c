@@ -8,6 +8,7 @@ void save_playlist(const PreSavedPlaylist *playlist)
         FURI_LOG_E(TAG, "Playlist is NULL");
         return;
     }
+
     // Create the directory for saving settings
     char directory_path[128];
     snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social");
@@ -29,7 +30,7 @@ void save_playlist(const PreSavedPlaylist *playlist)
     // Write each playlist message on a separate line
     for (size_t i = 0; i < playlist->count; ++i)
     {
-        // Add a newline character after each message
+        // Write the message
         if (storage_file_write(file, playlist->messages[i], strlen(playlist->messages[i])) != strlen(playlist->messages[i]))
         {
             FURI_LOG_E(TAG, "Failed to write playlist message %zu", i);
@@ -42,34 +43,23 @@ void save_playlist(const PreSavedPlaylist *playlist)
         }
     }
 
+    // Close the file and storage
     storage_file_close(file);
     storage_file_free(file);
     furi_record_close(RECORD_STORAGE);
 }
 
-// Function to load the playlist
 bool load_playlist(PreSavedPlaylist *playlist)
 {
-    // Ensure playlist is not NULL
     if (!playlist)
     {
         FURI_LOG_E(TAG, "Playlist is NULL");
         return false;
     }
 
-    // Ensure playlist->messages is not NULL and allocate memory for each message
-    for (size_t i = 0; i < MAX_PRE_SAVED_MESSAGES; ++i)
-    {
-        if (!playlist->messages[i]) // Check if memory is already allocated
-        {
-            playlist->messages[i] = (char *)malloc(MAX_MESSAGE_LENGTH * sizeof(char));
-            if (!playlist->messages[i])
-            {
-                FURI_LOG_E(TAG, "Failed to allocate memory for message %zu", i);
-                return false; // Return false on memory allocation failure
-            }
-        }
-    }
+    // Clear existing data in the playlist
+    memset(playlist->messages, 0, sizeof(playlist->messages));
+    playlist->count = 0;
 
     // Open the storage
     Storage *storage = furi_record_open(RECORD_STORAGE);
@@ -80,29 +70,24 @@ bool load_playlist(PreSavedPlaylist *playlist)
         FURI_LOG_E(TAG, "Failed to open pre-saved messages file for reading: %s", PRE_SAVED_MESSAGES_PATH);
         storage_file_free(file);
         furi_record_close(RECORD_STORAGE);
-        return false; // Return false if the file does not exist
+        return false;
     }
 
-    // Initialize the playlist count
-    playlist->count = 0;
-
-    // Read the file byte by byte to simulate reading lines
+    // Read the file line by line
+    char line[MAX_MESSAGE_LENGTH] = {0};
+    size_t line_pos = 0;
     char ch;
-    size_t message_pos = 0;
-    bool message_started = false;
 
-    while (storage_file_read(file, &ch, 1) == 1) // Read one character at a time
+    while (storage_file_read(file, &ch, 1) == 1)
     {
-        message_started = true;
-
-        if (ch == '\n' || message_pos >= (MAX_MESSAGE_LENGTH - 1)) // End of line or message is too long
+        if (ch == '\n' || line_pos >= (MAX_MESSAGE_LENGTH - 1)) // End of line or max length reached
         {
-            playlist->messages[playlist->count][message_pos] = '\0'; // Null-terminate the message
-            playlist->count++;                                       // Move to the next message
-            message_pos = 0;                                         // Reset for the next message
-            message_started = false;
+            line[line_pos] = '\0'; // Null-terminate the line
+            strncpy(playlist->messages[playlist->count], line, MAX_MESSAGE_LENGTH);
+            playlist->count++;
+            line_pos = 0;
 
-            // Ensure the playlist count does not exceed the maximum
+            // Ensure playlist count does not exceed maximum allowed
             if (playlist->count >= MAX_PRE_SAVED_MESSAGES)
             {
                 FURI_LOG_W(TAG, "Reached maximum playlist messages");
@@ -111,21 +96,16 @@ bool load_playlist(PreSavedPlaylist *playlist)
         }
         else
         {
-            playlist->messages[playlist->count][message_pos++] = ch; // Add character to current message
+            line[line_pos++] = ch;
         }
     }
 
-    // Handle the case where the last message does not end with a newline
-    if (message_started && message_pos > 0)
+    // Handle the last line if it does not end with a newline
+    if (line_pos > 0)
     {
-        playlist->messages[playlist->count][message_pos] = '\0'; // Null-terminate the last message
-        playlist->count++;                                       // Increment the count for the last message
-
-        // Ensure the playlist count does not exceed the maximum
-        if (playlist->count >= MAX_PRE_SAVED_MESSAGES)
-        {
-            FURI_LOG_W(TAG, "Reached maximum playlist messages");
-        }
+        line[line_pos] = '\0'; // Null-terminate the last line
+        strncpy(playlist->messages[playlist->count], line, MAX_MESSAGE_LENGTH);
+        playlist->count++;
     }
 
     // Close the file and storage
@@ -135,6 +115,7 @@ bool load_playlist(PreSavedPlaylist *playlist)
 
     return true;
 }
+
 void save_settings(
     const char *ssid,
     const char *password,
@@ -396,13 +377,23 @@ bool load_settings(
     return true;
 }
 
-bool flip_social_save_post(char *post_id, char *json_feed_data)
+bool flip_social_save_post(const char *post_id, const char *json_feed_data)
 {
+    if (!post_id || !json_feed_data)
+    {
+        FURI_LOG_E(TAG, "Post ID or JSON feed data is NULL");
+        return false;
+    }
     Storage *storage = furi_record_open(RECORD_STORAGE);
     File *file = storage_file_alloc(storage);
 
+    // Create the directory for saving the feed
+    char directory_path[128];
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed");
+    storage_common_mkdir(storage, directory_path);
+
     char file_path[128];
-    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed_post_%s.json", post_id);
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%s.json", post_id);
 
     if (!storage_file_open(file, file_path, FSAM_WRITE, FSOM_CREATE_ALWAYS))
     {
@@ -424,5 +415,96 @@ bool flip_social_save_post(char *post_id, char *json_feed_data)
     storage_file_close(file);
     storage_file_free(file);
     furi_record_close(RECORD_STORAGE);
+    return true;
+}
+//
+bool save_char(
+    const char *path_name, const char *value)
+{
+    if (!value)
+    {
+        return false;
+    }
+    // Create the directory for saving settings
+    char directory_path[256];
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data");
+
+    // Create the directory
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, directory_path);
+
+    // Open the settings file
+    File *file = storage_file_alloc(storage);
+    char file_path[256];
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data/%s.txt", path_name);
+
+    // Open the file in write mode
+    if (!storage_file_open(file, file_path, FSAM_WRITE, FSOM_CREATE_ALWAYS))
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to open file for writing: %s", file_path);
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return false;
+    }
+
+    // Write the data to the file
+    size_t data_size = strlen(value) + 1; // Include null terminator
+    if (storage_file_write(file, value, data_size) != data_size)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to append data to file");
+        storage_file_close(file);
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return false;
+    }
+
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+
+    return true;
+}
+
+bool load_char(
+    const char *path_name,
+    char *value,
+    size_t value_size)
+{
+    if (!value)
+    {
+        return false;
+    }
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    File *file = storage_file_alloc(storage);
+
+    char file_path[256];
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data/%s.txt", path_name);
+
+    // Open the file for reading
+    if (!storage_file_open(file, file_path, FSAM_READ, FSOM_OPEN_EXISTING))
+    {
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return NULL; // Return false if the file does not exist
+    }
+
+    // Read data into the buffer
+    size_t read_count = storage_file_read(file, value, value_size);
+    if (storage_file_get_error(file) != FSE_OK)
+    {
+        FURI_LOG_E(HTTP_TAG, "Error reading from file.");
+        storage_file_close(file);
+        storage_file_free(file);
+        furi_record_close(RECORD_STORAGE);
+        return false;
+    }
+
+    // Ensure null-termination
+    value[read_count - 1] = '\0';
+
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+
     return true;
 }

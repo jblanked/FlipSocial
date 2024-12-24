@@ -1,3 +1,14 @@
+## 1.0 - Official Release
+- Final memory improvements.
+- Updated the New Message option in the Messages view to allow users to search for recipients to send messages to.
+- Updated the display of the Feed to use a custom view and custom font, and to show how long ago each post was created.
+- Organized the files saved/utilized in the apps_data folder.
+- Fixed bugs in the Direct Messaging View.
+- Fixed bugs in the Pre-Save View.
+- Added home announcements and notifications.
+- Added User Settings (Notifications and Feed Type). With the Feed Type option, users can choose between a private feed, which only consists of posts from their friends, and a global feed, which consists of posts from all Flippers. The Notifications settings allow users to turn home notifications on and off.
+- Updated the Feed to be "endless." Once you reach the end of the feed, previous posts will load in sets of 20.
+
 ## 0.8 - New Features
 - Added support for RPC_KEYBOARD (thanks to Derek Jamison).
 - Introduced a bio feature in the Profile section: View and update your bio.

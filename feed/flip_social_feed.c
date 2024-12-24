@@ -1,15 +1,15 @@
 #include "flip_social_feed.h"
 
-bool flip_social_get_feed()
+bool flip_social_get_feed(bool alloc_http, int series_index)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "FlipSocialApp is NULL");
         return false;
     }
-    if (fhttp.state == INACTIVE)
+    if (alloc_http && !flipper_http_init(flipper_http_rx_callback, app_instance))
     {
-        FURI_LOG_E(TAG, "HTTP state is INACTIVE");
+        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
         return false;
     }
     // Get the feed from the server
@@ -26,7 +26,14 @@ bool flip_social_get_feed()
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char command[96];
-    snprintf(command, 96, "https://www.flipsocial.net/api/feed/50/%s/extended/", app_instance->login_username_logged_out);
+    if (strstr(flip_social_feed_type[flip_social_feed_type_index], "Global"))
+    {
+        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+    }
+    else
+    {
+        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/friends/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+    }
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
@@ -44,15 +51,10 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
     if (feed_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
+        flipper_http_deinit();
         return NULL;
     }
-    char *data_cstr = (char *)furi_string_get_cstr(feed_data);
-    if (data_cstr == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
-        furi_string_free(feed_data);
-        return NULL;
-    }
+    flipper_http_deinit();
 
     FlipSocialFeedMini *feed_info = (FlipSocialFeedMini *)malloc(sizeof(FlipSocialFeedMini));
     if (!feed_info)
@@ -61,65 +63,40 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
         return NULL;
     }
 
-    // Remove newlines
-    char *pos = data_cstr;
-    while ((pos = strchr(pos, '\n')) != NULL)
-    {
-        *pos = ' ';
-    }
-
     int feed_count = 0;
 
     // Iterate through the feed array
     for (int i = 0; i < MAX_FEED_ITEMS; i++)
     {
         // Parse each item in the array
-        char *item = get_json_array_value("feed", i, data_cstr, MAX_TOKENS);
+        FuriString *item = get_json_array_value_furi("feed", i, feed_data);
         if (item == NULL)
         {
             break;
         }
 
         // Extract individual fields from the JSON object
-        char *username = get_json_value("username", item, 40);
-        char *message = get_json_value("message", item, 40);
-        char *flipped = get_json_value("flipped", item, 40);
-        char *flips = get_json_value("flip_count", item, 40);
-        char *id = get_json_value("id", item, 40);
-
-        if (username == NULL || message == NULL || flipped == NULL || id == NULL)
+        FuriString *id = get_json_value_furi("id", item);
+        if (id == NULL)
         {
             FURI_LOG_E(TAG, "Failed to parse item fields.");
-            free(item);
-            free(username);
-            free(message);
-            free(flipped);
-            free(flips);
-            free(id);
+            furi_string_free(item);
+            furi_string_free(id);
             continue;
         }
-
-        if (!flip_social_save_post(id, item))
+        if (!flip_social_save_post(furi_string_get_cstr(id), furi_string_get_cstr(item)))
         {
             FURI_LOG_E(TAG, "Failed to save post.");
-            free(item);
-            free(username);
-            free(message);
-            free(flipped);
-            free(flips);
-            free(id);
+            furi_string_free(item);
+            furi_string_free(id);
             continue;
         }
         feed_count++;
-        feed_info->ids[i] = atoi(id);
+        feed_info->ids[i] = atoi(furi_string_get_cstr(id));
 
-        // Free allocated memory
-        free(item);
-        free(username);
-        free(message);
-        free(flipped);
-        free(flips);
-        free(id);
+        // Furi_string_free allocated memory
+        furi_string_free(item);
+        furi_string_free(id);
     }
 
     // Store the number of feed items
@@ -127,14 +104,13 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
     feed_info->index = 0;
 
     furi_string_free(feed_data);
-    free(data_cstr);
     return feed_info;
 }
 
 bool flip_social_load_feed_post(int post_id)
 {
     char file_path[128];
-    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed_post_%d.json", post_id);
+    snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%d.json", post_id);
 
     // load the received data from the saved file
     FuriString *feed_data = flipper_http_load_from_file(file_path);
@@ -143,85 +119,82 @@ bool flip_social_load_feed_post(int post_id)
         FURI_LOG_E(TAG, "Failed to load received data from file.");
         return false;
     }
-    char *data_cstr = (char *)furi_string_get_cstr(feed_data);
-    if (data_cstr == NULL)
+
+    // Parse the feed post
+    if (flip_feed_item)
     {
-        FURI_LOG_E(TAG, "Failed to get C-string from FuriString.");
+        free(flip_feed_item);
+    }
+    else
+    {
+        // first time
+        save_char("series_index", "1");
+    }
+
+    flip_feed_item = (FlipSocialFeedItem *)malloc(sizeof(FlipSocialFeedItem));
+    if (flip_feed_item == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for feed post.");
         furi_string_free(feed_data);
         return false;
     }
 
-    // Parse the feed post
-    if (!flip_feed_item)
-    {
-        flip_feed_item = (FlipSocialFeedItem *)malloc(sizeof(FlipSocialFeedItem));
-        if (flip_feed_item == NULL)
-        {
-            FURI_LOG_E(TAG, "Failed to allocate memory for feed post.");
-            furi_string_free(feed_data);
-            free(data_cstr);
-            return false;
-        }
-        flip_feed_item->username = malloc(MAX_USER_LENGTH);
-        flip_feed_item->message = malloc(MAX_MESSAGE_LENGTH);
-    }
-
     // Extract individual fields from the JSON object
-    char *username = get_json_value("username", data_cstr, 16);
-    char *message = get_json_value("message", data_cstr, 16);
-    char *flipped = get_json_value("flipped", data_cstr, 16);
-    char *flips = get_json_value("flip_count", data_cstr, 16);
-    char *id = get_json_value("id", data_cstr, 16);
-
-    if (username == NULL || message == NULL || flipped == NULL || id == NULL)
+    FuriString *username = get_json_value_furi("username", feed_data);
+    FuriString *message = get_json_value_furi("message", feed_data);
+    FuriString *flipped = get_json_value_furi("flipped", feed_data);
+    FuriString *flips = get_json_value_furi("flip_count", feed_data);
+    FuriString *date_created = get_json_value_furi("date_created", feed_data);
+    if (username == NULL || message == NULL || flipped == NULL || flips == NULL || date_created == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse item fields.");
-        free(username);
-        free(message);
-        free(flipped);
-        free(flips);
-        free(id);
-        free(data_cstr);
+        furi_string_free(username);
+        furi_string_free(message);
+        furi_string_free(flipped);
+        furi_string_free(flips);
+        furi_string_free(date_created);
         furi_string_free(feed_data);
         return false;
     }
 
     // Safely copy strings with bounds checking
-    snprintf(flip_feed_item->username, MAX_USER_LENGTH, "%s", username);
-    snprintf(flip_feed_item->message, MAX_MESSAGE_LENGTH, "%s", message);
+    snprintf(flip_feed_item->username, MAX_USER_LENGTH, "%s", furi_string_get_cstr(username));
+    snprintf(flip_feed_item->message, MAX_MESSAGE_LENGTH, "%s", furi_string_get_cstr(message));
+    snprintf(flip_feed_item->date_created, MAX_LINE_LENGTH, "%s", furi_string_get_cstr(date_created));
 
     // Store boolean and integer values
-    flip_feed_item->is_flipped = strstr(flipped, "true") != NULL;
-    flip_feed_item->id = atoi(id);
-    flip_feed_item->flips = atoi(flips);
+    flip_feed_item->is_flipped = strstr(furi_string_get_cstr(flipped), "true") != NULL;
+    flip_feed_item->id = post_id;
+    flip_feed_item->flips = atoi(furi_string_get_cstr(flips));
 
     // Free allocated memory
-    free(username);
-    free(message);
-    free(flipped);
-    free(flips);
-    free(id);
-
+    furi_string_free(username);
+    furi_string_free(message);
+    furi_string_free(flipped);
+    furi_string_free(flips);
+    furi_string_free(date_created);
     furi_string_free(feed_data);
-    free(data_cstr);
-
     return true;
 }
 
-bool flip_social_load_initial_feed()
+bool flip_social_load_initial_feed(bool alloc_http, int series_index)
 {
     if (fhttp.state == INACTIVE)
     {
         FURI_LOG_E(TAG, "HTTP state is INACTIVE");
         return false;
     }
-    if (!easy_flipper_set_loading(&app_instance->loading, FlipSocialViewLoading, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+    Loading *loading;
+    int32_t loading_view_id = 987654321; // Random ID
+    loading = loading_alloc();
+    if (!loading)
     {
         FURI_LOG_E(TAG, "Failed to set loading screen");
         return false;
     }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-    if (flip_social_get_feed()) // start the async request
+    view_dispatcher_add_view(app_instance->view_dispatcher, loading_view_id, loading_get_view(loading));
+    view_dispatcher_switch_to_view(app_instance->view_dispatcher, loading_view_id);
+    if (flip_social_get_feed(alloc_http, series_index)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp.state = RECEIVING;
@@ -231,8 +204,8 @@ bool flip_social_load_initial_feed()
         FURI_LOG_E(HTTP_TAG, "Failed to send request");
         fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
     while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
@@ -247,10 +220,9 @@ bool flip_social_load_initial_feed()
     if (!flip_feed_info || flip_feed_info->count < 1)
     {
         FURI_LOG_E(TAG, "Failed to parse JSON feed");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
 
@@ -258,24 +230,22 @@ bool flip_social_load_initial_feed()
     if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
     {
         FURI_LOG_E(TAG, "Failed to load feed post");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
-    if (!feed_dialog_alloc())
+    if (!feed_view_alloc())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-        fhttp.state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-        loading_free(app_instance->loading);
+        view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+        loading_free(loading);
         return false;
     }
-    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewFeedDialog);
-    view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewLoading);
-    loading_free(app_instance->loading);
+    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+    view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
+    loading_free(loading);
 
     return true;
 }

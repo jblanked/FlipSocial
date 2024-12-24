@@ -37,5 +37,13 @@ bool load_settings(
     char *is_logged_in,
     size_t is_logged_in_size);
 
-bool flip_social_save_post(char *post_id, char *json_feed_data);
+bool flip_social_save_post(const char *post_id, const char *json_feed_data);
+//
+
+bool save_char(
+    const char *path_name, const char *value);
+bool load_char(
+    const char *path_name,
+    char *value,
+    size_t value_size);
 #endif

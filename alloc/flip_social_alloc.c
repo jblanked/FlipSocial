@@ -8,13 +8,6 @@ FlipSocialApp *flip_social_app_alloc()
     // Initialize gui
     Gui *gui = furi_record_open(RECORD_GUI);
 
-    // Initialize UART
-    if (!flipper_http_init(flipper_http_rx_callback, app))
-    {
-        FURI_LOG_E(TAG, "Failed to initialize UART");
-        return NULL;
-    }
-
     // Allocate ViewDispatcher
     if (!easy_flipper_set_view_dispatcher(&app->view_dispatcher, gui, app))
     {
@@ -27,7 +20,7 @@ FlipSocialApp *flip_social_app_alloc()
         return NULL;
     }
     flip_social_loader_init(app->view_loader);
-    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "Error, try again.", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
+    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -199,16 +192,11 @@ FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, "FlipSocial v0.8", flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, VERSION_TAG, flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, "FlipSocial v0.8", flip_social_callback_exit_app, &app->view_dispatcher))
-    {
-        return NULL;
-    }
-
-    if (!easy_flipper_set_submenu(&app->submenu_messages_user_choices, FlipSocialViewLoggedInMessagesUserChoices, "Users", flip_social_callback_to_messages_logged_in, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, VERSION_TAG, flip_social_callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
@@ -225,123 +213,6 @@ FlipSocialApp *flip_social_app_alloc()
     submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Settings", FlipSocialSubmenuLoggedInIndexSettings, flip_social_callback_submenu_choices, app);
     submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, flip_social_callback_submenu_choices, app);
-
-    // Setup Variable Item List(s)
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_out_wifi_settings, FlipSocialViewLoggedOutWifiSettings, flip_social_text_input_logged_out_wifi_settings_item_selected, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_out_login, FlipSocialViewLoggedOutLogin, flip_social_text_input_logged_out_login_item_selected, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_out_register, FlipSocialViewLoggedOutRegister, flip_social_text_input_logged_out_register_item_selected, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_in_profile, FlipSocialViewLoggedInProfile, flip_social_text_input_logged_in_profile_item_selected, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_in_settings, FlipSocialViewLoggedInSettings, flip_social_text_input_logged_in_settings_item_selected, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_variable_item_list(&app->variable_item_list_logged_in_settings_wifi, FlipSocialViewLoggedInSettingsWifi, flip_social_text_input_logged_in_wifi_settings_item_selected, flip_social_callback_to_settings_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-
-    app->variable_item_logged_out_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "SSID", 1, NULL, app);
-    app->variable_item_logged_out_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_out_wifi_settings, "Password", 1, NULL, app);
-    //
-    app->variable_item_logged_out_login_username = variable_item_list_add(app->variable_item_list_logged_out_login, "Username", 1, NULL, app);
-    app->variable_item_logged_out_login_password = variable_item_list_add(app->variable_item_list_logged_out_login, "Password", 1, NULL, app);
-    app->variable_item_logged_out_login_button = variable_item_list_add(app->variable_item_list_logged_out_login, "Login", 0, NULL, app);
-    //
-    app->variable_item_logged_out_register_username = variable_item_list_add(app->variable_item_list_logged_out_register, "Username", 1, NULL, app);
-    app->variable_item_logged_out_register_password = variable_item_list_add(app->variable_item_list_logged_out_register, "Password", 1, NULL, app);
-    app->variable_item_logged_out_register_password_2 = variable_item_list_add(app->variable_item_list_logged_out_register, "Confirm Password", 1, NULL, app);
-    app->variable_item_logged_out_register_button = variable_item_list_add(app->variable_item_list_logged_out_register, "Register", 0, NULL, app);
-    //
-    app->variable_item_logged_in_profile_username = variable_item_list_add(app->variable_item_list_logged_in_profile, "Username", 1, NULL, app);
-    app->variable_item_logged_in_profile_change_password = variable_item_list_add(app->variable_item_list_logged_in_profile, "Password", 1, NULL, app);
-    app->variable_item_logged_in_profile_change_bio = variable_item_list_add(app->variable_item_list_logged_in_profile, "Bio", 1, NULL, app);
-    app->variable_item_logged_in_profile_friends = variable_item_list_add(app->variable_item_list_logged_in_profile, "Friends", 0, NULL, app);
-    //
-    app->variable_item_logged_in_settings_about = variable_item_list_add(app->variable_item_list_logged_in_settings, "About", 0, NULL, app);
-    app->variable_item_logged_in_settings_wifi = variable_item_list_add(app->variable_item_list_logged_in_settings, "WiFi", 0, NULL, app);
-    //
-    app->variable_item_logged_in_wifi_settings_ssid = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "SSID", 1, NULL, app);
-    app->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app->variable_item_list_logged_in_settings_wifi, "Password", 1, NULL, app);
-
-    // Setup Text Input(s)
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_wifi_settings_ssid, FlipSocialViewLoggedOutWifiSettingsSSIDInput, "Enter SSID", app->wifi_ssid_logged_out_temp_buffer, app->wifi_ssid_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_wifi_settings_password, FlipSocialViewLoggedOutWifiSettingsPasswordInput, "Enter Password", app->wifi_password_logged_out_temp_buffer, app->wifi_password_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_login_username, FlipSocialViewLoggedOutLoginUsernameInput, "Enter Username", app->login_username_logged_out_temp_buffer, app->login_username_logged_out_temp_buffer_size, flip_social_logged_out_login_username_updated, flip_social_callback_to_login_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_login_password, FlipSocialViewLoggedOutLoginPasswordInput, "Enter Password", app->login_password_logged_out_temp_buffer, app->login_password_logged_out_temp_buffer_size, flip_social_logged_out_login_password_updated, flip_social_callback_to_login_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_register_username, FlipSocialViewLoggedOutRegisterUsernameInput, "Enter Username", app->register_username_logged_out_temp_buffer, app->register_username_logged_out_temp_buffer_size, flip_social_logged_out_register_username_updated, flip_social_callback_to_register_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_register_password, FlipSocialViewLoggedOutRegisterPasswordInput, "Enter Password", app->register_password_logged_out_temp_buffer, app->register_password_logged_out_temp_buffer_size, flip_social_logged_out_register_password_updated, flip_social_callback_to_register_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_out_register_password_2, FlipSocialViewLoggedOutRegisterPassword2Input, "Confirm Password", app->register_password_2_logged_out_temp_buffer, app->register_password_2_logged_out_temp_buffer_size, flip_social_logged_out_register_password_2_updated, flip_social_callback_to_register_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    //
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_change_password, FlipSocialViewLoggedInChangePasswordInput, "Password", app->change_password_logged_in_temp_buffer, app->change_password_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_password_updated, flip_social_callback_to_profile_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_change_bio, FlipSocialViewLoggedInChangeBioInput, "Bio", app->change_bio_logged_in_temp_buffer, app->change_bio_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_bio_updated, flip_social_callback_to_profile_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_compose_pre_save_input, FlipSocialViewLoggedInComposeAddPreSaveInput, "Enter Pre-Save Message", app->compose_pre_save_logged_in_temp_buffer, app->compose_pre_save_logged_in_temp_buffer_size, flip_social_logged_in_compose_pre_save_updated, flip_social_callback_to_compose_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_wifi_settings_ssid, FlipSocialViewLoggedInWifiSettingsSSIDInput, "Enter SSID", app->wifi_ssid_logged_in_temp_buffer, app->wifi_ssid_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_wifi_settings_password, FlipSocialViewLoggedInWifiSettingsPasswordInput, "Enter Password", app->wifi_password_logged_in_temp_buffer, app->wifi_password_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    //
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_messages_new_message, FlipSocialViewLoggedInMessagesNewMessageInput, "Enter Message", app->messages_new_message_logged_in_temp_buffer, app->messages_new_message_logged_in_temp_buffer_size, flip_social_logged_in_messages_new_message_updated, flip_social_callback_to_messages_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_messages_new_message_user_choices, FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput, "Enter Message", app->message_user_choice_logged_in_temp_buffer, app->message_user_choice_logged_in_temp_buffer_size, flip_social_logged_in_messages_user_choice_message_updated, flip_social_callback_to_messages_user_choices, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_explore, FlipSocialViewLoggedInExploreInput, "Enter Username or Keyword", app->explore_logged_in_temp_buffer, app->explore_logged_in_temp_buffer_size, flip_social_logged_in_explore_updated, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    if (!easy_flipper_set_uart_text_input(&app->text_input_logged_in_message_users, FlipSocialViewLoggedInMessageUsersInput, "Enter Username or Keyword", app->message_users_logged_in_temp_buffer, app->message_users_logged_in_temp_buffer_size, flip_social_logged_in_message_users_updated, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
 
     // Load the settings
     if (!load_settings(app->wifi_ssid_logged_out,
@@ -508,20 +379,14 @@ FlipSocialApp *flip_social_app_alloc()
 
         auth_headers_alloc();
 
-        // set variable item text (ommit the passwords)
-        variable_item_set_current_value_text(app->variable_item_logged_in_wifi_settings_ssid, app->wifi_ssid_logged_in);
-        variable_item_set_current_value_text(app->variable_item_logged_out_wifi_settings_ssid, app->wifi_ssid_logged_out);
-        variable_item_set_current_value_text(app->variable_item_logged_out_login_username, app->login_username_logged_out);
-        variable_item_set_current_value_text(app->variable_item_logged_in_profile_username, app->login_username_logged_in);
-        variable_item_set_current_value_text(app->variable_item_logged_in_profile_change_bio, app->change_bio_logged_in);
-        //
-
         if (app->is_logged_in != NULL && strcmp(app->is_logged_in, "true") == 0)
         {
+            save_char("is_logged_in", "true");
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         }
         else
         {
+            save_char("is_logged_in", "false");
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
         }
     }
