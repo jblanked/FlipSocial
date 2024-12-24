@@ -62,15 +62,16 @@ int32_t main_flip_social(void *p)
     {
         char is_connected[5];
         char is_logged_in[5];
+        char is_notifications[5];
         load_char("is_connected", is_connected, 5);
         load_char("is_logged_in", is_logged_in, 5);
+        load_char("user_notifications", is_notifications, 5);
 
-        if (strcmp(is_connected, "true") == 0)
+        if (strcmp(is_connected, "true") == 0 &&
+            strcmp(is_notifications, "on") == 0 &&
+            strcmp(is_logged_in, "true") == 0)
         {
-            if (strcmp(is_logged_in, "true") == 0)
-            {
-                flip_social_home_notification();
-            }
+            flip_social_home_notification();
         }
     }
 

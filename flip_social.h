@@ -17,7 +17,7 @@
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_FEED_ITEMS 30         // Maximum number of feed items
+#define MAX_FEED_ITEMS 20         // Maximum number of feed items
 #define MAX_LINE_LENGTH 27
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
@@ -33,6 +33,7 @@ typedef enum
     //
     FlipSocialSubmenuLoggedOutIndexAbout,        // click to go to the about screen
     FlipSocialSubmenuLoggedOutIndexWifiSettings, // click to go to the wifi settings screen
+    FlipSocialSubmenuLoggedInIndexUserSettings,  // click to go to the user settings screen
     //
     FlipSocialSubmenuLoggedInIndexAbout,        // click to go to the about screen
     FlipSocialSubmenuLoggedInIndexWifiSettings, // click to go to the wifi settings screen
@@ -83,6 +84,7 @@ typedef struct
     int ids[MAX_FEED_ITEMS];
     size_t count;
     size_t index;
+    int series_index;
 } FlipSocialFeedMini;
 
 typedef struct
@@ -144,6 +146,7 @@ typedef enum
     //
     FlipSocialViewLoggedInSettingsAbout,             // The about screen
     FlipSocialViewLoggedInSettingsWifi,              // The wifi settings screen
+    FlipSocialViewLoggedInSettingsUser,              // The user settings screen
     FlipSocialViewLoggedInWifiSettingsSSIDInput,     // Text input screen for SSID input on wifi screen
     FlipSocialViewLoggedInWifiSettingsPasswordInput, // Text input screen for Password input on wifi screen
     //
@@ -162,7 +165,6 @@ typedef enum
     FlipSocialViewFriendsDialog,  // The dialog for the friends screen
     FlipSocialViewMessagesDialog, // The dialog for the messages screen
     FlipSocialViewComposeDialog,  // The dialog for the compose screen
-    FlipSocialViewFeedDialog,     // The dialog for the feed screen
     //
     FlipSocialViewTextInput, // The text input screen
     FlipSocialViewVariableItemList,
@@ -203,10 +205,13 @@ typedef struct
     VariableItem *variable_item_logged_in_profile_change_password; // Reference to the change password configuration item
     VariableItem *variable_item_logged_in_profile_change_bio;      // Reference to the change bio configuration item
     //
-    VariableItem *variable_item_logged_in_settings_about;         // Reference to the about configuration item
-    VariableItem *variable_item_logged_in_settings_wifi;          // Reference to the wifi settings configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_ssid;     // Reference to the ssid configuration item
-    VariableItem *variable_item_logged_in_wifi_settings_password; // Reference to the password configuration item
+    VariableItem *variable_item_logged_in_settings_about;              // Reference to the about configuration item
+    VariableItem *variable_item_logged_in_settings_wifi;               // Reference to the wifi settings configuration item
+    VariableItem *variable_item_logged_in_settings_user;               // Reference to the user settings configuration item
+    VariableItem *variable_item_logged_in_user_settings_feed_type;     // Reference to the feed type configuration item
+    VariableItem *variable_item_logged_in_user_settings_notifications; // Reference to the notifications configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_ssid;          // Reference to the ssid configuration item
+    VariableItem *variable_item_logged_in_wifi_settings_password;      // Reference to the password configuration item
     //
     VariableItem *variable_item_logged_in_profile_friends; // Reference to the friends configuration item
     //
@@ -314,4 +319,10 @@ extern bool flip_social_dialog_stop;
 extern bool flip_social_send_message;
 extern char *selected_message;
 extern char auth_headers[256];
+//
+extern char *flip_social_feed_type[];
+extern uint8_t flip_social_feed_type_index;
+//
+extern char *flip_social_notification_type[];
+extern uint8_t flip_social_notification_type_index;
 #endif

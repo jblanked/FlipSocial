@@ -379,6 +379,11 @@ bool load_settings(
 
 bool flip_social_save_post(const char *post_id, const char *json_feed_data)
 {
+    if (!post_id || !json_feed_data)
+    {
+        FURI_LOG_E(TAG, "Post ID or JSON feed data is NULL");
+        return false;
+    }
     Storage *storage = furi_record_open(RECORD_STORAGE);
     File *file = storage_file_alloc(storage);
 

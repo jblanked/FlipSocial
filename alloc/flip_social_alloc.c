@@ -381,10 +381,12 @@ FlipSocialApp *flip_social_app_alloc()
 
         if (app->is_logged_in != NULL && strcmp(app->is_logged_in, "true") == 0)
         {
+            save_char("is_logged_in", "true");
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         }
         else
         {
+            save_char("is_logged_in", "false");
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
         }
     }

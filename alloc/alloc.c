@@ -202,7 +202,7 @@ void on_input(const void *event, void *ctx)
 
 #define MAX_LINES 6
 #define LINE_HEIGHT 8
-#define MAX_LINE_WIDTH_PX 128 // Adjust this to your display width
+#define MAX_LINE_WIDTH_PX 128
 #define TEMP_BUF_SIZE 128
 
 static void draw_user_message(Canvas *canvas, const char *user_message, int x, int y)
@@ -333,8 +333,6 @@ static void flip_social_feed_draw_callback(Canvas *canvas, void *model)
 {
     UNUSED(model);
     canvas_clear(canvas);
-    UNUSED(model);
-    canvas_clear(canvas);
     canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
     canvas_draw_str(canvas, 0, 7, flip_feed_item->username);
     canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
@@ -387,6 +385,44 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
     }
     else if (event->type == InputTypePress && event->key == InputKeyRight) // Next message
     {
+        // if next message is the last message, then use flip_social_load_initial_feed
+        if (flip_feed_info->index == flip_feed_info->count - 1)
+        {
+            char series_index[16];
+            load_char("series_index", series_index, sizeof(series_index));
+            flip_feed_info->series_index = atoi(series_index) + 1;
+            char new_series_index[16];
+            snprintf(new_series_index, sizeof(new_series_index), "%d", flip_feed_info->series_index);
+            FURI_LOG_I(TAG, "New series index: %s", new_series_index);
+            save_char("series_index", new_series_index);
+
+            if (!flip_social_load_initial_feed(true, flip_feed_info->series_index))
+            {
+                FURI_LOG_E(TAG, "Failed to load initial feed");
+                fhttp.state = ISSUE;
+                return false;
+            }
+            // switch view, free dialog, re-alloc dialog, switch back to dialog
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
+            flip_social_free_feed_view();
+            // load feed item
+            if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+            {
+                FURI_LOG_E(TAG, "Failed to load nexy feed post");
+                fhttp.state = ISSUE;
+                return false;
+            }
+            if (feed_view_alloc())
+            {
+                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+            }
+            else
+            {
+                FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+                fhttp.state = ISSUE;
+                return false;
+            }
+        }
         if (flip_feed_info->index < flip_feed_info->count - 1)
         {
             flip_feed_info->index++;
@@ -423,7 +459,8 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         else
         {
             // decrease the flip count
-            flip_feed_item->flips--;
+            if (flip_feed_item->flips > 0)
+                flip_feed_item->flips--;
         }
         // change the flip status
         flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
@@ -444,15 +481,17 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", auth_headers, payload))
         {
             // save feed item
-            char new_save[256];
-            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s}",
-                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false");
-            // if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
-            // {
-            //     FURI_LOG_E(TAG, "Failed to save the feed post");
-            //     fhttp.state = ISSUE;
-            //     return false;
-            // }
+            char new_save[512];
+            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s,\"date_created\":\"%s\"}",
+                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false", flip_feed_item->date_created);
+            char id[16];
+            snprintf(id, sizeof(id), "%u", flip_feed_item->id);
+            if (!flip_social_save_post(id, new_save))
+            {
+                FURI_LOG_E(TAG, "Failed to save the feed post");
+                flipper_http_deinit();
+                return false;
+            }
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
@@ -667,6 +706,7 @@ bool alloc_submenu(uint32_t view_id)
             submenu_reset(app_instance->submenu);
             submenu_add_item(app_instance->submenu, "About", FlipSocialSubmenuLoggedInIndexAbout, flip_social_callback_submenu_choices, app_instance);
             submenu_add_item(app_instance->submenu, "WiFi", FlipSocialSubmenuLoggedInIndexWifiSettings, flip_social_callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "User", FlipSocialSubmenuLoggedInIndexUserSettings, flip_social_callback_submenu_choices, app_instance);
             break;
         case FlipSocialViewLoggedInCompose:
             if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Create A Post", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
@@ -723,6 +763,22 @@ bool alloc_submenu(uint32_t view_id)
         }
     }
     return true;
+}
+static void flip_social_feed_type_change(VariableItem *item)
+{
+    uint8_t index = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, flip_social_feed_type[index]);
+
+    // save the feed type
+    save_char("user_feed_type", strstr(flip_social_feed_type[index], "Global") ? "global" : "friends");
+}
+static void flip_social_notification_type_change(VariableItem *item)
+{
+    uint8_t index = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, flip_social_notification_type[index]);
+
+    // save the notification type
+    save_char("user_notifications", strstr(flip_social_notification_type[index], "ON") ? "on" : "off");
 }
 
 bool alloc_variable_item_list(uint32_t view_id)
@@ -789,6 +845,32 @@ bool alloc_variable_item_list(uint32_t view_id)
             app_instance->variable_item_logged_in_wifi_settings_password = variable_item_list_add(app_instance->variable_item_list, "Password", 1, NULL, app_instance);
             if (app_instance->wifi_ssid_logged_in)
                 variable_item_set_current_value_text(app_instance->variable_item_logged_in_wifi_settings_ssid, app_instance->wifi_ssid_logged_in);
+            return true;
+        case FlipSocialViewLoggedInSettingsUser:
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_logged_in_user_settings_item_selected, flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))
+            {
+                return false;
+            }
+            app_instance->variable_item_logged_in_user_settings_feed_type = variable_item_list_add(app_instance->variable_item_list, "Feed Type", 2, flip_social_feed_type_change, app_instance);
+            app_instance->variable_item_logged_in_user_settings_notifications = variable_item_list_add(app_instance->variable_item_list, "Notifications", 2, flip_social_notification_type_change, app_instance);
+            variable_item_set_current_value_text(app_instance->variable_item_logged_in_user_settings_feed_type, flip_social_feed_type[flip_social_feed_type_index]);
+            variable_item_set_current_value_index(app_instance->variable_item_logged_in_user_settings_feed_type, flip_social_feed_type_index);
+            variable_item_set_current_value_text(app_instance->variable_item_logged_in_user_settings_notifications, flip_social_notification_type[flip_social_notification_type_index]);
+            variable_item_set_current_value_index(app_instance->variable_item_logged_in_user_settings_notifications, flip_social_notification_type_index);
+            char user_feed_type[32];
+            char user_notifications[32];
+            if (load_char("user_feed_type", user_feed_type, sizeof(user_feed_type)))
+            {
+                flip_social_feed_type_index = strstr(user_feed_type, "friends") ? 1 : 0;
+                variable_item_set_current_value_text(app_instance->variable_item_logged_in_user_settings_feed_type, flip_social_feed_type[flip_social_feed_type_index]);
+                variable_item_set_current_value_index(app_instance->variable_item_logged_in_user_settings_feed_type, flip_social_feed_type_index);
+            }
+            if (load_char("user_notifications", user_notifications, sizeof(user_notifications)))
+            {
+                flip_social_notification_type_index = strstr(user_notifications, "on") ? 1 : 0;
+                variable_item_set_current_value_text(app_instance->variable_item_logged_in_user_settings_notifications, flip_social_notification_type[flip_social_notification_type_index]);
+                variable_item_set_current_value_index(app_instance->variable_item_logged_in_user_settings_notifications, flip_social_notification_type_index);
+            }
             return true;
         default:
             return false;

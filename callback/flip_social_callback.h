@@ -254,6 +254,7 @@ void flip_social_logged_in_messages_new_message_updated(void *context);
  * @return void
  */
 void flip_social_text_input_logged_out_register_item_selected(void *context, uint32_t index);
+void flip_social_logged_in_user_settings_item_selected(void *context, uint32_t index);
 void flip_social_logged_in_explore_updated(void *context);
 void flip_social_logged_in_message_users_updated(void *context);
 

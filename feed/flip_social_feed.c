@@ -1,6 +1,6 @@
 #include "flip_social_feed.h"
 
-bool flip_social_get_feed(bool alloc_http)
+bool flip_social_get_feed(bool alloc_http, int series_index)
 {
     if (!app_instance)
     {
@@ -26,7 +26,14 @@ bool flip_social_get_feed(bool alloc_http)
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char command[96];
-    snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/max/", MAX_FEED_ITEMS, app_instance->login_username_logged_out);
+    if (strstr(flip_social_feed_type[flip_social_feed_type_index], "Global"))
+    {
+        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+    }
+    else
+    {
+        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/friends/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+    }
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
@@ -114,15 +121,22 @@ bool flip_social_load_feed_post(int post_id)
     }
 
     // Parse the feed post
-    if (!flip_feed_item)
+    if (flip_feed_item)
     {
-        flip_feed_item = (FlipSocialFeedItem *)malloc(sizeof(FlipSocialFeedItem));
-        if (flip_feed_item == NULL)
-        {
-            FURI_LOG_E(TAG, "Failed to allocate memory for feed post.");
-            furi_string_free(feed_data);
-            return false;
-        }
+        free(flip_feed_item);
+    }
+    else
+    {
+        // first time
+        save_char("series_index", "1");
+    }
+
+    flip_feed_item = (FlipSocialFeedItem *)malloc(sizeof(FlipSocialFeedItem));
+    if (flip_feed_item == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for feed post.");
+        furi_string_free(feed_data);
+        return false;
     }
 
     // Extract individual fields from the JSON object
@@ -163,7 +177,7 @@ bool flip_social_load_feed_post(int post_id)
     return true;
 }
 
-bool flip_social_load_initial_feed(bool alloc_http)
+bool flip_social_load_initial_feed(bool alloc_http, int series_index)
 {
     if (fhttp.state == INACTIVE)
     {
@@ -180,7 +194,7 @@ bool flip_social_load_initial_feed(bool alloc_http)
     }
     view_dispatcher_add_view(app_instance->view_dispatcher, loading_view_id, loading_get_view(loading));
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, loading_view_id);
-    if (flip_social_get_feed(alloc_http)) // start the async request
+    if (flip_social_get_feed(alloc_http, series_index)) // start the async request
     {
         furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp.state = RECEIVING;

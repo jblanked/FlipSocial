@@ -602,7 +602,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         {
             furi_delay_ms(100);
         }
-        if (flip_social_load_initial_feed(false))
+        if (flip_social_load_initial_feed(false, 1))
         {
             flip_social_free_compose_dialog();
         }
@@ -870,7 +870,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
         free_all(true, true);
-        if (!flip_social_load_initial_feed(true))
+        if (!flip_social_load_initial_feed(true, 1))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
             return;
@@ -915,6 +915,15 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
     case FlipSocialSubmenuLoggedInIndexWifiSettings:
         free_all(true, false);
         if (!alloc_variable_item_list(FlipSocialViewLoggedInSettingsWifi))
+        {
+            FURI_LOG_E(TAG, "Failed to allocate variable item list");
+            return;
+        }
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
+        break;
+    case FlipSocialSubmenuLoggedInIndexUserSettings:
+        free_all(true, false);
+        if (!alloc_variable_item_list(FlipSocialViewLoggedInSettingsUser))
         {
             FURI_LOG_E(TAG, "Failed to allocate variable item list");
             return;
@@ -1673,6 +1682,23 @@ void flip_social_text_input_logged_in_wifi_settings_item_selected(void *context,
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
+        break;
+    }
+}
+
+void flip_social_logged_in_user_settings_item_selected(void *context, uint32_t index)
+{
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
+        return;
+    }
+
+    // Switch to the appropriate view
+    switch (index)
+    {
+    case 0: // Feed Type
         break;
     }
 }
@@ -2597,7 +2623,8 @@ static bool flip_social_parse_home_notification()
         return false;
     }
     flipper_http_deinit();
-    // check if announcement and analytics key exists
+
+    // Check if announcement and analytics key exists
     FuriString *announcement_json = get_json_value_furi("announcement", notification);
     FuriString *analytics_json = get_json_value_furi("analytics", notification);
     if (announcement_json == NULL || analytics_json == NULL)
@@ -2611,8 +2638,11 @@ static bool flip_social_parse_home_notification()
         {
             furi_string_free(analytics_json);
         }
+        furi_string_free(notification);
         return false;
     }
+
+    // Extract values from JSON
     FuriString *announcement_value = get_json_value_furi("content", announcement_json);
     FuriString *announcement_time = get_json_value_furi("date_created", announcement_json);
     FuriString *analytics_value = get_json_value_furi("count", analytics_json);
@@ -2636,55 +2666,94 @@ static bool flip_social_parse_home_notification()
         {
             furi_string_free(analytics_time);
         }
+        furi_string_free(announcement_json);
+        furi_string_free(analytics_json);
+        furi_string_free(notification);
         return false;
     }
-    // load previous announcement and analytics times to see if there is a new announcement or analytics
-    char past_analytics_time[32];
-    char past_announcement_time[32];
-    if (load_char("analytics_time", past_analytics_time, sizeof(past_analytics_time)) && load_char("announcement_time", past_announcement_time, sizeof(past_announcement_time)))
+
+    // Load previous announcement and analytics times
+    char past_analytics_time[32] = {0};
+    char past_announcement_time[32] = {0};
+    bool analytics_time_loaded = load_char("analytics_time", past_analytics_time, sizeof(past_analytics_time));
+    bool announcement_time_loaded = load_char("announcement_time", past_announcement_time, sizeof(past_announcement_time));
+
+    bool new_announcement = false;
+    bool new_analytics = false;
+
+    // Check for new announcement
+    if (!announcement_time_loaded || strcmp(furi_string_get_cstr(announcement_time), past_announcement_time) != 0)
     {
-        // check if the announcement or analytics time has changed
-        if (strcmp(furi_string_get_cstr(announcement_time), past_announcement_time) == 0 && strcmp(furi_string_get_cstr(analytics_time), past_analytics_time) == 0)
-        {
-            FURI_LOG_D(TAG, "No new announcement or analytics");
-            furi_string_free(announcement_value);
-            furi_string_free(announcement_time);
-            furi_string_free(analytics_value);
-            furi_string_free(analytics_time);
-            furi_string_free(announcement_json);
-            furi_string_free(analytics_json);
-            furi_string_free(notification);
-            return true;
-        }
+        new_announcement = true;
     }
-    // save the new announcement and analytics time
-    save_char("analytics_time", furi_string_get_cstr(analytics_time));
-    save_char("announcement_time", furi_string_get_cstr(announcement_time));
-    // show the announcement and analytics
-    char analytics_text[128];
-    // if previous analytics posts is not empty, then subtract the current posts from the previous psots and add it to analytics_text
-    if (atoi(furi_string_get_cstr(analytics_value)) > 0)
+
+    // Check for new analytics
+    if (!analytics_time_loaded || strcmp(furi_string_get_cstr(analytics_time), past_analytics_time) != 0)
     {
-        char past_analytics_value[32];
-        if (load_char("analytics_value", past_analytics_value, sizeof(past_analytics_value)))
+        new_analytics = true;
+    }
+
+    // If no new announcement and no new analytics, exit early
+    if (!new_announcement && !new_analytics)
+    {
+        FURI_LOG_D(TAG, "No new announcement or analytics");
+        furi_string_free(announcement_value);
+        furi_string_free(announcement_time);
+        furi_string_free(analytics_value);
+        furi_string_free(analytics_time);
+        furi_string_free(announcement_json);
+        furi_string_free(analytics_json);
+        furi_string_free(notification);
+        return true;
+    }
+
+    // Save the new announcement and analytics times if they are new
+    if (new_announcement)
+    {
+        save_char("announcement_time", furi_string_get_cstr(announcement_time));
+    }
+
+    if (new_analytics)
+    {
+        save_char("analytics_time", furi_string_get_cstr(analytics_time));
+    }
+
+    // Prepare and show dialogs based on what is new
+    if (new_announcement)
+    {
+        easy_flipper_dialog("Announcement", (char *)furi_string_get_cstr(announcement_value));
+    }
+
+    if (new_analytics)
+    {
+        char analytics_text[128] = {0};
+        // Determine the new posts count
+        if (atoi(furi_string_get_cstr(analytics_value)) > 0)
         {
-            int past_posts = atoi(past_analytics_value);
-            int current_posts = atoi(furi_string_get_cstr(analytics_value));
-            int new_posts = current_posts - past_posts;
-            snprintf(analytics_text, sizeof(analytics_text), "%s feed posts\n%d new posts", furi_string_get_cstr(analytics_value), new_posts);
+            char past_analytics_value[32] = {0};
+            int new_posts = 0;
+            if (load_char("analytics_value", past_analytics_value, sizeof(past_analytics_value)))
+            {
+                int past_posts = atoi(past_analytics_value);
+                int current_posts = atoi(furi_string_get_cstr(analytics_value));
+                new_posts = current_posts - past_posts;
+                snprintf(analytics_text, sizeof(analytics_text), "%d new posts", new_posts);
+            }
+            else
+            {
+                snprintf(analytics_text, sizeof(analytics_text), "%s feed posts", furi_string_get_cstr(analytics_value));
+            }
+            save_char("analytics_value", furi_string_get_cstr(analytics_value));
         }
         else
         {
             snprintf(analytics_text, sizeof(analytics_text), "%s feed posts", furi_string_get_cstr(analytics_value));
         }
-        save_char("analytics_value", furi_string_get_cstr(analytics_value));
+
+        easy_flipper_dialog("Notifications", analytics_text);
     }
-    else
-    {
-        snprintf(analytics_text, sizeof(analytics_text), "%s feed posts", furi_string_get_cstr(analytics_value));
-    }
-    easy_flipper_dialog("Announcement", (char *)furi_string_get_cstr(announcement_value));
-    easy_flipper_dialog("Analytics", analytics_text);
+
+    // Free allocated resources
     furi_string_free(announcement_value);
     furi_string_free(announcement_time);
     furi_string_free(analytics_value);
@@ -2692,6 +2761,7 @@ static bool flip_social_parse_home_notification()
     furi_string_free(announcement_json);
     furi_string_free(analytics_json);
     furi_string_free(notification);
+
     return true;
 }
 
