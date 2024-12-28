@@ -7,16 +7,16 @@ The highlight of this app is customizable pre-saves, which, as explained below, 
 - WiFi Developer Board, Raspberry Pi, or ESP32 Device with FlipperHTTP Flash: https://github.com/jblanked/FlipperHTTP
 - 2.4 Ghz WiFi Access Point
 
-
 ## Features
 - Login/Logout
 - Registration
 - Feed
 - Profile
 - Customizable Pre-Saves
-- Explore (NEW)
-- Friends (NEW)
-- Direct Messaging (NEW)
+- Explore 
+- Friends 
+- Direct Messaging 
+
 
 **Login/Logout:** Log in to your account to view and post on the Feed. You can also change your password and log out when needed.
 
@@ -31,35 +31,3 @@ The highlight of this app is customizable pre-saves, which, as explained below, 
 **Friends:** View and remove friends.
 
 **Direct Messaging:** Send direct messages to other Flipper users and view your conversations.
-
-## Roadmap
-**v0.2**
-- Stability Patch
-
-**v0.3**
-- Explore Page
-- Friends
-
-**v0.4**
-- Direct Messaging
-
-**v0.5**
-- Improve memory allocation
-- Improve Feed Page
-- Raspberry Pi Pico W Support
-
-**v0.6**
-- Improve memory allocation
-- Update the Direct Messaging View
-- Update the Pre-Save View
-
-**v0.7**
-- Improve memory allocation
-- Loading screens.
-
-**v0.8**
-- Improve User Profile
-- Improve Explore Page
-
-**v1.0**
-- Official Release

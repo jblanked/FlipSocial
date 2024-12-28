@@ -2024,25 +2024,47 @@ void flip_social_logged_in_messages_new_message_updated(void *context)
     // Ensure null-termination
     app->messages_new_message_logged_in[app->messages_new_message_logged_in_temp_buffer_size - 1] = '\0';
 
-    // send post request to send message
-    if (!flipper_http_init(flipper_http_rx_callback, app))
+    bool send_message_to_user()
     {
-        FURI_LOG_E(TAG, "Failed to initialize HTTP");
-        return;
+        // send post request to send message
+        if (!flipper_http_init(flipper_http_rx_callback, app))
+        {
+            FURI_LOG_E(TAG, "Failed to initialize HTTP");
+            return false;
+        }
+        auth_headers_alloc();
+        char url[128];
+        char payload[256];
+        snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
+        snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
+        if (!flipper_http_post_request_with_headers(url, auth_headers, payload))
+        {
+            FURI_LOG_E(TAG, "Failed to send post request to send message");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+            easy_flipper_dialog("Error", "Failed to send message\n\n\nPress BACK to return :D");
+            flipper_http_deinit();
+            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+            return false;
+        }
+        fhttp.state = RECEIVING;
+        return true;
     }
-    auth_headers_alloc();
-    char url[128];
-    char payload[256];
-    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/messages/%s/post/", app->login_username_logged_in);
-    snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
-    if (!flipper_http_post_request_with_headers(url, auth_headers, payload))
+    bool parse_message_to_user()
     {
-        FURI_LOG_E(TAG, "Failed to send post request to send message");
-        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        while (fhttp.state != IDLE)
+        {
+            furi_delay_ms(10);
+        }
+        flipper_http_deinit();
+        return true;
     }
-    furi_delay_ms(1000);
-    flipper_http_deinit();
-    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+    // well, we got a freeze here, so let's use the loading task to switch views and force refresh
+    flipper_http_loading_task(
+        send_message_to_user,
+        parse_message_to_user,
+        FlipSocialViewSubmenu,
+        FlipSocialViewLoggedInMessagesNewMessageInput,
+        &app->view_dispatcher);
 }
 
 void flip_social_logged_in_explore_updated(void *context)

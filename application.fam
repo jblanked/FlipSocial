@@ -7,8 +7,8 @@ App(
     fap_icon="app_new.png",
     fap_category="GPIO",
     fap_icon_assets="assets",
-    fap_author="jblanked",
+    fap_author="JBlanked",
     fap_weburl="https://github.com/jblanked/FlipSocial",
-    fap_version="1.0",
+    fap_version="1.0.1",
     fap_description="Social media platform for the Flipper Zero.",
 )

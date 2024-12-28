@@ -47,7 +47,7 @@ extern "C"
 #define JB_JSMN_FURI_EDIT
 
 // Helper function to create a JSON object
-FuriString *jsmn_create_object(const FuriString *key, const FuriString *value);
+FuriString *get_json_furi(const FuriString *key, const FuriString *value);
 
 // Updated signatures to accept const char* key
 FuriString *get_json_value_furi(const char *key, const FuriString *json_data);
