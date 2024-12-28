@@ -422,7 +422,7 @@ int jsmn_parse(jsmn_parser *parser, const char *js, const size_t len,
 }
 
 // Helper function to create a JSON object
-char *jsmn(const char *key, const char *value)
+char *get_json(const char *key, const char *value)
 {
     int length = strlen(key) + strlen(value) + 8;         // Calculate required length
     char *result = (char *)malloc(length * sizeof(char)); // Allocate memory

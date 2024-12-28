@@ -56,14 +56,8 @@ extern "C"
 #define JB_JSMN_EDIT
 /* Added in by JBlanked on 2024-10-16 for use in Flipper Zero SDK*/
 
-#include <string.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <furi.h>
-
 // Helper function to create a JSON object
-char *jsmn(const char *key, const char *value);
+char *get_json(const char *key, const char *value);
 // Helper function to compare JSON keys
 int jsoneq(const char *json, jsmntok_t *tok, const char *s);
 

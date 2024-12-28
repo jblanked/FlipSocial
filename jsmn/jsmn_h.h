@@ -38,4 +38,16 @@ typedef struct
     int toksuper;         /* superior token node, e.g. parent object or array */
 } jsmn_parser;
 
+typedef struct
+{
+    char *key;
+    char *value;
+} JSON;
+
+typedef struct
+{
+    FuriString *key;
+    FuriString *value;
+} FuriJSON;
+
 FuriString *char_to_furi_string(const char *str);

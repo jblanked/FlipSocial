@@ -1,3 +1,6 @@
+## 1.0.1  
+- Fixed a freeze that occurred when sending a direct message.
+
 ## 1.0 - Official Release
 - Final memory improvements.
 - Updated the New Message option in the Messages view to allow users to search for recipients to send messages to.
