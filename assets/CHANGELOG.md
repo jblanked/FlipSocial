@@ -1,3 +1,7 @@
+## 1.0.2
+- Fixed the Feed Type and Notifications toggles, in the User Settings, to work as intended. 
+- Added flip status to each feed post.
+
 ## 1.0.1  
 - Fixed a freeze that occurred when sending a direct message.
 

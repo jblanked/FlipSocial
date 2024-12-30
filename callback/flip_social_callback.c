@@ -613,121 +613,6 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         }
     }
 }
-void feed_dialog_callback(DialogExResult result, void *context)
-{
-    furi_assert(context);
-    FlipSocialApp *app = (FlipSocialApp *)context;
-    if (result == DialogExResultLeft) // Previous message
-    {
-        if (flip_feed_info->index > 0)
-        {
-            flip_feed_info->index--;
-        }
-        // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
-        // load feed item
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
-        {
-            FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp.state = ISSUE;
-            return;
-        }
-        if (feed_view_alloc())
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        }
-        else
-        {
-            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-            fhttp.state = ISSUE;
-            return;
-        }
-    }
-    else if (result == DialogExResultRight) // Next message
-    {
-        if (flip_feed_info->index < flip_feed_info->count - 1)
-        {
-            flip_feed_info->index++;
-        }
-        // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
-        // load feed item
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
-        {
-            FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp.state = ISSUE;
-            return;
-        }
-        if (feed_view_alloc())
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        }
-        else
-        {
-            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-            fhttp.state = ISSUE;
-            return;
-        }
-    }
-    else if (result == DialogExResultCenter) // Flip/Unflip
-    {
-        // Moved to above the is_flipped check
-        if (!flip_feed_item->is_flipped)
-        {
-            // increase the flip count
-            flip_feed_item->flips++;
-        }
-        else
-        {
-            // decrease the flip count
-            flip_feed_item->flips--;
-        }
-        // change the flip status
-        flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
-        // send post request to flip the message
-        if (app_instance->login_username_logged_in == NULL)
-        {
-            FURI_LOG_E(TAG, "Username is NULL");
-            return;
-        }
-        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-        {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-            return;
-        }
-        auth_headers_alloc();
-        char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
-        if (flipper_http_post_request_with_headers("https://www.flipsocial.net/api/feed/flip/", auth_headers, payload))
-        {
-            // save feed item
-            char new_save[256];
-            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s}",
-                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false");
-            // if (!flip_social_save_post((char *)flip_feed_item->id, new_save))
-            // {
-            //     FURI_LOG_E(TAG, "Failed to save the feed post");
-            //     fhttp.state = ISSUE;
-            //     return;
-            // }
-        }
-        // switch view, free dialog, re-alloc dialog, switch back to dialog
-        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
-        if (feed_view_alloc())
-        {
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInFeed);
-        }
-        else
-        {
-            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-        }
-        furi_delay_ms(1000);
-        flipper_http_deinit();
-    }
-}
 
 static bool flip_social_get_user_info()
 {
@@ -1699,6 +1584,8 @@ void flip_social_logged_in_user_settings_item_selected(void *context, uint32_t i
     switch (index)
     {
     case 0: // Feed Type
+        break;
+    case 1: // Notifications
         break;
     }
 }
