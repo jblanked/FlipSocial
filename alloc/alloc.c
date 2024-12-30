@@ -340,7 +340,10 @@ static void flip_social_feed_draw_callback(Canvas *canvas, void *model)
     canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
     char flip_message[32];
     snprintf(flip_message, sizeof(flip_message), "%u %s", flip_feed_item->flips, flip_feed_item->flips == 1 ? "flip" : "flips");
-    canvas_draw_str(canvas, 0, 60, flip_message);                  // Draw the number of flips
+    canvas_draw_str(canvas, 0, 60, flip_message); // Draw the number of flips
+    char flip_status[16];
+    snprintf(flip_status, sizeof(flip_status), flip_feed_item->is_flipped ? "Unflip" : "Flip");
+    canvas_draw_str(canvas, 32, 60, flip_status);                  // Draw the flip status
     canvas_draw_str(canvas, 64, 60, flip_feed_item->date_created); // Draw the date
 }
 
@@ -393,7 +396,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             flip_feed_info->series_index = atoi(series_index) + 1;
             char new_series_index[16];
             snprintf(new_series_index, sizeof(new_series_index), "%d", flip_feed_info->series_index);
-            FURI_LOG_I(TAG, "New series index: %s", new_series_index);
+
             save_char("series_index", new_series_index);
 
             if (!flip_social_load_initial_feed(true, flip_feed_info->series_index))
@@ -464,6 +467,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         }
         // change the flip status
         flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
+
         // send post request to flip the message
         if (app_instance->login_username_logged_in == NULL)
         {
@@ -496,6 +500,13 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
         flip_social_free_feed_view();
+        // load feed item
+        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            fhttp.state = ISSUE;
+            return false;
+        }
         if (feed_view_alloc())
         {
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
@@ -504,7 +515,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         }
-        furi_delay_ms(1000);
         flipper_http_deinit();
     }
     return false;
@@ -768,6 +778,8 @@ static void flip_social_feed_type_change(VariableItem *item)
 {
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, flip_social_feed_type[index]);
+    flip_social_feed_type_index = index;
+    variable_item_set_current_value_index(item, index);
 
     // save the feed type
     save_char("user_feed_type", strstr(flip_social_feed_type[index], "Global") ? "global" : "friends");
@@ -776,6 +788,8 @@ static void flip_social_notification_type_change(VariableItem *item)
 {
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, flip_social_notification_type[index]);
+    flip_social_notification_type_index = index;
+    variable_item_set_current_value_index(item, index);
 
     // save the notification type
     save_char("user_notifications", strstr(flip_social_notification_type[index], "ON") ? "on" : "off");
