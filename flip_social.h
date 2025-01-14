@@ -10,7 +10,7 @@
 #include <font/font.h>
 
 #define TAG "FlipSocial"
-#define VERSION_TAG TAG " v1.0.2"
+#define VERSION_TAG TAG " v1.0.3"
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed

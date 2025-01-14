@@ -389,6 +389,8 @@ bool flip_social_save_post(const char *post_id, const char *json_feed_data)
 
     // Create the directory for saving the feed
     char directory_path[128];
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social");
+    storage_common_mkdir(storage, directory_path);
     snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed");
     storage_common_mkdir(storage, directory_path);
 
@@ -427,10 +429,12 @@ bool save_char(
     }
     // Create the directory for saving settings
     char directory_path[256];
-    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data");
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social");
 
     // Create the directory
     Storage *storage = furi_record_open(RECORD_STORAGE);
+    storage_common_mkdir(storage, directory_path);
+    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data");
     storage_common_mkdir(storage, directory_path);
 
     // Open the settings file

@@ -1,3 +1,6 @@
+## 1.0.3
+- Updated to ensure the flip_social data folder is created when saving settings.
+
 ## 1.0.2
 - Fixed the Feed Type and Notifications toggles, in the User Settings, to work as intended. 
 - Added flip status to each feed post.
