@@ -30,7 +30,7 @@ bool flip_social_get_friends()
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
-    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/friends/%s/", app_instance->login_username_logged_in);
+    snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/friends/%s/", app_instance->login_username_logged_in);
     if (!flipper_http_get_request_with_headers(url, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for friends");

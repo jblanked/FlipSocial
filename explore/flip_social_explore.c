@@ -46,7 +46,7 @@ bool flip_social_get_explore(void)
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char url[256];
-    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
+    snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
     if (!flipper_http_get_request_with_headers(url, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for explore");
@@ -83,7 +83,7 @@ bool flip_social_get_explore_2(void)
     fhttp.save_received_data = true;
     auth_headers_alloc();
     char url[256];
-    snprintf(url, sizeof(url), "https://www.flipsocial.net/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
+    snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
     return flipper_http_get_request_with_headers(url, auth_headers);
 }
 
