@@ -28,11 +28,11 @@ bool flip_social_get_feed(bool alloc_http, int series_index)
     char command[96];
     if (strstr(flip_social_feed_type[flip_social_feed_type_index], "Global"))
     {
-        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+        snprintf(command, 96, "https://www.jblanked.com/flipper/api/feed/%d/%s/%d/max/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
     }
     else
     {
-        snprintf(command, 96, "https://www.flipsocial.net/api/feed/%d/%s/%d/max/friends/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
+        snprintf(command, 96, "https://www.jblanked.com/flipper/api/feed/%d/%s/%d/max/friends/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
     }
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {

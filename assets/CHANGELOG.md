@@ -1,3 +1,6 @@
+## 1.0.4
+- New server backend.
+
 ## 1.0.3
 - Updated to ensure the flip_social data folder is created when saving settings.
 

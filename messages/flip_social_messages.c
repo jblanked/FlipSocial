@@ -124,7 +124,7 @@ bool flip_social_get_message_users()
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
-    snprintf(command, 128, "https://www.flipsocial.net/api/messages/%s/get/list/%d/", app_instance->login_username_logged_out, MAX_MESSAGE_USERS);
+    snprintf(command, 128, "https://www.jblanked.com/flipper/api/messages/%s/get/list/%d/", app_instance->login_username_logged_out, MAX_MESSAGE_USERS);
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for messages");
@@ -170,7 +170,7 @@ bool flip_social_get_messages_with_user()
 
     fhttp.save_received_data = true;
     auth_headers_alloc();
-    snprintf(command, sizeof(command), "https://www.flipsocial.net/api/messages/%s/get/%s/%d/", app_instance->login_username_logged_out, flip_social_message_users->usernames[flip_social_message_users->index], MAX_MESSAGES);
+    snprintf(command, sizeof(command), "https://www.jblanked.com/flipper/api/messages/%s/get/%s/%d/", app_instance->login_username_logged_out, flip_social_message_users->usernames[flip_social_message_users->index], MAX_MESSAGES);
     if (!flipper_http_get_request_with_headers(command, auth_headers))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for messages");
