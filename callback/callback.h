@@ -10,7 +10,8 @@ void callback_loading_task(FlipperHTTP *fhttp,
                            LoadingCallback parse_response,
                            uint32_t success_view_id,
                            uint32_t failure_view_id,
-                           ViewDispatcher **view_dispatcher);
+                           ViewDispatcher **view_dispatcher,
+                           bool should_free_loader);
 
 bool callback_request_await(FlipperHTTP *fhttp, LoadingCallback http_request, LoadingCallback parse_response);
 

@@ -20,7 +20,8 @@ void callback_loading_task(FlipperHTTP *fhttp,
                            LoadingCallback parse_response,
                            uint32_t success_view_id,
                            uint32_t failure_view_id,
-                           ViewDispatcher **view_dispatcher)
+                           ViewDispatcher **view_dispatcher,
+                           bool should_free_loader)
 {
     if (!fhttp)
     {
@@ -32,18 +33,24 @@ void callback_loading_task(FlipperHTTP *fhttp,
         view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
         return;
     }
-    Loading *loading;
-    int32_t loading_view_id = 987654321; // Random ID
+    int32_t loading_view_id = 387654321; // Random ID
 
-    loading = loading_alloc();
-    if (!loading)
+    // free the loading view if it exists
+    if (loading_global)
+    {
+        loading_free(loading_global);
+        loading_global = NULL;
+    }
+
+    loading_global = loading_alloc();
+    if (!loading_global)
     {
         FURI_LOG_E(HTTP_TAG, "Failed to allocate loading");
         view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
         return;
     }
 
-    view_dispatcher_add_view(*view_dispatcher, loading_view_id, loading_get_view(loading));
+    view_dispatcher_add_view(*view_dispatcher, loading_view_id, loading_get_view(loading_global));
 
     // Switch to the loading view
     view_dispatcher_switch_to_view(*view_dispatcher, loading_view_id);
@@ -54,14 +61,22 @@ void callback_loading_task(FlipperHTTP *fhttp,
         FURI_LOG_E(HTTP_TAG, "Failed to make request");
         view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
         view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
-        loading_free(loading);
+        if (should_free_loader)
+        {
+            loading_free(loading_global);
+            loading_global = NULL;
+        }
         return;
     }
 
-    // Switch to the success view
     view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
     view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
-    loading_free(loading);
+
+    if (should_free_loader)
+    {
+        loading_free(loading_global);
+        loading_global = NULL;
+    }
 }
 
 bool callback_request_await(FlipperHTTP *fhttp, LoadingCallback http_request, LoadingCallback parse_response)
@@ -94,43 +109,46 @@ bool callback_request_await(FlipperHTTP *fhttp, LoadingCallback http_request, Lo
     return true;
 }
 
-static bool flip_social_login_fetch(DataLoaderModel *model)
+static bool callback_login_fetch(FlipperHTTP *fhttp)
 {
-    UNUSED(model);
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
         return false;
     }
-    if (!model->fhttp)
+    if (!fhttp)
     {
         FURI_LOG_E(TAG, "fhttp is NULL");
         return false;
     }
     if (!app_instance->login_username_logged_out || !app_instance->login_password_logged_out || strlen(app_instance->login_username_logged_out) == 0 || strlen(app_instance->login_password_logged_out) == 0)
     {
+        FURI_LOG_E(TAG, "Username or password is NULL");
+        easy_flipper_dialog("Login failed", "Username or password is empty.\nPress BACK to return.");
         return false;
     }
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
     alloc_headers();
-    return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/login/", auth_headers, buffer);
+    return flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/login/", auth_headers, buffer);
 }
 
-static char *flip_social_login_parse(DataLoaderModel *model)
+static bool callback_login_parse(FlipperHTTP *fhttp)
 {
-    UNUSED(model);
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
-        return "Failed to login...";
+        fhttp->state = ISSUE;
+        return false;
     }
-    if (!model->fhttp->last_response)
+    if (!fhttp->last_response)
     {
-        return "Failed to login...";
+        fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "last_response is NULL");
+        return false;
     }
     // read response
-    if (strstr(model->fhttp->last_response, "[SUCCESS]") != NULL || strstr(model->fhttp->last_response, "User found") != NULL)
+    if (strstr(fhttp->last_response, "[SUCCESS]") != NULL || strstr(fhttp->last_response, "User found") != NULL)
     {
         app_instance->is_logged_in = "true";
 
@@ -143,48 +161,40 @@ static char *flip_social_login_parse(DataLoaderModel *model)
         {
             strcpy(app_instance->change_password_logged_in, app_instance->login_password_logged_out);
         }
-
         save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
-
-        // send user to the logged in submenu
-        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        return "Login successful!";
+        FURI_LOG_I(TAG, "Login successful");
+        return true;
     }
-    else if (strstr(model->fhttp->last_response, "User not found") != NULL)
+    else if (strstr(fhttp->last_response, "User not found") != NULL)
     {
-        return "Account not found...";
+        FURI_LOG_E(TAG, "User not found");
+        fhttp->state = ISSUE;
+        easy_flipper_dialog("Login Failed", "Please check your credentials.\nPress BACK to return.");
+        return false;
     }
     else
     {
-        return "Failed to login...";
+        FURI_LOG_E(TAG, "Login failed");
+        fhttp->state = ISSUE;
+        easy_flipper_dialog("Login Failed", "Please check your credentials.\nPress BACK to return.");
+        return false;
     }
 }
 
-static void flip_social_login_switch_to_view(FlipSocialApp *app)
-{
-    if (!loader_view_alloc(app))
-    {
-        FURI_LOG_E(TAG, "Failed to allocate view loader");
-        return;
-    }
-    loader_switch_to_view(app, "Logging in...", flip_social_login_fetch, flip_social_login_parse, 1, callback_to_login_logged_out, FlipSocialViewLoader);
-}
-
-static bool flip_social_register_fetch(DataLoaderModel *model)
+static bool callback_register_fetch(DataLoaderModel *model)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
-        return "Failed to login...";
+        model->fhttp->state = ISSUE;
+        return "Failed to register...";
     }
-    if (!model->fhttp->last_response)
-    {
-        return "Failed to login...";
-    }
+
     // check if the username and password are valid
     if (!app_instance->register_username_logged_out || !app_instance->register_password_logged_out || strlen(app_instance->register_username_logged_out) == 0 || strlen(app_instance->register_password_logged_out) == 0)
     {
         FURI_LOG_E(TAG, "Username or password is NULL");
+        model->fhttp->state = ISSUE;
         return false;
     }
 
@@ -192,6 +202,7 @@ static bool flip_social_register_fetch(DataLoaderModel *model)
     if (strcmp(app_instance->register_password_logged_out, app_instance->register_password_2_logged_out) != 0)
     {
         FURI_LOG_E(TAG, "Passwords do not match");
+        model->fhttp->state = ISSUE;
         return false;
     }
     char buffer[128];
@@ -200,16 +211,19 @@ static bool flip_social_register_fetch(DataLoaderModel *model)
     return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
 }
 
-static char *flip_social_register_parse(DataLoaderModel *model)
+static char *callback_register_parse(DataLoaderModel *model)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
-        return "Failed to login...";
+        model->fhttp->state = ISSUE;
+        return "Failed to register...";
     }
     if (!model->fhttp->last_response)
     {
-        return "Failed to login...";
+        model->fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "last_response is NULL");
+        return "Failed to register...";
     }
     // read response
     if (model->fhttp->last_response != NULL && (strstr(model->fhttp->last_response, "[SUCCESS]") != NULL || strstr(model->fhttp->last_response, "User created") != NULL))
@@ -243,29 +257,32 @@ static char *flip_social_register_parse(DataLoaderModel *model)
     }
     else if (strstr(model->fhttp->last_response, "Username or password not provided") != NULL)
     {
-
+        model->fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "Username or password not provided");
         return "Please enter your credentials.\nPress BACK to return.";
     }
     else if (strstr(model->fhttp->last_response, "User already exists") != NULL || strstr(model->fhttp->last_response, "Multiple users found") != NULL)
     {
-
+        model->fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "User already exists");
         return "Registration failed...\nUsername already exists.\nPress BACK to return.";
     }
     else
     {
-
+        model->fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "Registration failed");
         return "Registration failed...\nUpdate your credentials.\nPress BACK to return.";
     }
 }
 
-static void flip_social_register_switch_to_view(FlipSocialApp *app)
+static void callback_register_switch_to_view(FlipSocialApp *app)
 {
     if (!loader_view_alloc(app))
     {
         FURI_LOG_E(TAG, "Failed to allocate view loader");
         return;
     }
-    loader_switch_to_view(app, "Registering...", flip_social_register_fetch, flip_social_register_parse, 1, callback_to_register_logged_out, FlipSocialViewLoader);
+    loader_switch_to_view(app, "Registering...", callback_register_fetch, callback_register_parse, 1, callback_to_register_logged_out, FlipSocialViewLoader);
 }
 
 /**
@@ -1137,7 +1154,8 @@ void callback_submenu_choices(void *context, uint32_t index)
             messages_parse_json_message_users, // parse the message users
             FlipSocialViewSubmenu,             // switch to the messages submenu if successful
             FlipSocialViewLoggedInSubmenu,     // switch back to the main submenu if failed
-            &app->view_dispatcher);            // view dispatcher
+            &app->view_dispatcher,             // view dispatcher
+            true);
         free_flipper_http();
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
@@ -1407,8 +1425,8 @@ void callback_submenu_choices(void *context, uint32_t index)
                 messages_parse_json_messages,          // parse the messages
                 FlipSocialViewMessagesDialog,          // switch to the messages process if successful
                 FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
-                &app->view_dispatcher                  // view dispatcher
-            );
+                &app->view_dispatcher,                 // view dispatcher
+                true);
             free_flipper_http();
         }
 
@@ -1693,7 +1711,25 @@ void callback_logged_out_login_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Login Button
-        flip_social_login_switch_to_view(app);
+        free_all(false, true, app);
+        if (!alloc_flipper_http())
+        {
+            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
+            return;
+        }
+
+        callback_loading_task(
+            app->fhttp,
+            callback_login_fetch,
+            callback_login_parse,
+            FlipSocialViewLoggedInSubmenu,
+            FlipSocialViewLoggedOutSubmenu,
+            &app->view_dispatcher,
+            false);
+
+        // we cannot do this here because we get a freeze
+        // free_flipper_http();
+        // it will be freed later anyways
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1829,7 +1865,7 @@ void callback_logged_out_register_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Register button
-        flip_social_register_switch_to_view(app);
+        callback_register_switch_to_view(app);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -2216,7 +2252,7 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
             friends_parse_json,
             FlipSocialViewSubmenu,
             FlipSocialViewVariableItemList,
-            &app->view_dispatcher);
+            &app->view_dispatcher, true);
         free_flipper_http();
         break;
     default:
@@ -2413,7 +2449,7 @@ void callback_logged_in_explore_updated(void *context)
         explore_parse_json,            // parse the explore users
         FlipSocialViewSubmenu,         // switch to the explore submenu if successful
         FlipSocialViewLoggedInSubmenu, // switch back to the main submenu if failed
-        &app->view_dispatcher);        // view dispatcher
+        &app->view_dispatcher, true);  // view dispatcher
     free_flipper_http();
 }
 
@@ -2461,7 +2497,7 @@ void callback_logged_in_message_users_updated(void *context)
         messages_parse_json_message_user_choices, // parse the explore users
         FlipSocialViewSubmenu,                    // switch to the explore submenu if successful
         FlipSocialViewLoggedInSubmenu,            // switch back to the main submenu if failed
-        &app->view_dispatcher);                   // view dispatcher
+        &app->view_dispatcher, true);             // view dispatcher
     free_flipper_http();
 }
 
