@@ -8,6 +8,13 @@
 #include <free/free.h>
 #include <alloc/alloc.h>
 
+// for callback_draw_user_message
+#define MAX_LINES 6
+#define LINE_HEIGHT 8
+#define MAX_LINE_WIDTH_PX 128
+#define TEMP_BUF_SIZE 128
+//
+
 void callback_loading_task(FlipperHTTP *fhttp,
                            LoadingCallback http_request,
                            LoadingCallback parse_response,
@@ -42,28 +49,9 @@ void callback_loading_task(FlipperHTTP *fhttp,
     view_dispatcher_switch_to_view(*view_dispatcher, loading_view_id);
 
     // Make the request
-    if (http_request(fhttp)) // start the async request
+    if (!callback_request_await(fhttp, http_request, parse_response))
     {
-        furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
-        fhttp->state = RECEIVING;
-    }
-    else
-    {
-        FURI_LOG_E(HTTP_TAG, "Failed to send request");
-        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
-        view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
-        loading_free(loading);
-        return;
-    }
-    while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
-    {
-        // Wait for the request to be received
-        furi_delay_ms(100);
-    }
-    furi_timer_stop(fhttp->get_timeout_timer);
-    if (!parse_response(fhttp)) // parse the JSON before switching to the view (synchonous)
-    {
-        FURI_LOG_E(HTTP_TAG, "Failed to parse the JSON...");
+        FURI_LOG_E(HTTP_TAG, "Failed to make request");
         view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
         view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
         loading_free(loading);
@@ -74,6 +62,36 @@ void callback_loading_task(FlipperHTTP *fhttp,
     view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
     view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
     loading_free(loading);
+}
+
+bool callback_request_await(FlipperHTTP *fhttp, LoadingCallback http_request, LoadingCallback parse_response)
+{
+    if (!fhttp)
+    {
+        FURI_LOG_E(HTTP_TAG, "FlipperHTTP is NULL.");
+        return false;
+    }
+    if (http_request(fhttp))
+    {
+        furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp->state = RECEIVING;
+    }
+    else
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to send request");
+        return false;
+    }
+    while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
+    {
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp->get_timeout_timer);
+    if (!parse_response(fhttp))
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to parse the JSON...");
+        return false;
+    }
+    return true;
 }
 
 static bool flip_social_login_fetch(DataLoaderModel *model)
@@ -435,6 +453,321 @@ uint32_t callback_exit_app(void *context)
     return VIEW_NONE;
 }
 
+static void callback_draw_user_message(Canvas *canvas, const char *user_message, int x, int y)
+{
+    if (!user_message)
+    {
+        FURI_LOG_E(TAG, "User message is NULL.");
+        return;
+    }
+
+    // We will read through user_message and extract words manually
+    const char *p = user_message;
+
+    // Skip leading spaces
+    while (*p == ' ')
+        p++;
+
+    char line[TEMP_BUF_SIZE];
+    size_t line_len = 0;
+    line[0] = '\0';
+    int line_num = 0;
+
+    while (*p && line_num < MAX_LINES)
+    {
+        // Find the end of the next word
+        const char *word_start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t word_len = p - word_start;
+
+        // Extract the word into a temporary buffer
+        char word[TEMP_BUF_SIZE];
+        if (word_len > TEMP_BUF_SIZE - 1)
+        {
+            word_len = TEMP_BUF_SIZE - 1; // Just to avoid overflow if extremely large
+        }
+        memcpy(word, word_start, word_len);
+        word[word_len] = '\0';
+
+        // Skip trailing spaces for the next iteration
+        while (*p == ' ')
+            p++;
+
+        if (word_len == 0)
+        {
+            // Empty word (consecutive spaces?), just continue
+            continue;
+        }
+
+        // Check how the word fits into the current line
+        char test_line[TEMP_BUF_SIZE + 128];
+        if (line_len == 0)
+        {
+            // If line is empty, the line would just be this word
+            strncpy(test_line, word, sizeof(test_line) - 1);
+            test_line[sizeof(test_line) - 1] = '\0';
+        }
+        else
+        {
+            // If not empty, we add a space and then the word
+            snprintf(test_line, sizeof(test_line), "%s %s", line, word);
+        }
+
+        uint16_t width = canvas_string_width(canvas, test_line);
+        if (width <= MAX_LINE_WIDTH_PX)
+        {
+            // The word fits on this line
+            strcpy(line, test_line);
+            line_len = strlen(line);
+        }
+        else
+        {
+            // The word doesn't fit on this line
+            // First, draw the current line if it's not empty
+            if (line_len > 0)
+            {
+                canvas_draw_str_aligned(canvas, x, y + line_num * LINE_HEIGHT, AlignLeft, AlignTop, line);
+                line_num++;
+                if (line_num >= MAX_LINES)
+                    break;
+            }
+
+            // Now we try to put the current word on a new line
+            // Check if the word itself fits on an empty line
+            width = canvas_string_width(canvas, word);
+            if (width <= MAX_LINE_WIDTH_PX)
+            {
+                // The whole word fits on a new line
+                strcpy(line, word);
+                line_len = word_len;
+            }
+            else
+            {
+                // The word alone doesn't fit. We must truncate it.
+                // We'll find the largest substring of the word that fits.
+                size_t truncate_len = word_len;
+                while (truncate_len > 0)
+                {
+                    char truncated[TEMP_BUF_SIZE];
+                    strncpy(truncated, word, truncate_len);
+                    truncated[truncate_len] = '\0';
+                    if (canvas_string_width(canvas, truncated) <= MAX_LINE_WIDTH_PX)
+                    {
+                        // Found a substring that fits
+                        strcpy(line, truncated);
+                        line_len = truncate_len;
+                        break;
+                    }
+                    truncate_len--;
+                }
+
+                if (line_len == 0)
+                {
+                    // Could not fit a single character. Skip this word.
+                }
+            }
+        }
+    }
+
+    // Draw any remaining text in the buffer if we have lines left
+    if (line_len > 0 && line_num < MAX_LINES)
+    {
+        canvas_draw_str_aligned(canvas, x, y + line_num * LINE_HEIGHT, AlignLeft, AlignTop, line);
+    }
+}
+
+void callback_feed_draw(Canvas *canvas, void *model)
+{
+    UNUSED(model);
+    canvas_clear(canvas);
+    canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
+    canvas_draw_str(canvas, 0, 7, flip_feed_item->username);
+    canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
+    callback_draw_user_message(canvas, flip_feed_item->message, 0, 12);
+    canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+    char flip_message[32];
+    snprintf(flip_message, sizeof(flip_message), "%u %s", flip_feed_item->flips, flip_feed_item->flips == 1 ? "flip" : "flips");
+    canvas_draw_str(canvas, 0, 60, flip_message); // Draw the number of flips
+    char flip_status[16];
+    snprintf(flip_status, sizeof(flip_status), flip_feed_item->is_flipped ? "Unflip" : "Flip");
+    canvas_draw_str(canvas, 32, 60, flip_status);                  // Draw the flip status
+    canvas_draw_str(canvas, 64, 60, flip_feed_item->date_created); // Draw the date
+}
+
+bool callback_feed_input(InputEvent *event, void *context)
+{
+    UNUSED(context);
+    furi_check(app_instance);
+
+    // if back button is pressed
+    if (event->type == InputTypePress && event->key == InputKeyBack)
+    {
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
+        return true;
+    }
+
+    if (event->type == InputTypePress && event->key == InputKeyLeft) // Previous message
+    {
+        if (flip_feed_info->index > 0)
+        {
+            flip_feed_info->index--;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, BUFFER_VIEW);
+        free_feed_view();
+        // load feed item
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            return false;
+        }
+        if (alloc_feed_view())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            return false;
+        }
+    }
+    else if (event->type == InputTypePress && event->key == InputKeyRight) // Next message
+    {
+        // if next message is the last message, then use flip_social_load_initial_feed
+        if (flip_feed_info->index == flip_feed_info->count - 1)
+        {
+            char series_index[16];
+            load_char("series_index", series_index, sizeof(series_index));
+            flip_feed_info->series_index = atoi(series_index) + 1;
+            char new_series_index[16];
+            snprintf(new_series_index, sizeof(new_series_index), "%d", flip_feed_info->series_index);
+
+            save_char("series_index", new_series_index);
+
+            free_flipper_http();
+            if (!alloc_flipper_http())
+            {
+                return false;
+            }
+            if (!feed_load_initial_feed(app_instance->fhttp, flip_feed_info->series_index))
+            {
+                FURI_LOG_E(TAG, "Failed to load initial feed");
+                free_flipper_http();
+                return false;
+            }
+            free_flipper_http();
+            // switch view, free dialog, re-alloc dialog, switch back to dialog
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, BUFFER_VIEW);
+            free_feed_view();
+            // load feed item
+            if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
+            {
+                FURI_LOG_E(TAG, "Failed to load nexy feed post");
+                return false;
+            }
+            if (alloc_feed_view())
+            {
+                view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+            }
+            else
+            {
+                FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+                return false;
+            }
+        }
+        if (flip_feed_info->index < flip_feed_info->count - 1)
+        {
+            flip_feed_info->index++;
+        }
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, BUFFER_VIEW);
+        free_feed_view();
+        // load feed item
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            return false;
+        }
+        if (alloc_feed_view())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+            return false;
+        }
+    }
+    else if (event->type == InputTypePress && event->key == InputKeyOk) // Flip/Unflip
+    {
+        // Moved to above the is_flipped check
+        if (!flip_feed_item->is_flipped)
+        {
+            // increase the flip count
+            flip_feed_item->flips++;
+        }
+        else
+        {
+            // decrease the flip count
+            if (flip_feed_item->flips > 0)
+                flip_feed_item->flips--;
+        }
+        // change the flip status
+        flip_feed_item->is_flipped = !flip_feed_item->is_flipped;
+
+        // send post request to flip the message
+        if (app_instance->login_username_logged_in == NULL)
+        {
+            FURI_LOG_E(TAG, "Username is NULL");
+            return false;
+        }
+        free_flipper_http();
+        if (!alloc_flipper_http())
+        {
+            return false;
+        }
+        alloc_headers();
+        char payload[256];
+        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
+        if (flipper_http_request(app_instance->fhttp, POST, "https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
+        {
+            // save feed item
+            char new_save[512];
+            snprintf(new_save, sizeof(new_save), "{\"id\":%u,\"username\":\"%s\",\"message\":\"%s\",\"flip_count\":%u,\"flipped\":%s,\"date_created\":\"%s\"}",
+                     flip_feed_item->id, flip_feed_item->username, flip_feed_item->message, flip_feed_item->flips, flip_feed_item->is_flipped ? "true" : "false", flip_feed_item->date_created);
+            char id[16];
+            snprintf(id, sizeof(id), "%u", flip_feed_item->id);
+            if (!flip_social_save_post(id, new_save))
+            {
+                FURI_LOG_E(TAG, "Failed to save the feed post");
+                free_flipper_http();
+                return false;
+            }
+        }
+        free_flipper_http();
+        // switch view, free dialog, re-alloc dialog, switch back to dialog
+        view_dispatcher_switch_to_view(app_instance->view_dispatcher, BUFFER_VIEW);
+        free_feed_view();
+        // load feed item
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
+        {
+            FURI_LOG_E(TAG, "Failed to load nexy feed post");
+            app_instance->fhttp->state = ISSUE;
+            return false;
+        }
+        if (alloc_feed_view())
+        {
+            view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
+        }
+        else
+        {
+            FURI_LOG_E(TAG, "Failed to allocate feed dialog");
+        }
+    }
+    return false;
+}
+
 void explore_dialog_callback(DialogExResult result, void *context)
 {
     furi_assert(context);
@@ -515,7 +848,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             dialog_ex_set_right_button_text(app->dialog_messages, "Next");
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+            view_dispatcher_switch_to_view(app->view_dispatcher, BUFFER_VIEW);
             free_messages_dialog();
             allow_messages_dialog(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
@@ -536,7 +869,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             }
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
+            view_dispatcher_switch_to_view(app->view_dispatcher, BUFFER_VIEW);
             free_messages_dialog();
             allow_messages_dialog(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
@@ -554,7 +887,7 @@ void callback_message_dialog(DialogExResult result, void *context)
     }
 }
 
-static void compose_dialog_callback(DialogExResult result, void *context)
+static void callback_compose_dialog(DialogExResult result, void *context)
 {
     furi_assert(context);
     FlipSocialApp *app = (FlipSocialApp *)context;
@@ -664,7 +997,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
     }
 }
 
-bool flip_social_get_user_info(FlipperHTTP *fhttp)
+static bool callback_get_user_info(FlipperHTTP *fhttp)
 {
     if (!fhttp)
     {
@@ -682,7 +1015,8 @@ bool flip_social_get_user_info(FlipperHTTP *fhttp)
     fhttp->state = RECEIVING;
     return true;
 }
-bool flip_social_parse_user_info(FlipperHTTP *fhttp)
+
+static bool callback_parse_user_info(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -927,7 +1261,7 @@ void callback_submenu_choices(void *context, uint32_t index)
                         "Delete",
                         "Post",
                         NULL,
-                        compose_dialog_callback,
+                        callback_compose_dialog,
                         callback_to_compose_logged_in,
                         &app->view_dispatcher,
                         app))
@@ -957,60 +1291,65 @@ void callback_submenu_choices(void *context, uint32_t index)
             {
                 return;
             }
-            // if (flipper_http_process_response_async(flip_social_get_user_info, flip_social_parse_user_info))
-            // {
-            //     free_explore_dialog();
-            //     if (!app->dialog_explore)
-            //     {
-            //         if (!easy_flipper_set_dialog_ex(
-            //                 &app->dialog_explore,
-            //                 FlipSocialViewExploreDialog,
-            //                 flip_social_explore->usernames[flip_social_explore->index],
-            //                 0,
-            //                 0,
-            //                 alloc_format_message(app->explore_user_bio),
-            //                 0,
-            //                 10,
-            //                 "Remove", // remove if user is a friend (future update)
-            //                 "Add",    // add if user is not a friend (future update)
-            //                 NULL,
-            //                 explore_dialog_callback,
-            //                 callback_to_explore_logged_in,
-            //                 &app->view_dispatcher,
-            //                 app))
-            //         {
-            //             return;
-            //         }
-            //     }
-            //     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
-            // }
-            // else
-            // {
-            //     free_explore_dialog();
-            //     if (!app->dialog_explore)
-            //     {
-            //         if (!easy_flipper_set_dialog_ex(
-            //                 &app->dialog_explore,
-            //                 FlipSocialViewExploreDialog,
-            //                 flip_social_explore->usernames[flip_social_explore->index],
-            //                 0,
-            //                 0,
-            //                 "",
-            //                 0,
-            //                 10,
-            //                 "Remove", // remove if user is a friend (future update)
-            //                 "Add",    // add if user is not a friend (future update)
-            //                 NULL,
-            //                 explore_dialog_callback,
-            //                 callback_to_explore_logged_in,
-            //                 &app->view_dispatcher,
-            //                 app))
-            //         {
-            //             return;
-            //         }
-            //     }
-            //     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
-            // }
+            free_flipper_http();
+            if (!alloc_flipper_http())
+            {
+                return;
+            }
+            if (callback_request_await(app->fhttp, callback_get_user_info, callback_parse_user_info))
+            {
+                free_explore_dialog();
+                if (!app->dialog_explore)
+                {
+                    if (!easy_flipper_set_dialog_ex(
+                            &app->dialog_explore,
+                            FlipSocialViewExploreDialog,
+                            flip_social_explore->usernames[flip_social_explore->index],
+                            0,
+                            0,
+                            alloc_format_message(app->explore_user_bio),
+                            0,
+                            10,
+                            "Remove", // remove if user is a friend (future update)
+                            "Add",    // add if user is not a friend (future update)
+                            NULL,
+                            explore_dialog_callback,
+                            callback_to_explore_logged_in,
+                            &app->view_dispatcher,
+                            app))
+                    {
+                        return;
+                    }
+                }
+                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
+            }
+            else
+            {
+                free_explore_dialog();
+                if (!app->dialog_explore)
+                {
+                    if (!easy_flipper_set_dialog_ex(
+                            &app->dialog_explore,
+                            FlipSocialViewExploreDialog,
+                            flip_social_explore->usernames[flip_social_explore->index],
+                            0,
+                            0,
+                            "",
+                            0,
+                            10,
+                            "Remove", // remove if user is a friend (future update)
+                            "Add",    // add if user is not a friend (future update)
+                            NULL,
+                            explore_dialog_callback,
+                            callback_to_explore_logged_in,
+                            &app->view_dispatcher,
+                            app))
+                    {
+                        return;
+                    }
+                }
+                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
+            }
         }
 
         // handle the friends selection

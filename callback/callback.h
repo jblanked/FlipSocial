@@ -12,6 +12,8 @@ void callback_loading_task(FlipperHTTP *fhttp,
                            uint32_t failure_view_id,
                            ViewDispatcher **view_dispatcher);
 
+bool callback_request_await(FlipperHTTP *fhttp, LoadingCallback http_request, LoadingCallback parse_response);
+
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
  * @param context The context - unused
@@ -109,6 +111,9 @@ uint32_t callback_to_messages_user_choices(void *context);
  * @return next view id (VIEW_NONE to exit the app)
  */
 uint32_t callback_exit_app(void *context);
+
+void callback_feed_draw(Canvas *canvas, void *model);
+bool callback_feed_input(InputEvent *event, void *context);
 
 /**
  * @brief Handle ALL submenu item selections.
