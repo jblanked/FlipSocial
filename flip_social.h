@@ -309,8 +309,6 @@ typedef struct
     EmptyScreen *empty_screen; // The empty screen
 } FlipSocialApp;
 
-void flip_social_app_free(FlipSocialApp *app);
-
 extern FlipSocialModel *flip_social_friends;        // Store the friends
 extern FlipSocialModel2 *flip_social_message_users; // Store the users that have sent messages to the logged in user
 extern FlipSocialModel *flip_social_explore;        // Store the users to explore

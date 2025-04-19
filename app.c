@@ -77,7 +77,7 @@ int32_t main_flip_social(void *p)
     view_dispatcher_run(app_instance->view_dispatcher);
 
     // Free the resources used by the Hello World application
-    flip_social_app_free(app_instance);
+    free_flip_social_app(app_instance);
 
     // Return 0 to indicate success
     return 0;

@@ -16,3 +16,4 @@ void free_message_users();
 void free_messages();
 void free_explore();
 void free_flipper_http();
+void free_flip_social_app(FlipSocialApp *app);
