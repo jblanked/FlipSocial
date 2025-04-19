@@ -3,6 +3,10 @@
 #include <callback/callback.h>
 #include <free/free.h>
 FlipSocialApp *flip_social_app_alloc();
+FlipSocialModel *alloc_friends_model();
+FlipSocialModel2 *alloc_messages();
+FlipSocialMessage *alloc_user_messages();
+FlipSocialModel *alloc_explore();
 void auth_headers_alloc(void);
 FlipSocialFeedMini *flip_feed_info_alloc(void);
 bool messages_dialog_alloc(bool free_first);

@@ -5,9 +5,6 @@
 #include <callback/callback.h>
 #include <explore/flip_social_explore.h>
 
-FlipSocialModel2 *flip_social_messages_alloc();
-FlipSocialMessage *flip_social_user_messages_alloc();
-
 bool flip_social_update_messages_submenu();
 bool flip_social_update_submenu_user_choices();
 // Get all the users that have sent messages to the logged in user

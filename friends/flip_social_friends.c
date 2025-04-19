@@ -1,17 +1,5 @@
 #include "flip_social_friends.h"
 
-FlipSocialModel *flip_social_friends_alloc()
-{
-    // Allocate memory for each username only if not already allocated
-    FlipSocialModel *friends = malloc(sizeof(FlipSocialModel));
-    if (friends == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
-        return NULL;
-    }
-    return friends;
-}
-
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the friends view
 bool flip_social_get_friends(FlipperHTTP *fhttp)
@@ -92,7 +80,7 @@ bool flip_social_parse_json_friends(FlipperHTTP *fhttp)
     }
 
     //  Allocate memory for each username only if not already allocated
-    flip_social_friends = flip_social_friends_alloc();
+    flip_social_friends = alloc_friends_model();
     if (flip_social_friends == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");

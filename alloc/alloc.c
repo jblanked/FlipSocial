@@ -385,6 +385,54 @@ FlipSocialApp *flip_social_app_alloc()
     return app;
 }
 
+FlipSocialModel *alloc_friends_model()
+{
+    // Allocate memory for each username only if not already allocated
+    FlipSocialModel *friends = malloc(sizeof(FlipSocialModel));
+    if (friends == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for friends usernames.");
+        return NULL;
+    }
+    return friends;
+}
+
+FlipSocialModel2 *alloc_messages()
+{
+    // Allocate memory for each username only if not already allocated
+    FlipSocialModel2 *users = malloc(sizeof(FlipSocialModel2));
+    if (users == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for message users");
+        return NULL;
+    }
+    return users;
+}
+
+FlipSocialMessage *alloc_user_messages()
+{
+    // Allocate memory for each username only if not already allocated
+    FlipSocialMessage *messages = malloc(sizeof(FlipSocialMessage));
+    if (messages == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for messages");
+        return NULL;
+    }
+    return messages;
+}
+
+FlipSocialModel *alloc_explore(void)
+{
+    // Allocate memory for each username only if not already allocated
+    FlipSocialModel *explore = malloc(sizeof(FlipSocialModel));
+    if (explore == NULL)
+    {
+        FURI_LOG_E(TAG, "Failed to allocate memory for explore model.");
+        return NULL;
+    }
+    return explore;
+}
+
 void auth_headers_alloc(void)
 {
     if (!app_instance)

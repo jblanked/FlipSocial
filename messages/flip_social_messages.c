@@ -1,29 +1,5 @@
 #include "flip_social_messages.h"
 
-FlipSocialModel2 *flip_social_messages_alloc()
-{
-    // Allocate memory for each username only if not already allocated
-    FlipSocialModel2 *users = malloc(sizeof(FlipSocialModel2));
-    if (users == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to allocate memory for message users");
-        return NULL;
-    }
-    return users;
-}
-
-FlipSocialMessage *flip_social_user_messages_alloc()
-{
-    // Allocate memory for each username only if not already allocated
-    FlipSocialMessage *messages = malloc(sizeof(FlipSocialMessage));
-    if (messages == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to allocate memory for messages");
-        return NULL;
-    }
-    return messages;
-}
-
 bool flip_social_update_messages_submenu()
 {
     if (!app_instance)
@@ -187,7 +163,7 @@ bool flip_social_parse_json_message_users(FlipperHTTP *fhttp)
     }
 
     // Allocate memory for each username only if not already allocated
-    flip_social_message_users = flip_social_messages_alloc();
+    flip_social_message_users = alloc_messages();
     if (flip_social_message_users == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for message users.");
@@ -236,7 +212,7 @@ bool flip_social_parse_json_message_user_choices(FlipperHTTP *fhttp)
     }
 
     // Allocate memory for each username only if not already allocated
-    flip_social_explore = flip_social_explore_alloc();
+    flip_social_explore = alloc_explore();
     if (flip_social_explore == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for explore usernames.");
@@ -285,7 +261,7 @@ bool flip_social_parse_json_messages(FlipperHTTP *fhttp)
     }
 
     // Allocate memory for each message only if not already allocated
-    flip_social_messages = flip_social_user_messages_alloc();
+    flip_social_messages = alloc_user_messages();
     if (!flip_social_messages)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for messages.");

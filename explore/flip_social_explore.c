@@ -1,17 +1,5 @@
 #include "flip_social_explore.h"
 
-FlipSocialModel *flip_social_explore_alloc(void)
-{
-    // Allocate memory for each username only if not already allocated
-    FlipSocialModel *explore = malloc(sizeof(FlipSocialModel));
-    if (explore == NULL)
-    {
-        FURI_LOG_E(TAG, "Failed to allocate memory for explore model.");
-        return NULL;
-    }
-    return explore;
-}
-
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the explore view
 bool flip_social_get_explore(FlipperHTTP *fhttp)
@@ -105,7 +93,7 @@ bool flip_social_parse_json_explore(FlipperHTTP *fhttp)
     }
 
     // Allocate memory for each username only if not already allocated
-    flip_social_explore = flip_social_explore_alloc();
+    flip_social_explore = alloc_explore();
     if (flip_social_explore == NULL)
     {
         FURI_LOG_E(TAG, "Failed to allocate memory for explore usernames.");
