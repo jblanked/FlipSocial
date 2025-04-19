@@ -1,7 +1,16 @@
 #ifndef FLIP_SOCIAL_CALLBACK_H
 #define FLIP_SOCIAL_CALLBACK_H
-
 #include <flip_social.h>
+
+// replica of flipper_http_load_task but allows FlipperHTTP to be passed in
+typedef bool (*LoadingCallback)(FlipperHTTP *);
+
+void callback_loading_task(FlipperHTTP *fhttp,
+                           LoadingCallback http_request,
+                           LoadingCallback parse_response,
+                           uint32_t success_view_id,
+                           uint32_t failure_view_id,
+                           ViewDispatcher **view_dispatcher);
 
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
@@ -246,5 +255,5 @@ void callback_logged_in_message_users_updated(void *context);
 
 void callback_message_dialog(DialogExResult result, void *context);
 //
-bool callback_home_notification();
+bool callback_home_notification(FlipperHTTP *fhttp);
 #endif

@@ -8,6 +8,74 @@
 #include <free/free.h>
 #include <alloc/alloc.h>
 
+void callback_loading_task(FlipperHTTP *fhttp,
+                           LoadingCallback http_request,
+                           LoadingCallback parse_response,
+                           uint32_t success_view_id,
+                           uint32_t failure_view_id,
+                           ViewDispatcher **view_dispatcher)
+{
+    if (!fhttp)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to get context.");
+        return;
+    }
+    if (fhttp->state == INACTIVE)
+    {
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        return;
+    }
+    Loading *loading;
+    int32_t loading_view_id = 987654321; // Random ID
+
+    loading = loading_alloc();
+    if (!loading)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to allocate loading");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        return;
+    }
+
+    view_dispatcher_add_view(*view_dispatcher, loading_view_id, loading_get_view(loading));
+
+    // Switch to the loading view
+    view_dispatcher_switch_to_view(*view_dispatcher, loading_view_id);
+
+    // Make the request
+    if (http_request(fhttp)) // start the async request
+    {
+        furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp->state = RECEIVING;
+    }
+    else
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to send request");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+        loading_free(loading);
+        return;
+    }
+    while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+    furi_timer_stop(fhttp->get_timeout_timer);
+    if (!parse_response(fhttp)) // parse the JSON before switching to the view (synchonous)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to parse the JSON...");
+        view_dispatcher_switch_to_view(*view_dispatcher, failure_view_id);
+        view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+        loading_free(loading);
+        return;
+    }
+
+    // Switch to the success view
+    view_dispatcher_switch_to_view(*view_dispatcher, success_view_id);
+    view_dispatcher_remove_view(*view_dispatcher, loading_view_id);
+    loading_free(loading);
+}
+
 static bool flip_social_login_fetch(DataLoaderModel *model)
 {
     UNUSED(model);
@@ -374,35 +442,37 @@ void explore_dialog_callback(DialogExResult result, void *context)
     FlipSocialApp *app = (FlipSocialApp *)context;
     if (result == DialogExResultLeft) // Remove
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            // remove friend
-            char remove_payload[128];
-            snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
-            alloc_headers();
-            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            free_explore_dialog();
-            furi_delay_ms(1000);
-            flipper_http_free(fhttp);
+            return;
         }
+        // remove friend
+        char remove_payload[128];
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
+        alloc_headers();
+        flipper_http_request(app->fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+        free_explore_dialog();
+        furi_delay_ms(1000);
+        free_flipper_http();
     }
     else if (result == DialogExResultRight)
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            // add friend
-            char add_payload[128];
-            snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
-            alloc_headers();
-            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            free_explore_dialog();
-            furi_delay_ms(1000);
-            flipper_http_free(fhttp);
+            return;
         }
+        // add friend
+        char add_payload[128];
+        snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
+        alloc_headers();
+        flipper_http_request(app->fhttp, POST, "https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+        free_explore_dialog();
+        furi_delay_ms(1000);
+        free_flipper_http();
     }
 }
 static void friends_dialog_callback(DialogExResult result, void *context)
@@ -411,19 +481,20 @@ static void friends_dialog_callback(DialogExResult result, void *context)
     FlipSocialApp *app = (FlipSocialApp *)context;
     if (result == DialogExResultLeft) // Remove
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            // remove friend
-            char remove_payload[128];
-            snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
-            alloc_headers();
-            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
-            view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            free_friends_dialog();
-            furi_delay_ms(1000);
-            flipper_http_free(fhttp);
+            return;
         }
+        // remove friend
+        char remove_payload[128];
+        snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
+        alloc_headers();
+        flipper_http_request(app->fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
+        view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
+        free_friends_dialog();
+        furi_delay_ms(1000);
+        free_flipper_http();
     }
 }
 void callback_message_dialog(DialogExResult result, void *context)
@@ -536,10 +607,9 @@ static void compose_dialog_callback(DialogExResult result, void *context)
     {
         // post the message
         // send selected_message
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (!fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
             return;
         }
         if (selected_message && app_instance->login_username_logged_in)
@@ -547,7 +617,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
             if (strlen(selected_message) > MAX_MESSAGE_LENGTH)
             {
                 FURI_LOG_E(TAG, "Message is too long");
-                flipper_http_free(fhttp);
+                free_flipper_http();
                 return;
             }
             // Send the selected_message
@@ -556,39 +626,42 @@ static void compose_dialog_callback(DialogExResult result, void *context)
                      app_instance->login_username_logged_in, selected_message);
 
             if (!flipper_http_request(
-                    fhttp,
+                    app->fhttp,
                     POST,
                     "https://www.jblanked.com/flipper/api/feed/post/",
                     auth_headers,
                     command))
             {
                 FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
-                flipper_http_free(fhttp);
+                free_flipper_http();
                 return;
             }
 
-            fhttp->state = RECEIVING;
-            furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
+            app->fhttp->state = RECEIVING;
+            furi_timer_start(app->fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
         }
         else
         {
-            FURI_LOG_E(TAG, "Message or username is NULL");
-            flipper_http_free(fhttp);
+            FURI_LOG_E(TAG, "Selected message or username is NULL");
+            free_flipper_http();
             return;
         }
-        while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
+        while (app->fhttp->state == RECEIVING && furi_timer_is_running(app->fhttp->get_timeout_timer) > 0)
         {
             furi_delay_ms(100);
         }
-        if (feed_load_initial_feed(fhttp, 1))
+        if (feed_load_initial_feed(app->fhttp, 1))
         {
             free_compose_dialog();
         }
         else
         {
-            FURI_LOG_E(TAG, "Failed to load the initial feed");
-            flipper_http_free(fhttp);
+            FURI_LOG_E(TAG, "Failed to load feed");
+            free_flipper_http();
+            return;
         }
+        furi_timer_stop(app->fhttp->get_timeout_timer);
+        free_flipper_http();
     }
 }
 
@@ -721,12 +794,18 @@ void callback_submenu_choices(void *context, uint32_t index)
             FURI_LOG_E(TAG, "Failed to allocate submenu");
             return;
         }
-        // flipper_http_loading_task(
-        //     messages_get_message_users,        // get the message users
-        //     messages_parse_json_message_users, // parse the message users
-        //     FlipSocialViewSubmenu,                // switch to the messages submenu if successful
-        //     FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
-        //     &app->view_dispatcher);               // view dispatcher
+        if (!alloc_flipper_http())
+        {
+            return;
+        }
+        callback_loading_task(
+            app->fhttp,
+            messages_get_message_users,        // get the message users
+            messages_parse_json_message_users, // parse the message users
+            FlipSocialViewSubmenu,             // switch to the messages submenu if successful
+            FlipSocialViewLoggedInSubmenu,     // switch back to the main submenu if failed
+            &app->view_dispatcher);            // view dispatcher
+        free_flipper_http();
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
         // they need to search for the user to send a message
@@ -740,18 +819,17 @@ void callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
         free_all(true, true, context);
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (!fhttp)
+        if (!alloc_flipper_http())
         {
-            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
             return;
         }
-        if (!feed_load_initial_feed(fhttp, 1))
+        if (!feed_load_initial_feed(app->fhttp, 1))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
+            free_flipper_http();
             return;
         }
-        flipper_http_free(fhttp);
+        free_flipper_http();
         break;
     case FlipSocialSubmenuExploreIndex:
         free_all(true, true, context);
@@ -980,13 +1058,20 @@ void callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_message_users->index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
-            // flipper_http_loading_task(
-            //     messages_get_messages_with_user,    // get the messages with the selected user
-            //     messages_parse_json_messages,       // parse the messages
-            //     FlipSocialViewMessagesDialog,          // switch to the messages process if successful
-            //     FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
-            //     &app->view_dispatcher                  // view dispatcher
-            // );
+            free_flipper_http();
+            if (!alloc_flipper_http())
+            {
+                return;
+            }
+            callback_loading_task(
+                app->fhttp,
+                messages_get_messages_with_user,       // get the messages with the selected user
+                messages_parse_json_messages,          // parse the messages
+                FlipSocialViewMessagesDialog,          // switch to the messages process if successful
+                FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
+                &app->view_dispatcher                  // view dispatcher
+            );
+            free_flipper_http();
         }
 
         // handle the messages user choices selection
@@ -1047,17 +1132,18 @@ void callback_logged_out_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
-            {
-                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-            }
-            furi_delay_ms(500);
-            flipper_http_free(fhttp);
+            return;
         }
+        if (!flipper_http_save_wifi(app->fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
+        furi_delay_ms(500);
+        free_flipper_http();
     }
 
     // Save the settings
@@ -1098,17 +1184,18 @@ void callback_logged_out_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
-            {
-                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-            }
-            furi_delay_ms(500);
-            flipper_http_free(fhttp);
+            return;
         }
+        if (!flipper_http_save_wifi(app->fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
+        furi_delay_ms(500);
+        free_flipper_http();
     }
 
     // Save the settings
@@ -1268,11 +1355,6 @@ void callback_logged_out_login_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Login Button
-        // if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-        // {
-        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-        //     return;
-        // }
         flip_social_login_switch_to_view(app);
         break;
     default:
@@ -1409,11 +1491,6 @@ void callback_logged_out_register_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Register button
-        // if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-        // {
-        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-        //     return;
-        // }
         flip_social_register_switch_to_view(app);
         break;
     default:
@@ -1457,17 +1534,18 @@ void callback_logged_in_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
-            {
-                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-            }
-            furi_delay_ms(500);
-            flipper_http_free(fhttp);
+            return;
         }
+        if (!flipper_http_save_wifi(app->fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
+        furi_delay_ms(500);
+        free_flipper_http();
     }
 
     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
@@ -1509,17 +1587,18 @@ void callback_logged_in_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
-            {
-                FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
-                FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-            }
-            furi_delay_ms(500);
-            flipper_http_free(fhttp);
+            return;
         }
+        if (!flipper_http_save_wifi(app->fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+        {
+            FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
+            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+        }
+        furi_delay_ms(500);
+        free_flipper_http();
     }
 
     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
@@ -1542,7 +1621,6 @@ void callback_logged_in_wifi_settings_item_selected(void *context, uint32_t inde
     switch (index)
     {
     case 0: // Input SSID
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsSSIDInput);
         free_all(false, false, app);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsSSIDInput))
         {
@@ -1552,7 +1630,6 @@ void callback_logged_in_wifi_settings_item_selected(void *context, uint32_t inde
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 1: // Input Password
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInWifiSettingsPasswordInput);
         free_all(false, false, app);
         if (!alloc_text_input(FlipSocialViewLoggedInWifiSettingsPasswordInput))
         {
@@ -1680,19 +1757,21 @@ void callback_logged_in_profile_change_password_updated(void *context)
     }
 
     // send post request to change password
-    FlipperHTTP *fhttp = flipper_http_alloc();
-    if (fhttp)
+    free_flipper_http();
+    if (!alloc_flipper_http())
     {
-        alloc_headers();
-        char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
-        if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-password/", auth_headers, payload))
-        {
-            FURI_LOG_E(TAG, "Failed to send post request to change password");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        }
-        flipper_http_free(fhttp);
+        return;
     }
+    alloc_headers();
+    char payload[256];
+    snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
+    if (!flipper_http_request(app->fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-password/", auth_headers, payload))
+    {
+        FURI_LOG_E(TAG, "Failed to send post request to change password");
+        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+    }
+    free_flipper_http();
+
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
 
@@ -1722,20 +1801,22 @@ void callback_logged_in_profile_change_bio_updated(void *context)
     }
 
     // send post request to change bio
-    FlipperHTTP *fhttp = flipper_http_alloc();
-    if (fhttp)
+    free_flipper_http();
+    if (!alloc_flipper_http())
     {
-        alloc_headers();
-        char payload[256];
-        snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"bio\":\"%s\"}", app->login_username_logged_out, app->change_bio_logged_in);
-        if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-bio/", auth_headers, payload))
-        {
-            FURI_LOG_E(TAG, "Failed to send post request to change bio");
-            FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
-        }
-        furi_delay_ms(500);
-        flipper_http_free(fhttp);
+        return;
     }
+    alloc_headers();
+    char payload[256];
+    snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"bio\":\"%s\"}", app->login_username_logged_out, app->change_bio_logged_in);
+    if (!flipper_http_request(app->fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-bio/", auth_headers, payload))
+    {
+        FURI_LOG_E(TAG, "Failed to send post request to change bio");
+        FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
+    }
+    furi_delay_ms(500);
+    free_flipper_http();
+
     // Save the settings
     save_settings(app->wifi_ssid_logged_out, app->wifi_password_logged_out, app->login_username_logged_out, app->login_username_logged_in, app->login_password_logged_out, app->change_password_logged_in, app->change_bio_logged_in, app->is_logged_in);
 
@@ -1763,7 +1844,6 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
         // do nothing since username cannot be changed
         break;
     case 1: // Change Password
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInChangePasswordInput);
         free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedInChangePasswordInput))
         {
@@ -1773,7 +1853,6 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Change Bio
-        // view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedInChangeBioInput);
         free_text_input();
         if (!alloc_text_input(FlipSocialViewLoggedInChangeBioInput))
         {
@@ -1789,17 +1868,18 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
             FURI_LOG_E(TAG, "Failed to allocate submenu for friends");
             return;
         }
-        // if (!flipper_http_init(flipper_http_rx_callback, app))
-        // {
-        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-        //     return;
-        // }
-        // flipper_http_loading_task(
-        //     friends_fetch,
-        //     friends_parse_json,
-        //     FlipSocialViewSubmenu,
-        //     FlipSocialViewVariableItemList,
-        //     &app->view_dispatcher);
+        if (!alloc_flipper_http())
+        {
+            return;
+        }
+        callback_loading_task(
+            app->fhttp,
+            friends_fetch,
+            friends_parse_json,
+            FlipSocialViewSubmenu,
+            FlipSocialViewVariableItemList,
+            &app->view_dispatcher);
+        free_flipper_http();
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1836,10 +1916,9 @@ void callback_logged_in_messages_user_choice_message_updated(void *context)
     app->message_user_choice_logged_in[app->message_user_choice_logged_in_temp_buffer_size - 1] = '\0';
 
     // send post request to send message
-    FlipperHTTP *fhttp = flipper_http_alloc();
-    if (!fhttp)
+    free_flipper_http();
+    if (!alloc_flipper_http())
     {
-        FURI_LOG_E(TAG, "Failed to initialize HTTP");
         return;
     }
     alloc_headers();
@@ -1848,13 +1927,13 @@ void callback_logged_in_messages_user_choice_message_updated(void *context)
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_explore->usernames[flip_social_explore->index], app->message_user_choice_logged_in);
 
-    if (!flipper_http_request(fhttp, POST, url, auth_headers, payload)) // start the async request
+    if (!flipper_http_request(app->fhttp, POST, url, auth_headers, payload)) // start the async request
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
     }
     furi_delay_ms(1000);
-    flipper_http_free(fhttp);
+    free_flipper_http();
     // add user to the top of the list if not already there
     for (int i = 0; i < flip_social_message_users->count; i++)
     {
@@ -1910,10 +1989,9 @@ void callback_logged_in_messages_new_message_updated(void *context)
     // Ensure null-termination
     app->messages_new_message_logged_in[app->messages_new_message_logged_in_temp_buffer_size - 1] = '\0';
 
-    FlipperHTTP *fhttp = flipper_http_alloc();
-    if (!fhttp)
+    free_flipper_http();
+    if (!alloc_flipper_http())
     {
-        FURI_LOG_E(TAG, "Failed to initialize HTTP");
         return;
     }
 
@@ -1925,7 +2003,7 @@ void callback_logged_in_messages_new_message_updated(void *context)
         char payload[256];
         snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
         snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
-        if (!flipper_http_request(fhttp, POST, url, auth_headers, payload))
+        if (!flipper_http_request(app->fhttp, POST, url, auth_headers, payload))
         {
             FURI_LOG_E(TAG, "Failed to send post request to send message");
             FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
@@ -1933,12 +2011,12 @@ void callback_logged_in_messages_new_message_updated(void *context)
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             return false;
         }
-        fhttp->state = RECEIVING;
+        app->fhttp->state = RECEIVING;
         return true;
     }
     bool parse_message_to_user()
     {
-        while (fhttp->state != IDLE)
+        while (app->fhttp->state != IDLE)
         {
             furi_delay_ms(10);
         }
@@ -1947,14 +2025,14 @@ void callback_logged_in_messages_new_message_updated(void *context)
 
     // well, we got a freeze here, so let's use the loading task to switch views and force refresh
     flipper_http_loading_task(
-        fhttp,
+        app->fhttp,
         send_message_to_user,
         parse_message_to_user,
         FlipSocialViewSubmenu,
         FlipSocialViewLoggedInMessagesNewMessageInput,
         &app->view_dispatcher);
 
-    flipper_http_free(fhttp);
+    free_flipper_http();
 }
 
 void callback_logged_in_explore_updated(void *context)
@@ -1987,13 +2065,18 @@ void callback_logged_in_explore_updated(void *context)
         FURI_LOG_E(TAG, "Failed to allocate submenu for explore");
         return;
     }
-
-    // flipper_http_loading_task(
-    //     explore_fetch,        // get the explore users
-    //     explore_parse_json, // parse the explore users
-    //     FlipSocialViewSubmenu,          // switch to the explore submenu if successful
-    //     FlipSocialViewLoggedInSubmenu,  // switch back to the main submenu if failed
-    //     &app->view_dispatcher);         // view dispatcher
+    if (!alloc_flipper_http())
+    {
+        return;
+    }
+    callback_loading_task(
+        app->fhttp,
+        explore_fetch,                 // get the explore users
+        explore_parse_json,            // parse the explore users
+        FlipSocialViewSubmenu,         // switch to the explore submenu if successful
+        FlipSocialViewLoggedInSubmenu, // switch back to the main submenu if failed
+        &app->view_dispatcher);        // view dispatcher
+    free_flipper_http();
 }
 
 void callback_logged_in_message_users_updated(void *context)
@@ -2029,12 +2112,19 @@ void callback_logged_in_message_users_updated(void *context)
     }
 
     // get users
-    // flipper_http_loading_task(
-    //     explore_fetch_2,                             // get the explore users
-    //     messages_parse_json_message_user_choices, // parse the explore users
-    //     FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
-    //     FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
-    //     &app->view_dispatcher);                      // view dispatcher
+    free_flipper_http();
+    if (!alloc_flipper_http())
+    {
+        return;
+    }
+    callback_loading_task(
+        app->fhttp,
+        explore_fetch_2,                          // get the explore users
+        messages_parse_json_message_user_choices, // parse the explore users
+        FlipSocialViewSubmenu,                    // switch to the explore submenu if successful
+        FlipSocialViewLoggedInSubmenu,            // switch back to the main submenu if failed
+        &app->view_dispatcher);                   // view dispatcher
+    free_flipper_http();
 }
 
 bool callback_get_home_notification(FlipperHTTP *fhttp)
@@ -2230,8 +2320,37 @@ bool callback_parse_home_notification(FlipperHTTP *fhttp)
 }
 
 // home notification
-bool callback_home_notification()
+bool callback_home_notification(FlipperHTTP *fhttp)
 {
-    // return flipper_http_process_response_async(callback_get_home_notification, callback_parse_home_notification);
-    return true; // for now
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
+        return false;
+    }
+
+    // Make the request
+    if (!callback_get_home_notification(fhttp)) // start the async request
+    {
+        FURI_LOG_E(TAG, "Failed to send get request to home notification");
+        return false;
+    }
+
+    furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
+    fhttp->state = RECEIVING;
+
+    while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
+    {
+        // Wait for the request to be received
+        furi_delay_ms(100);
+    }
+
+    furi_timer_stop(fhttp->get_timeout_timer);
+
+    if (!callback_parse_home_notification(fhttp)) // parse the JSON before switching to the view (synchonous)
+    {
+        FURI_LOG_E(HTTP_TAG, "Failed to parse the home notification...");
+        return false;
+    }
+
+    return true;
 }

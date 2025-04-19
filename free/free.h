@@ -15,3 +15,4 @@ void free_submenu(void);
 void free_message_users();
 void free_messages();
 void free_explore();
+void free_flipper_http();

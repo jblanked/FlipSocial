@@ -381,7 +381,6 @@ FlipSocialApp *alloc_flip_social_app()
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
         }
     }
-
     return app;
 }
 
@@ -830,19 +829,18 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
 
             save_char("series_index", new_series_index);
 
-            FlipperHTTP *fhttp = flipper_http_alloc();
-            if (!fhttp)
+            free_flipper_http();
+            if (!alloc_flipper_http())
             {
-                FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
                 return false;
             }
-            if (!feed_load_initial_feed(fhttp, flip_feed_info->series_index))
+            if (!feed_load_initial_feed(app_instance->fhttp, flip_feed_info->series_index))
             {
                 FURI_LOG_E(TAG, "Failed to load initial feed");
-                flipper_http_free(fhttp);
+                free_flipper_http();
                 return false;
             }
-            flipper_http_free(fhttp);
+            free_flipper_http();
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
             free_feed_view();
@@ -908,16 +906,15 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             FURI_LOG_E(TAG, "Username is NULL");
             return false;
         }
-        FlipperHTTP *fhttp = flipper_http_alloc();
-        if (!fhttp)
+        free_flipper_http();
+        if (!alloc_flipper_http())
         {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
             return false;
         }
         alloc_headers();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
-        if (flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
+        if (flipper_http_request(app_instance->fhttp, POST, "https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
         {
             // save feed item
             char new_save[512];
@@ -928,7 +925,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             if (!flip_social_save_post(id, new_save))
             {
                 FURI_LOG_E(TAG, "Failed to save the feed post");
-                flipper_http_free(fhttp);
+                free_flipper_http();
                 return false;
             }
         }
@@ -939,8 +936,8 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp->state = ISSUE;
-            flipper_http_free(fhttp);
+            app_instance->fhttp->state = ISSUE;
+            free_flipper_http();
             return false;
         }
         if (alloc_feed_view())
@@ -951,7 +948,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         }
-        flipper_http_free(fhttp);
+        free_flipper_http();
     }
     return false;
 }
@@ -1326,5 +1323,26 @@ bool alloc_variable_item_list(uint32_t view_id)
             return false;
         }
     }
+    return false;
+}
+
+bool alloc_flipper_http()
+{
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
+    if (!app_instance->fhttp)
+    {
+        app_instance->fhttp = flipper_http_alloc();
+        if (!app_instance->fhttp)
+        {
+            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
+            return false;
+        }
+        return true;
+    }
+    FURI_LOG_I(TAG, "FlipperHTTP already allocated");
     return false;
 }

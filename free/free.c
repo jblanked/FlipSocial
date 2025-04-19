@@ -28,15 +28,21 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu, voi
 
     if (went_to_friends)
     {
-        // flipper_http_deinit();
         went_to_friends = false;
     }
 
     // free Derek's loader
     loader_view_free(app);
+
+    // free flipper_http
+    free_flipper_http();
 }
 void free_text_input()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->text_input)
     {
         uart_text_input_free(app_instance->text_input);
@@ -46,6 +52,10 @@ void free_text_input()
 }
 void free_explore_dialog()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->dialog_explore)
     {
         dialog_ex_free(app_instance->dialog_explore);
@@ -55,6 +65,10 @@ void free_explore_dialog()
 }
 void free_friends_dialog()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->dialog_friends)
     {
         dialog_ex_free(app_instance->dialog_friends);
@@ -64,6 +78,10 @@ void free_friends_dialog()
 }
 void free_messages_dialog()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->dialog_messages)
     {
         dialog_ex_free(app_instance->dialog_messages);
@@ -74,6 +92,10 @@ void free_messages_dialog()
 }
 void free_compose_dialog()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->dialog_compose)
     {
         dialog_ex_free(app_instance->dialog_compose);
@@ -83,6 +105,10 @@ void free_compose_dialog()
 }
 void free_feed_view()
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (app_instance->view_feed)
     {
         view_free(app_instance->view_feed);
@@ -93,6 +119,10 @@ void free_feed_view()
 
 void free_about_widget(bool is_logged_in)
 {
+    if (!app_instance)
+    {
+        return;
+    }
     if (is_logged_in && app_instance->widget_logged_in_about)
     {
         widget_free(app_instance->widget_logged_in_about);
@@ -177,5 +207,19 @@ void free_explore(void)
     {
         free(flip_social_explore);
         flip_social_explore = NULL;
+    }
+}
+
+void free_flipper_http()
+{
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
+        return;
+    }
+    if (app_instance->fhttp)
+    {
+        flipper_http_free(app_instance->fhttp);
+        app_instance->fhttp = NULL;
     }
 }

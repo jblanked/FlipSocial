@@ -22,23 +22,23 @@ int32_t main_flip_social(void *p)
     }
 
     // check if board is connected (Derek Jamison)
-    FlipperHTTP *fhttp = flipper_http_alloc();
-    if (!fhttp)
+    app_instance->fhttp = flipper_http_alloc();
+    if (!app_instance->fhttp)
     {
         easy_flipper_dialog("FlipperHTTP Error", "The UART is likely busy.\nEnsure you have the correct\nflash for your board then\nrestart your Flipper Zero.");
         return -1;
     }
 
-    if (!flipper_http_send_command(fhttp, HTTP_CMD_PING))
+    if (!flipper_http_send_command(app_instance->fhttp, HTTP_CMD_PING))
     {
         FURI_LOG_E(TAG, "Failed to ping the device");
-        flipper_http_free(fhttp);
+        flipper_http_free(app_instance->fhttp);
         return -1;
     }
 
     // Try to wait for pong response.
     uint32_t counter = 10;
-    while (fhttp->state == INACTIVE && --counter > 0)
+    while (app_instance->fhttp->state == INACTIVE && --counter > 0)
     {
         FURI_LOG_D(TAG, "Waiting for PONG");
         furi_delay_ms(100);
@@ -63,16 +63,16 @@ int32_t main_flip_social(void *p)
             strcmp(is_notifications, "on") == 0 &&
             strcmp(is_logged_in, "true") == 0)
         {
-            callback_home_notification();
+            callback_home_notification(app_instance->fhttp);
         }
 
-        // if (update_is_ready(fhttp, true))
+        // if (update_is_ready(app_instance->fhttp, true))
         // {
         //     easy_flipper_dialog("Update Status", "Complete.\nRestart your Flipper Zero.");
         // }
     }
 
-    flipper_http_free(fhttp);
+    flipper_http_free(app_instance->fhttp);
 
     // Run the view dispatcher
     view_dispatcher_run(app_instance->view_dispatcher);

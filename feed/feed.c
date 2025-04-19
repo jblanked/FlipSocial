@@ -48,11 +48,6 @@ bool feed_fetch(FlipperHTTP *fhttp, int series_index)
 
 FlipSocialFeedMini *feed_parse_json(FlipperHTTP *fhttp)
 {
-    if (!app_instance)
-    {
-        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
-        return NULL;
-    }
     if (!fhttp)
     {
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
