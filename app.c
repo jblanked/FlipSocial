@@ -1,6 +1,6 @@
 // app.c
-#include <flip_social.h>             // Include the FlipSocialApp structure
-#include <alloc/flip_social_alloc.h> // Include the allocation functions
+#include <flip_social.h> // Include the FlipSocialApp structure
+#include <alloc/alloc.h> // Include the allocation functions
 
 /**
  * @brief Entry point for the Hello World application.
