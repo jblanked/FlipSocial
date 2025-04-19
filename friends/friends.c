@@ -1,9 +1,9 @@
-#include "flip_social_friends.h"
+#include <friends/friends.h>
 #include <alloc/alloc.h>
 
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the friends view
-bool flip_social_get_friends(FlipperHTTP *fhttp)
+bool friends_fetch(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -38,7 +38,7 @@ bool flip_social_get_friends(FlipperHTTP *fhttp)
     return true;
 }
 
-bool flip_social_update_friends()
+bool friends_update()
 {
     if (!app_instance)
     {
@@ -65,7 +65,7 @@ bool flip_social_update_friends()
     return true;
 }
 
-bool flip_social_parse_json_friends(FlipperHTTP *fhttp)
+bool friends_parse_json(FlipperHTTP *fhttp)
 {
     if (!fhttp)
     {

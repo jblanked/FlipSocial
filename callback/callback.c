@@ -1,7 +1,7 @@
 #include <callback/callback.h>
 #include <callback/loader.h>
 #include <messages/flip_social_messages.h>
-#include <friends/flip_social_friends.h>
+#include <friends/friends.h>
 #include <explore/explore.h>
 #include <feed/feed.h>
 #include <flip_storage/flip_social_storage.h>
@@ -1795,8 +1795,8 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
         //     return;
         // }
         // flipper_http_loading_task(
-        //     flip_social_get_friends,
-        //     flip_social_parse_json_friends,
+        //     friends_fetch,
+        //     friends_parse_json,
         //     FlipSocialViewSubmenu,
         //     FlipSocialViewVariableItemList,
         //     &app->view_dispatcher);
