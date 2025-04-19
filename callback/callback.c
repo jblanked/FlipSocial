@@ -161,7 +161,6 @@ static bool flip_social_register_fetch(DataLoaderModel *model)
     }
     if (!model->fhttp->last_response)
     {
-
         return "Failed to login...";
     }
     // check if the username and password are valid

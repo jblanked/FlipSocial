@@ -22,8 +22,7 @@ int32_t main_flip_social(void *p)
     }
 
     // check if board is connected (Derek Jamison)
-    app_instance->fhttp = flipper_http_alloc();
-    if (!app_instance->fhttp)
+    if (!alloc_flipper_http())
     {
         easy_flipper_dialog("FlipperHTTP Error", "The UART is likely busy.\nEnsure you have the correct\nflash for your board then\nrestart your Flipper Zero.");
         return -1;
@@ -32,7 +31,7 @@ int32_t main_flip_social(void *p)
     if (!flipper_http_send_command(app_instance->fhttp, HTTP_CMD_PING))
     {
         FURI_LOG_E(TAG, "Failed to ping the device");
-        flipper_http_free(app_instance->fhttp);
+        free_flipper_http();
         return -1;
     }
 
@@ -72,7 +71,7 @@ int32_t main_flip_social(void *p)
         // }
     }
 
-    flipper_http_free(app_instance->fhttp);
+    free_flipper_http();
 
     // Run the view dispatcher
     view_dispatcher_run(app_instance->view_dispatcher);
