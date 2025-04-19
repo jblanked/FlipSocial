@@ -12,15 +12,6 @@ FlipSocialModel *flip_social_explore_alloc(void)
     return explore;
 }
 
-void free_explore(void)
-{
-    if (flip_social_explore)
-    {
-        free(flip_social_explore);
-        flip_social_explore = NULL;
-    }
-}
-
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the explore view
 bool flip_social_get_explore(FlipperHTTP *fhttp)

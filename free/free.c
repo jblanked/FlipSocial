@@ -150,3 +150,32 @@ void free_submenu(void)
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewSubmenu);
     }
 }
+
+void free_message_users()
+{
+    if (flip_social_message_users == NULL)
+    {
+        return;
+    }
+    free(flip_social_message_users);
+    flip_social_message_users = NULL;
+}
+
+void free_messages()
+{
+    if (flip_social_messages == NULL)
+    {
+        return;
+    }
+    free(flip_social_messages);
+    flip_social_messages = NULL;
+}
+
+void free_explore(void)
+{
+    if (flip_social_explore)
+    {
+        free(flip_social_explore);
+        flip_social_explore = NULL;
+    }
+}

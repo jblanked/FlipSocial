@@ -13,3 +13,6 @@ void free_friends(void);
 void flip_feed_info_free(void);
 void free_variable_item_list(void);
 void free_submenu(void);
+void free_message_users();
+void free_messages();
+void free_explore();

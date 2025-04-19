@@ -24,26 +24,6 @@ FlipSocialMessage *flip_social_user_messages_alloc()
     return messages;
 }
 
-void free_message_users()
-{
-    if (flip_social_message_users == NULL)
-    {
-        return;
-    }
-    free(flip_social_message_users);
-    flip_social_message_users = NULL;
-}
-
-void free_messages()
-{
-    if (flip_social_messages == NULL)
-    {
-        return;
-    }
-    free(flip_social_messages);
-    flip_social_messages = NULL;
-}
-
 bool flip_social_update_messages_submenu()
 {
     if (!app_instance)
