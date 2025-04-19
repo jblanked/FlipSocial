@@ -36,6 +36,13 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu, voi
 
     // free flipper_http
     free_flipper_http();
+
+    // free global loading
+    if (loading_global)
+    {
+        loading_free(loading_global);
+        loading_global = NULL;
+    }
 }
 void free_text_input()
 {

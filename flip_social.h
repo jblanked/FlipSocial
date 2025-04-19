@@ -334,4 +334,5 @@ extern char *flip_social_notification_type[];
 extern uint8_t flip_social_notification_type_index;
 //
 extern bool went_to_friends;
+extern Loading *loading_global;
 #endif

@@ -24,3 +24,4 @@ char *flip_social_notification_type[] = {"OFF", "ON"};
 uint8_t flip_social_notification_type_index = 0;
 
 bool went_to_friends = false;
+Loading *loading_global = NULL;
