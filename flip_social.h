@@ -8,6 +8,7 @@
 #include <input/input.h>
 #include <flip_social_icons.h>
 #include <font/font.h>
+#include <gui/modules/empty_screen.h>
 
 #define TAG "FlipSocial"
 #define VERSION "1.1"
@@ -171,7 +172,11 @@ typedef enum
     FlipSocialViewVariableItemList,
     //
     FlipSocialViewSubmenu,
+    //
+    FlipSocialViewEmpty,
 } FlipSocialView;
+
+#define BUFFER_VIEW FlipSocialViewEmpty
 
 // Define the application structure
 typedef struct
@@ -300,6 +305,8 @@ typedef struct
     View *view_feed;
 
     char *explore_user_bio; // Store the bio of the selected user
+
+    EmptyScreen *empty_screen; // The empty screen
 } FlipSocialApp;
 
 void flip_social_app_free(FlipSocialApp *app);

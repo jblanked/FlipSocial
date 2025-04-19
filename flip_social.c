@@ -136,6 +136,13 @@ void flip_social_app_free(FlipSocialApp *app)
     if (app->explore_user_bio)
         free(app->explore_user_bio);
 
+    if (app->empty_screen)
+    {
+        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewEmpty);
+        empty_screen_free(app->empty_screen);
+        app->empty_screen = NULL;
+    }
+
     // Free the app structure
     if (app_instance)
         free(app_instance);
