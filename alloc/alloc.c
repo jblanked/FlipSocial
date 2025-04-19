@@ -1,6 +1,6 @@
 #include <alloc/alloc.h>
 #include <flip_storage/flip_social_storage.h>
-bool went_to_friends = false;
+#include <feed/flip_social_feed.h>
 
 FlipSocialApp *flip_social_app_alloc()
 {

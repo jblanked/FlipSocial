@@ -2,8 +2,6 @@
 #define FLIP_SOCIAL_MESSAGES_H
 
 #include "flip_social.h"
-#include <callback/callback.h>
-#include <explore/flip_social_explore.h>
 
 bool flip_social_update_messages_submenu();
 bool flip_social_update_submenu_user_choices();

@@ -1,4 +1,5 @@
 #include "flip_social_messages.h"
+#include <alloc/alloc.h>
 
 bool flip_social_update_messages_submenu()
 {

@@ -1,5 +1,12 @@
 #include <callback/callback.h>
 #include <callback/loader.h>
+#include <messages/flip_social_messages.h>
+#include <friends/flip_social_friends.h>
+#include <explore/flip_social_explore.h>
+#include <feed/flip_social_feed.h>
+#include <flip_storage/flip_social_storage.h>
+#include <free/free.h>
+#include <alloc/alloc.h>
 
 static bool flip_social_login_fetch(DataLoaderModel *model)
 {

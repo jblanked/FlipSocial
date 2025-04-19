@@ -2,13 +2,6 @@
 #define FLIP_SOCIAL_CALLBACK_H
 
 #include <flip_social.h>
-#include <messages/flip_social_messages.h>
-#include <friends/flip_social_friends.h>
-#include <explore/flip_social_explore.h>
-#include <feed/flip_social_feed.h>
-#include <flip_storage/flip_social_storage.h>
-#include <free/free.h>
-#include <alloc/alloc.h>
 
 /**
  * @brief Navigation callback to go back to the submenu Logged out.
@@ -227,14 +220,6 @@ void flip_social_logged_in_profile_change_bio_updated(void *context);
 void flip_social_text_input_logged_in_profile_item_selected(void *context, uint32_t index);
 
 /**
- * @brief Callback when a user selects a menu item in the settings (logged in) screen.
- * @param context The context - FlipSocialApp object.
- * @param index The index of the selected item.
- * @return void
- */
-void flip_social_text_input_logged_in_settings_item_selected(void *context, uint32_t index);
-
-/**
  * @brief Text input callback for when the user finishes entering their message to send to the selected user choice (user choice messages view)
  * @param context The context - FlipSocialApp object.
  * @return void
@@ -258,15 +243,7 @@ void flip_social_logged_in_user_settings_item_selected(void *context, uint32_t i
 void flip_social_logged_in_explore_updated(void *context);
 void flip_social_logged_in_message_users_updated(void *context);
 
-// Add edits by Derek Jamison
-typedef enum FlipSocialCustomEvent FlipSocialCustomEvent;
-enum FlipSocialCustomEvent
-{
-    FlipSocialCustomEventProcess,
-};
-
 void messages_dialog_callback(DialogExResult result, void *context);
-void feed_dialog_callback(DialogExResult result, void *context);
 //
 bool flip_social_home_notification();
 #endif

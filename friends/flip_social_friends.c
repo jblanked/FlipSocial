@@ -1,4 +1,5 @@
 #include "flip_social_friends.h"
+#include <alloc/alloc.h>
 
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the friends view

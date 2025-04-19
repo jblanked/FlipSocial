@@ -16,4 +16,3 @@ bool alloc_text_input(uint32_t view_id);
 bool about_widget_alloc(bool is_logged_in);
 bool alloc_variable_item_list(uint32_t view_id);
 bool alloc_submenu(uint32_t view_id);
-extern bool went_to_friends;

@@ -10,3 +10,9 @@
 #define FURI_LOG_DEV(tag, format, ...)
 #define DEV_CRASH()
 #endif
+
+typedef enum FlipSocialCustomEvent FlipSocialCustomEvent;
+enum FlipSocialCustomEvent
+{
+    FlipSocialCustomEventProcess,
+};

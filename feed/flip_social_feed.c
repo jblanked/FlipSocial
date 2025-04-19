@@ -1,4 +1,6 @@
 #include "flip_social_feed.h"
+#include <flip_storage/flip_social_storage.h>
+#include <alloc/alloc.h>
 
 bool flip_social_get_feed(FlipperHTTP *fhttp, int series_index)
 {
