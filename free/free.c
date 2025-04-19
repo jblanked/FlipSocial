@@ -250,18 +250,14 @@ void free_flip_social_app(FlipSocialApp *app)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
         submenu_free(app->submenu_logged_out);
+        app->submenu_logged_out = NULL;
     }
     if (app->submenu_logged_in)
     {
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         submenu_free(app->submenu_logged_in);
+        app->submenu_logged_in = NULL;
     }
-
-    if (app->fhttp)
-        flipper_http_free(app->fhttp);
-
-    if (app->view_dispatcher)
-        view_dispatcher_free(app->view_dispatcher);
 
     // Free the app structure members
     if (app->wifi_ssid_logged_out)
@@ -343,6 +339,9 @@ void free_flip_social_app(FlipSocialApp *app)
         empty_screen_free(app->empty_screen);
         app->empty_screen = NULL;
     }
+
+    if (app->view_dispatcher)
+        view_dispatcher_free(app->view_dispatcher);
 
     // Free the app structure
     if (app_instance)

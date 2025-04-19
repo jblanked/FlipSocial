@@ -449,7 +449,7 @@ uint32_t callback_to_messages_user_choices(void *context)
 uint32_t callback_exit_app(void *context)
 {
     // Exit the application
-    free_all(true, true, context);
+    UNUSED(context);
     return VIEW_NONE;
 }
 
