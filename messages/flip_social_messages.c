@@ -24,7 +24,7 @@ FlipSocialMessage *flip_social_user_messages_alloc()
     return messages;
 }
 
-void flip_social_free_message_users()
+void free_message_users()
 {
     if (flip_social_message_users == NULL)
     {
@@ -34,7 +34,7 @@ void flip_social_free_message_users()
     flip_social_message_users = NULL;
 }
 
-void flip_social_free_messages()
+void free_messages()
 {
     if (flip_social_messages == NULL)
     {

@@ -7,7 +7,7 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu, voi
 
     if (should_free_submenu)
     {
-        flip_social_free_explore();
+        free_explore();
         free_submenu();
     }
     if (should_free_variable_item_list)
@@ -15,13 +15,13 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu, voi
         free_variable_item_list();
     }
     free_text_input();
-    flip_social_free_friends();
-    flip_social_free_messages();
-    flip_social_free_feed_view();
-    flip_social_free_compose_dialog();
-    flip_social_free_explore_dialog();
-    flip_social_free_friends_dialog();
-    flip_social_free_messages_dialog();
+    free_friends();
+    free_messages();
+    free_feed_view();
+    free_compose_dialog();
+    free_explore_dialog();
+    free_friends_dialog();
+    free_messages_dialog();
     flip_feed_info_free();
     free_about_widget(true);
     free_about_widget(false);
@@ -44,7 +44,7 @@ void free_text_input()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewTextInput);
     }
 }
-void flip_social_free_explore_dialog()
+void free_explore_dialog()
 {
     if (app_instance->dialog_explore)
     {
@@ -53,7 +53,7 @@ void flip_social_free_explore_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewExploreDialog);
     }
 }
-void flip_social_free_friends_dialog()
+void free_friends_dialog()
 {
     if (app_instance->dialog_friends)
     {
@@ -62,7 +62,7 @@ void flip_social_free_friends_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewFriendsDialog);
     }
 }
-void flip_social_free_messages_dialog()
+void free_messages_dialog()
 {
     if (app_instance->dialog_messages)
     {
@@ -72,7 +72,7 @@ void flip_social_free_messages_dialog()
         return;
     }
 }
-void flip_social_free_compose_dialog()
+void free_compose_dialog()
 {
     if (app_instance->dialog_compose)
     {
@@ -81,7 +81,7 @@ void flip_social_free_compose_dialog()
         view_dispatcher_remove_view(app_instance->view_dispatcher, FlipSocialViewComposeDialog);
     }
 }
-void flip_social_free_feed_view()
+void free_feed_view()
 {
     if (app_instance->view_feed)
     {
@@ -107,7 +107,7 @@ void free_about_widget(bool is_logged_in)
     }
 }
 
-void flip_social_free_friends(void)
+void free_friends(void)
 {
     if (!flip_social_friends)
     {

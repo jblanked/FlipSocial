@@ -38,7 +38,7 @@ bool messages_dialog_alloc(bool free_first)
 {
     if (free_first)
     {
-        flip_social_free_messages_dialog();
+        free_messages_dialog();
     }
     if (!app_instance->dialog_messages)
     {
@@ -367,7 +367,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
+        free_feed_view();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -412,7 +412,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             flipper_http_free(fhttp);
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
-            flip_social_free_feed_view();
+            free_feed_view();
             // load feed item
             if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
             {
@@ -435,7 +435,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
+        free_feed_view();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -501,7 +501,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         }
         // switch view, free dialog, re-alloc dialog, switch back to dialog
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
-        flip_social_free_feed_view();
+        free_feed_view();
         // load feed item
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
@@ -534,7 +534,7 @@ bool feed_view_alloc()
         FURI_LOG_E(TAG, "Feed item is NULL");
         return false;
     }
-    flip_social_free_feed_view();
+    free_feed_view();
     if (!app_instance->view_feed)
     {
         if (!easy_flipper_set_view(

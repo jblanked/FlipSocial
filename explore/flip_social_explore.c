@@ -12,7 +12,7 @@ FlipSocialModel *flip_social_explore_alloc(void)
     return explore;
 }
 
-void flip_social_free_explore(void)
+void free_explore(void)
 {
     if (flip_social_explore)
     {

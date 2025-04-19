@@ -197,8 +197,8 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     UNUSED(context);
     free_about_widget(false);
     //
-    flip_social_free_friends();
-    flip_social_free_message_users();
+    free_friends();
+    free_message_users();
     flip_feed_info_free();
     if (flip_feed_item)
     {
@@ -207,10 +207,10 @@ uint32_t flip_social_callback_to_submenu_logged_in(void *context)
     }
     // free the about widget if it exists
     free_about_widget(true);
-    flip_social_free_explore_dialog();
-    flip_social_free_friends_dialog();
-    flip_social_free_messages_dialog();
-    flip_social_free_compose_dialog();
+    free_explore_dialog();
+    free_friends_dialog();
+    free_messages_dialog();
+    free_compose_dialog();
 
     return FlipSocialViewLoggedInSubmenu;
 }
@@ -376,7 +376,7 @@ void explore_dialog_callback(DialogExResult result, void *context)
             auth_headers_alloc();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            flip_social_free_explore_dialog();
+            free_explore_dialog();
             furi_delay_ms(1000);
             flipper_http_free(fhttp);
         }
@@ -392,7 +392,7 @@ void explore_dialog_callback(DialogExResult result, void *context)
             auth_headers_alloc();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            flip_social_free_explore_dialog();
+            free_explore_dialog();
             furi_delay_ms(1000);
             flipper_http_free(fhttp);
         }
@@ -413,7 +413,7 @@ static void friends_dialog_callback(DialogExResult result, void *context)
             auth_headers_alloc();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
-            flip_social_free_friends_dialog();
+            free_friends_dialog();
             furi_delay_ms(1000);
             flipper_http_free(fhttp);
         }
@@ -439,7 +439,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-            flip_social_free_messages_dialog();
+            free_messages_dialog();
             messages_dialog_alloc(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
         }
@@ -460,7 +460,7 @@ void messages_dialog_callback(DialogExResult result, void *context)
             dialog_ex_set_center_button_text(app->dialog_messages, "Create");
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-            flip_social_free_messages_dialog();
+            free_messages_dialog();
             messages_dialog_alloc(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
         }
@@ -522,7 +522,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 
         // Free the dialog resources
-        flip_social_free_compose_dialog();
+        free_compose_dialog();
     }
 
     else if (result == DialogExResultRight) // Post
@@ -575,7 +575,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         }
         if (flip_social_load_initial_feed(false, 1))
         {
-            flip_social_free_compose_dialog();
+            free_compose_dialog();
         }
         else
         {
@@ -828,7 +828,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 FURI_LOG_E(TAG, "Selected message is NULL");
                 return;
             }
-            flip_social_free_compose_dialog();
+            free_compose_dialog();
             if (!app->dialog_compose)
             {
                 if (!easy_flipper_set_dialog_ex(
@@ -875,7 +875,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             }
             // if (flipper_http_process_response_async(flip_social_get_user_info, flip_social_parse_user_info))
             // {
-            //     flip_social_free_explore_dialog();
+            //     free_explore_dialog();
             //     if (!app->dialog_explore)
             //     {
             //         if (!easy_flipper_set_dialog_ex(
@@ -902,7 +902,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             // }
             // else
             // {
-            //     flip_social_free_explore_dialog();
+            //     free_explore_dialog();
             //     if (!app->dialog_explore)
             //     {
             //         if (!easy_flipper_set_dialog_ex(
@@ -938,7 +938,7 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_friends->index = index - FlipSocialSubmenuLoggedInIndexFriendsStart;
-            flip_social_free_friends_dialog();
+            free_friends_dialog();
             if (!app->dialog_friends)
             {
                 if (!easy_flipper_set_dialog_ex(
