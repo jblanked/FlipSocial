@@ -22,43 +22,35 @@ int32_t main_flip_social(void *p)
     }
 
     // check if board is connected (Derek Jamison)
-    uint8_t counter = 10;
-    // initialize the http
-    if (flipper_http_init(flipper_http_rx_callback, app_instance))
-    {
-        fhttp.state = INACTIVE; // set inactive for the ping
-
-        if (!flipper_http_ping())
-        {
-            FURI_LOG_E(TAG, "Failed to ping the device");
-            return -1;
-        }
-
-        // Try to wait for pong response.
-        while (fhttp.state == INACTIVE && --counter > 0)
-        {
-            FURI_LOG_D(TAG, "Waiting for PONG");
-            furi_delay_ms(100);
-        }
-
-        if (counter == 0)
-        {
-            easy_flipper_dialog("FlipperHTTP Error", "Ensure your WiFi Developer\nBoard or Pico W is connected\nand the latest FlipperHTTP\nfirmware is installed.");
-        }
-        else
-        {
-            save_char("is_connected", "true");
-        }
-
-        flipper_http_deinit();
-    }
-    else
+    FlipperHTTP *fhttp = flipper_http_alloc();
+    if (!fhttp)
     {
         easy_flipper_dialog("FlipperHTTP Error", "The UART is likely busy.\nEnsure you have the correct\nflash for your board then\nrestart your Flipper Zero.");
+        return -1;
     }
 
-    // if counter is not 0, check notifications
-    if (counter != 0)
+    if (!flipper_http_send_command(fhttp, HTTP_CMD_PING))
+    {
+        FURI_LOG_E(TAG, "Failed to ping the device");
+        flipper_http_free(fhttp);
+        return -1;
+    }
+
+    // Try to wait for pong response.
+    uint32_t counter = 10;
+    while (fhttp->state == INACTIVE && --counter > 0)
+    {
+        FURI_LOG_D(TAG, "Waiting for PONG");
+        furi_delay_ms(100);
+    }
+    // save app version
+    save_char("app_version", VERSION);
+
+    if (counter == 0)
+    {
+        easy_flipper_dialog("FlipperHTTP Error", "Ensure your WiFi Developer\nBoard or Pico W is connected\nand the latest FlipperHTTP\nfirmware is installed.");
+    }
+    else
     {
         char is_connected[5];
         char is_logged_in[5];
@@ -74,6 +66,8 @@ int32_t main_flip_social(void *p)
             flip_social_home_notification();
         }
     }
+
+    flipper_http_free(fhttp);
 
     // Run the view dispatcher
     view_dispatcher_run(app_instance->view_dispatcher);
