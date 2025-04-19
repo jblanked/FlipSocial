@@ -25,7 +25,7 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu)
 
     if (went_to_friends)
     {
-        flipper_http_deinit();
+        // flipper_http_deinit();
         went_to_friends = false;
     }
 }

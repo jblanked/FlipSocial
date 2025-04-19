@@ -10,38 +10,38 @@
 #define DEV_CRASH()
 #endif
 
-static void flip_social_request_error_draw(Canvas *canvas)
+static void flip_social_request_error_draw(Canvas *canvas, DataLoaderModel *model)
 {
     if (canvas == NULL)
     {
-        FURI_LOG_E(TAG, "flip_social_request_error_draw - canvas is NULL");
+        FURI_LOG_E(TAG, "error_draw - canvas is NULL");
         DEV_CRASH();
         return;
     }
-    if (fhttp.last_response != NULL)
+    if (model->fhttp->last_response != NULL)
     {
-        if (strstr(fhttp.last_response, "[ERROR] Not connected to Wifi. Failed to reconnect.") != NULL)
+        if (strstr(model->fhttp->last_response, "[ERROR] Not connected to Wifi. Failed to reconnect.") != NULL)
         {
             canvas_clear(canvas);
             canvas_draw_str(canvas, 0, 10, "[ERROR] Not connected to Wifi.");
             canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
             canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
         }
-        else if (strstr(fhttp.last_response, "[ERROR] Failed to connect to Wifi.") != NULL)
+        else if (strstr(model->fhttp->last_response, "[ERROR] Failed to connect to Wifi.") != NULL)
         {
             canvas_clear(canvas);
             canvas_draw_str(canvas, 0, 10, "[ERROR] Not connected to Wifi.");
             canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
             canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
         }
-        else if (strstr(fhttp.last_response, "[ERROR] GET request failed or returned empty data.") != NULL)
+        else if (strstr(model->fhttp->last_response, "[ERROR] GET request failed or returned empty data.") != NULL)
         {
             canvas_clear(canvas);
             canvas_draw_str(canvas, 0, 10, "[ERROR] WiFi error.");
             canvas_draw_str(canvas, 0, 50, "Update your WiFi settings.");
             canvas_draw_str(canvas, 0, 60, "Press BACK to return.");
         }
-        else if (strstr(fhttp.last_response, "[PONG]") != NULL)
+        else if (strstr(model->fhttp->last_response, "[PONG]") != NULL)
         {
             canvas_clear(canvas);
             canvas_draw_str(canvas, 0, 10, "[STATUS]Connecting to AP...");
@@ -49,7 +49,7 @@ static void flip_social_request_error_draw(Canvas *canvas)
         else
         {
             canvas_clear(canvas);
-            FURI_LOG_E(TAG, "Received an error: %s", fhttp.last_response);
+            FURI_LOG_E(TAG, "Received an error: %s", model->fhttp->last_response);
             canvas_draw_str(canvas, 0, 10, "[ERROR] Unusual error...");
             canvas_draw_str(canvas, 0, 60, "Press BACK and retry.");
         }
@@ -71,6 +71,11 @@ static bool flip_social_login_fetch(DataLoaderModel *model)
         FURI_LOG_E(TAG, "app_instance is NULL");
         return false;
     }
+    if (!model->fhttp)
+    {
+        FURI_LOG_E(TAG, "fhttp is NULL");
+        return false;
+    }
     if (!app_instance->login_username_logged_out || !app_instance->login_password_logged_out || strlen(app_instance->login_username_logged_out) == 0 || strlen(app_instance->login_password_logged_out) == 0)
     {
         return false;
@@ -78,7 +83,7 @@ static bool flip_social_login_fetch(DataLoaderModel *model)
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
     auth_headers_alloc();
-    return flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/login/", auth_headers, buffer);
+    return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/login/", auth_headers, buffer);
 }
 
 static char *flip_social_login_parse(DataLoaderModel *model)
@@ -89,15 +94,13 @@ static char *flip_social_login_parse(DataLoaderModel *model)
         FURI_LOG_E(TAG, "app_instance is NULL");
         return "Failed to login...";
     }
-    if (!fhttp.last_response)
+    if (!model->fhttp->last_response)
     {
-        flipper_http_deinit();
         return "Failed to login...";
     }
     // read response
-    if (strstr(fhttp.last_response, "[SUCCESS]") != NULL || strstr(fhttp.last_response, "User found") != NULL)
+    if (strstr(model->fhttp->last_response, "[SUCCESS]") != NULL || strstr(model->fhttp->last_response, "User found") != NULL)
     {
-        flipper_http_deinit();
         app_instance->is_logged_in = "true";
 
         // set the logged_in_username and change_password_logged_in
@@ -116,14 +119,12 @@ static char *flip_social_login_parse(DataLoaderModel *model)
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         return "Login successful!";
     }
-    else if (strstr(fhttp.last_response, "User not found") != NULL)
+    else if (strstr(model->fhttp->last_response, "User not found") != NULL)
     {
-        flipper_http_deinit();
         return "Account not found...";
     }
     else
     {
-        flipper_http_deinit();
         return "Failed to login...";
     }
 }
@@ -135,7 +136,16 @@ static void flip_social_login_switch_to_view(FlipSocialApp *app)
 
 static bool flip_social_register_fetch(DataLoaderModel *model)
 {
-    UNUSED(model);
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "app_instance is NULL");
+        return "Failed to login...";
+    }
+    if (!model->fhttp->last_response)
+    {
+
+        return "Failed to login...";
+    }
     // check if the username and password are valid
     if (!app_instance->register_username_logged_out || !app_instance->register_password_logged_out || strlen(app_instance->register_username_logged_out) == 0 || strlen(app_instance->register_password_logged_out) == 0)
     {
@@ -152,16 +162,23 @@ static bool flip_social_register_fetch(DataLoaderModel *model)
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->register_username_logged_out, app_instance->register_password_logged_out);
 
-    return flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
+    return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
 }
 
 static char *flip_social_register_parse(DataLoaderModel *model)
 {
-    UNUSED(model);
-    // read response
-    if (fhttp.last_response != NULL && (strstr(fhttp.last_response, "[SUCCESS]") != NULL || strstr(fhttp.last_response, "User created") != NULL))
+    if (!app_instance)
     {
-        flipper_http_deinit();
+        FURI_LOG_E(TAG, "app_instance is NULL");
+        return "Failed to login...";
+    }
+    if (!model->fhttp->last_response)
+    {
+        return "Failed to login...";
+    }
+    // read response
+    if (model->fhttp->last_response != NULL && (strstr(model->fhttp->last_response, "[SUCCESS]") != NULL || strstr(model->fhttp->last_response, "User created") != NULL))
+    {
         // set the login credentials
         if (app_instance->login_username_logged_out)
         {
@@ -189,19 +206,19 @@ static char *flip_social_register_parse(DataLoaderModel *model)
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         return "Registration successful!\nWelcome to FlipSocial!";
     }
-    else if (strstr(fhttp.last_response, "Username or password not provided") != NULL)
+    else if (strstr(model->fhttp->last_response, "Username or password not provided") != NULL)
     {
-        flipper_http_deinit();
+
         return "Please enter your credentials.\nPress BACK to return.";
     }
-    else if (strstr(fhttp.last_response, "User already exists") != NULL || strstr(fhttp.last_response, "Multiple users found") != NULL)
+    else if (strstr(model->fhttp->last_response, "User already exists") != NULL || strstr(model->fhttp->last_response, "Multiple users found") != NULL)
     {
-        flipper_http_deinit();
+
         return "Registration failed...\nUsername already exists.\nPress BACK to return.";
     }
     else
     {
-        flipper_http_deinit();
+
         return "Registration failed...\nUpdate your credentials.\nPress BACK to return.";
     }
 }
@@ -397,38 +414,40 @@ uint32_t flip_social_callback_exit_app(void *context)
     return VIEW_NONE;
 }
 
-static void explore_dialog_callback(DialogExResult result, void *context)
+void explore_dialog_callback(DialogExResult result, void *context)
 {
     furi_assert(context);
     FlipSocialApp *app = (FlipSocialApp *)context;
     if (result == DialogExResultLeft) // Remove
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
             // remove friend
             char remove_payload[128];
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
             auth_headers_alloc();
-            flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
+            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_explore_dialog();
             furi_delay_ms(1000);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
     else if (result == DialogExResultRight)
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
             // add friend
             char add_payload[128];
             snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
             auth_headers_alloc();
-            flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
+            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_explore_dialog();
             furi_delay_ms(1000);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 }
@@ -438,17 +457,18 @@ static void friends_dialog_callback(DialogExResult result, void *context)
     FlipSocialApp *app = (FlipSocialApp *)context;
     if (result == DialogExResultLeft) // Remove
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
             // remove friend
             char remove_payload[128];
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
             auth_headers_alloc();
-            flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
+            flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             flip_social_free_friends_dialog();
             furi_delay_ms(1000);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 }
@@ -562,9 +582,10 @@ static void compose_dialog_callback(DialogExResult result, void *context)
     {
         // post the message
         // send selected_message
-        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (!fhttp)
         {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
             return;
         }
         if (selected_message && app_instance->login_username_logged_in)
@@ -572,33 +593,36 @@ static void compose_dialog_callback(DialogExResult result, void *context)
             if (strlen(selected_message) > MAX_MESSAGE_LENGTH)
             {
                 FURI_LOG_E(TAG, "Message is too long");
-                flipper_http_deinit();
+                flipper_http_free(fhttp);
                 return;
             }
             // Send the selected_message
             char command[256];
             snprintf(command, sizeof(command), "{\"username\":\"%s\",\"content\":\"%s\"}",
                      app_instance->login_username_logged_in, selected_message);
-            if (!flipper_http_post_request_with_headers(
+
+            if (!flipper_http_request(
+                    fhttp,
+                    POST,
                     "https://www.jblanked.com/flipper/api/feed/post/",
                     auth_headers,
                     command))
             {
                 FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
-                flipper_http_deinit();
+                flipper_http_free(fhttp);
                 return;
             }
 
-            fhttp.state = RECEIVING;
-            furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
+            fhttp->state = RECEIVING;
+            furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
         }
         else
         {
             FURI_LOG_E(TAG, "Message or username is NULL");
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
             return;
         }
-        while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+        while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
         {
             furi_delay_ms(100);
         }
@@ -609,33 +633,42 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         else
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 }
 
-static bool flip_social_get_user_info()
+bool flip_social_get_user_info(FlipperHTTP *fhttp)
 {
-    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+    if (!fhttp)
     {
-        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-        fhttp.state = ISSUE;
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
     char url[256];
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/users/%s/extended/", flip_social_explore->usernames[flip_social_explore->index]);
-    if (!flipper_http_get_request_with_headers(url, auth_headers))
+    if (!flipper_http_request(fhttp, GET, url, auth_headers, NULL))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for user info");
-        fhttp.state = ISSUE;
+        fhttp->state = ISSUE;
         return false;
     }
-    fhttp.state = RECEIVING;
+    fhttp->state = RECEIVING;
     return true;
 }
-static bool flip_social_parse_user_info()
+bool flip_social_parse_user_info(FlipperHTTP *fhttp)
 {
-    if (fhttp.last_response == NULL)
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
+        return false;
+    }
+    if (fhttp->last_response == NULL)
     {
         FURI_LOG_E(TAG, "Response is NULL");
         return false;
@@ -645,9 +678,8 @@ static bool flip_social_parse_user_info()
         FURI_LOG_E(TAG, "App instance is NULL");
         return false;
     }
-    char *bio = get_json_value("bio", fhttp.last_response);
-    char *friends = get_json_value("friends", fhttp.last_response);
-    bool parse_success = false;
+    char *bio = get_json_value("bio", fhttp->last_response);
+    char *friends = get_json_value("friends", fhttp->last_response);
     if (bio && friends)
     {
         if (strlen(bio) != 0)
@@ -660,10 +692,9 @@ static bool flip_social_parse_user_info()
         }
         free(bio);
         free(friends);
-        parse_success = true;
+        return true;
     }
-    flipper_http_deinit();
-    return parse_success;
+    return false;
 }
 
 /**
@@ -736,12 +767,12 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             FURI_LOG_E(TAG, "Failed to allocate submenu");
             return;
         }
-        flipper_http_loading_task(
-            flip_social_get_message_users,        // get the message users
-            flip_social_parse_json_message_users, // parse the message users
-            FlipSocialViewSubmenu,                // switch to the messages submenu if successful
-            FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
-            &app->view_dispatcher);               // view dispatcher
+        // flipper_http_loading_task(
+        //     flip_social_get_message_users,        // get the message users
+        //     flip_social_parse_json_message_users, // parse the message users
+        //     FlipSocialViewSubmenu,                // switch to the messages submenu if successful
+        //     FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
+        //     &app->view_dispatcher);               // view dispatcher
         break;
     case FlipSocialSubmenuLoggedInIndexMessagesNewMessage:
         // they need to search for the user to send a message
@@ -755,11 +786,18 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexFeed:
         free_all(true, true);
-        if (!flip_social_load_initial_feed(true, 1))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (!fhttp)
+        {
+            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
+            return;
+        }
+        if (!flip_social_load_initial_feed(fhttp, 1))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
             return;
         }
+        flipper_http_free(fhttp);
         break;
     case FlipSocialSubmenuExploreIndex:
         free_all(true, true);
@@ -888,60 +926,60 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
             {
                 return;
             }
-            if (flipper_http_process_response_async(flip_social_get_user_info, flip_social_parse_user_info))
-            {
-                flip_social_free_explore_dialog();
-                if (!app->dialog_explore)
-                {
-                    if (!easy_flipper_set_dialog_ex(
-                            &app->dialog_explore,
-                            FlipSocialViewExploreDialog,
-                            flip_social_explore->usernames[flip_social_explore->index],
-                            0,
-                            0,
-                            updated_user_message(app->explore_user_bio),
-                            0,
-                            10,
-                            "Remove", // remove if user is a friend (future update)
-                            "Add",    // add if user is not a friend (future update)
-                            NULL,
-                            explore_dialog_callback,
-                            flip_social_callback_to_explore_logged_in,
-                            &app->view_dispatcher,
-                            app))
-                    {
-                        return;
-                    }
-                }
-                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
-            }
-            else
-            {
-                flip_social_free_explore_dialog();
-                if (!app->dialog_explore)
-                {
-                    if (!easy_flipper_set_dialog_ex(
-                            &app->dialog_explore,
-                            FlipSocialViewExploreDialog,
-                            flip_social_explore->usernames[flip_social_explore->index],
-                            0,
-                            0,
-                            "",
-                            0,
-                            10,
-                            "Remove", // remove if user is a friend (future update)
-                            "Add",    // add if user is not a friend (future update)
-                            NULL,
-                            explore_dialog_callback,
-                            flip_social_callback_to_explore_logged_in,
-                            &app->view_dispatcher,
-                            app))
-                    {
-                        return;
-                    }
-                }
-                view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
-            }
+            // if (flipper_http_process_response_async(flip_social_get_user_info, flip_social_parse_user_info))
+            // {
+            //     flip_social_free_explore_dialog();
+            //     if (!app->dialog_explore)
+            //     {
+            //         if (!easy_flipper_set_dialog_ex(
+            //                 &app->dialog_explore,
+            //                 FlipSocialViewExploreDialog,
+            //                 flip_social_explore->usernames[flip_social_explore->index],
+            //                 0,
+            //                 0,
+            //                 updated_user_message(app->explore_user_bio),
+            //                 0,
+            //                 10,
+            //                 "Remove", // remove if user is a friend (future update)
+            //                 "Add",    // add if user is not a friend (future update)
+            //                 NULL,
+            //                 explore_dialog_callback,
+            //                 flip_social_callback_to_explore_logged_in,
+            //                 &app->view_dispatcher,
+            //                 app))
+            //         {
+            //             return;
+            //         }
+            //     }
+            //     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
+            // }
+            // else
+            // {
+            //     flip_social_free_explore_dialog();
+            //     if (!app->dialog_explore)
+            //     {
+            //         if (!easy_flipper_set_dialog_ex(
+            //                 &app->dialog_explore,
+            //                 FlipSocialViewExploreDialog,
+            //                 flip_social_explore->usernames[flip_social_explore->index],
+            //                 0,
+            //                 0,
+            //                 "",
+            //                 0,
+            //                 10,
+            //                 "Remove", // remove if user is a friend (future update)
+            //                 "Add",    // add if user is not a friend (future update)
+            //                 NULL,
+            //                 explore_dialog_callback,
+            //                 flip_social_callback_to_explore_logged_in,
+            //                 &app->view_dispatcher,
+            //                 app))
+            //         {
+            //             return;
+            //         }
+            //     }
+            //     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewExploreDialog);
+            // }
         }
 
         // handle the friends selection
@@ -988,13 +1026,13 @@ void flip_social_callback_submenu_choices(void *context, uint32_t index)
                 return;
             }
             flip_social_message_users->index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
-            flipper_http_loading_task(
-                flip_social_get_messages_with_user,    // get the messages with the selected user
-                flip_social_parse_json_messages,       // parse the messages
-                FlipSocialViewMessagesDialog,          // switch to the messages process if successful
-                FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
-                &app->view_dispatcher                  // view dispatcher
-            );
+            // flipper_http_loading_task(
+            //     flip_social_get_messages_with_user,    // get the messages with the selected user
+            //     flip_social_parse_json_messages,       // parse the messages
+            //     FlipSocialViewMessagesDialog,          // switch to the messages process if successful
+            //     FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
+            //     &app->view_dispatcher                  // view dispatcher
+            // );
         }
 
         // handle the messages user choices selection
@@ -1055,15 +1093,16 @@ void flip_social_logged_out_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
-            if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
             {
                 FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
                 FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
             }
             furi_delay_ms(500);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 
@@ -1105,15 +1144,16 @@ void flip_social_logged_out_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_out) > 0 && strlen(app->wifi_password_logged_out) > 0)
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
-            if (!flipper_http_save_wifi(app->wifi_ssid_logged_out, app->wifi_password_logged_out))
+            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_out, app->wifi_password_logged_out))
             {
                 FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
                 FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
             }
             furi_delay_ms(500);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 
@@ -1274,11 +1314,11 @@ void flip_social_text_input_logged_out_login_item_selected(void *context, uint32
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 2: // Login Button
-        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-        {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-            return;
-        }
+        // if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        // {
+        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        //     return;
+        // }
         flip_social_login_switch_to_view(app);
         break;
     default:
@@ -1415,11 +1455,11 @@ void flip_social_text_input_logged_out_register_item_selected(void *context, uin
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Register button
-        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
-        {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-            return;
-        }
+        // if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        // {
+        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        //     return;
+        // }
         flip_social_register_switch_to_view(app);
         break;
     default:
@@ -1463,15 +1503,16 @@ void flip_social_logged_in_wifi_settings_ssid_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
-            if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
             {
                 FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
                 FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
             }
             furi_delay_ms(500);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 
@@ -1514,15 +1555,16 @@ void flip_social_logged_in_wifi_settings_password_updated(void *context)
     // update the wifi settings
     if (strlen(app->wifi_ssid_logged_in) > 0 && strlen(app->wifi_password_logged_in) > 0)
     {
-        if (flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (fhttp)
         {
-            if (!flipper_http_save_wifi(app->wifi_ssid_logged_in, app->wifi_password_logged_in))
+            if (!flipper_http_save_wifi(fhttp, app->wifi_ssid_logged_in, app->wifi_password_logged_in))
             {
                 FURI_LOG_E(TAG, "Failed to save wifi settings via UART");
                 FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
             }
             furi_delay_ms(500);
-            flipper_http_deinit();
+            flipper_http_free(fhttp);
         }
     }
 
@@ -1684,17 +1726,18 @@ void flip_social_logged_in_profile_change_password_updated(void *context)
     }
 
     // send post request to change password
-    if (flipper_http_init(flipper_http_rx_callback, app))
+    FlipperHTTP *fhttp = flipper_http_alloc();
+    if (fhttp)
     {
         auth_headers_alloc();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
-        if (!flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/change-password/", auth_headers, payload))
+        if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-password/", auth_headers, payload))
         {
             FURI_LOG_E(TAG, "Failed to send post request to change password");
             FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
         }
-        flipper_http_deinit();
+        flipper_http_free(fhttp);
     }
     // Save the settings
     save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
@@ -1725,18 +1768,19 @@ void flip_social_logged_in_profile_change_bio_updated(void *context)
     }
 
     // send post request to change bio
-    if (flipper_http_init(flipper_http_rx_callback, app))
+    FlipperHTTP *fhttp = flipper_http_alloc();
+    if (fhttp)
     {
         auth_headers_alloc();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"bio\":\"%s\"}", app->login_username_logged_out, app->change_bio_logged_in);
-        if (!flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/user/change-bio/", auth_headers, payload))
+        if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-bio/", auth_headers, payload))
         {
             FURI_LOG_E(TAG, "Failed to send post request to change bio");
             FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
         }
         furi_delay_ms(500);
-        flipper_http_deinit();
+        flipper_http_free(fhttp);
     }
     // Save the settings
     save_settings(app->wifi_ssid_logged_out, app->wifi_password_logged_out, app->login_username_logged_out, app->login_username_logged_in, app->login_password_logged_out, app->change_password_logged_in, app->change_bio_logged_in, app->is_logged_in);
@@ -1791,17 +1835,17 @@ void flip_social_text_input_logged_in_profile_item_selected(void *context, uint3
             FURI_LOG_E(TAG, "Failed to allocate submenu for friends");
             return;
         }
-        if (!flipper_http_init(flipper_http_rx_callback, app))
-        {
-            FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
-            return;
-        }
-        flipper_http_loading_task(
-            flip_social_get_friends,
-            flip_social_parse_json_friends,
-            FlipSocialViewSubmenu,
-            FlipSocialViewVariableItemList,
-            &app->view_dispatcher);
+        // if (!flipper_http_init(flipper_http_rx_callback, app))
+        // {
+        //     FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        //     return;
+        // }
+        // flipper_http_loading_task(
+        //     flip_social_get_friends,
+        //     flip_social_parse_json_friends,
+        //     FlipSocialViewSubmenu,
+        //     FlipSocialViewVariableItemList,
+        //     &app->view_dispatcher);
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
@@ -1838,7 +1882,8 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     app->message_user_choice_logged_in[app->message_user_choice_logged_in_temp_buffer_size - 1] = '\0';
 
     // send post request to send message
-    if (!flipper_http_init(flipper_http_rx_callback, app))
+    FlipperHTTP *fhttp = flipper_http_alloc();
+    if (!fhttp)
     {
         FURI_LOG_E(TAG, "Failed to initialize HTTP");
         return;
@@ -1849,13 +1894,13 @@ void flip_social_logged_in_messages_user_choice_message_updated(void *context)
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
     snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_explore->usernames[flip_social_explore->index], app->message_user_choice_logged_in);
 
-    if (!flipper_http_post_request_with_headers(url, auth_headers, payload)) // start the async request
+    if (!flipper_http_request(fhttp, POST, url, auth_headers, payload)) // start the async request
     {
         FURI_LOG_E(TAG, "Failed to send post request to send message");
         FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
     }
     furi_delay_ms(1000);
-    flipper_http_deinit();
+    flipper_http_free(fhttp);
     // add user to the top of the list if not already there
     for (int i = 0; i < flip_social_message_users->count; i++)
     {
@@ -1911,47 +1956,51 @@ void flip_social_logged_in_messages_new_message_updated(void *context)
     // Ensure null-termination
     app->messages_new_message_logged_in[app->messages_new_message_logged_in_temp_buffer_size - 1] = '\0';
 
+    FlipperHTTP *fhttp = flipper_http_alloc();
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "Failed to initialize HTTP");
+        return;
+    }
+
     bool send_message_to_user()
     {
         // send post request to send message
-        if (!flipper_http_init(flipper_http_rx_callback, app))
-        {
-            FURI_LOG_E(TAG, "Failed to initialize HTTP");
-            return false;
-        }
         auth_headers_alloc();
         char url[128];
         char payload[256];
         snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
         snprintf(payload, sizeof(payload), "{\"receiver\":\"%s\",\"content\":\"%s\"}", flip_social_message_users->usernames[flip_social_message_users->index], app->messages_new_message_logged_in);
-        if (!flipper_http_post_request_with_headers(url, auth_headers, payload))
+        if (!flipper_http_request(fhttp, POST, url, auth_headers, payload))
         {
             FURI_LOG_E(TAG, "Failed to send post request to send message");
             FURI_LOG_E(TAG, "Make sure the Flipper is connected to the Wifi Dev Board");
             easy_flipper_dialog("Error", "Failed to send message\n\n\nPress BACK to return :D");
-            flipper_http_deinit();
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             return false;
         }
-        fhttp.state = RECEIVING;
+        fhttp->state = RECEIVING;
         return true;
     }
     bool parse_message_to_user()
     {
-        while (fhttp.state != IDLE)
+        while (fhttp->state != IDLE)
         {
             furi_delay_ms(10);
         }
-        flipper_http_deinit();
         return true;
     }
+
     // well, we got a freeze here, so let's use the loading task to switch views and force refresh
     flipper_http_loading_task(
+        fhttp,
         send_message_to_user,
         parse_message_to_user,
         FlipSocialViewSubmenu,
         FlipSocialViewLoggedInMessagesNewMessageInput,
         &app->view_dispatcher);
+
+    flipper_http_free(fhttp);
 }
 
 void flip_social_logged_in_explore_updated(void *context)
@@ -1985,12 +2034,12 @@ void flip_social_logged_in_explore_updated(void *context)
         return;
     }
 
-    flipper_http_loading_task(
-        flip_social_get_explore,        // get the explore users
-        flip_social_parse_json_explore, // parse the explore users
-        FlipSocialViewSubmenu,          // switch to the explore submenu if successful
-        FlipSocialViewLoggedInSubmenu,  // switch back to the main submenu if failed
-        &app->view_dispatcher);         // view dispatcher
+    // flipper_http_loading_task(
+    //     flip_social_get_explore,        // get the explore users
+    //     flip_social_parse_json_explore, // parse the explore users
+    //     FlipSocialViewSubmenu,          // switch to the explore submenu if successful
+    //     FlipSocialViewLoggedInSubmenu,  // switch back to the main submenu if failed
+    //     &app->view_dispatcher);         // view dispatcher
 }
 
 void flip_social_logged_in_message_users_updated(void *context)
@@ -2026,12 +2075,12 @@ void flip_social_logged_in_message_users_updated(void *context)
     }
 
     // get users
-    flipper_http_loading_task(
-        flip_social_get_explore_2,                   // get the explore users
-        flip_social_parse_json_message_user_choices, // parse the explore users
-        FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
-        FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
-        &app->view_dispatcher);                      // view dispatcher
+    // flipper_http_loading_task(
+    //     flip_social_get_explore_2,                   // get the explore users
+    //     flip_social_parse_json_message_user_choices, // parse the explore users
+    //     FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
+    //     FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
+    //     &app->view_dispatcher);                      // view dispatcher
 }
 
 static void flip_social_widget_set_text(char *message, Widget **widget)
@@ -2145,8 +2194,8 @@ void flip_social_loader_draw_callback(Canvas *canvas, void *model)
         return;
     }
 
-    SerialState http_state = fhttp.state;
     DataLoaderModel *data_loader_model = (DataLoaderModel *)model;
+    HTTPState http_state = data_loader_model->fhttp->state;
     DataState data_state = data_loader_model->data_state;
     char *title = data_loader_model->title;
 
@@ -2165,7 +2214,7 @@ void flip_social_loader_draw_callback(Canvas *canvas, void *model)
 
     if (data_state == DataStateError || data_state == DataStateParseError)
     {
-        flip_social_request_error_draw(canvas);
+        flip_social_request_error_draw(canvas, data_loader_model);
         return;
     }
 
@@ -2206,7 +2255,7 @@ static void flip_social_loader_process_callback(void *context)
 {
     if (context == NULL)
     {
-        FURI_LOG_E(TAG, "flip_social_loader_process_callback - context is NULL");
+        FURI_LOG_E(TAG, "loader_process_callback - context is NULL");
         DEV_CRASH();
         return;
     }
@@ -2215,7 +2264,21 @@ static void flip_social_loader_process_callback(void *context)
     View *view = app->view_loader;
 
     DataState current_data_state;
-    with_view_model(view, DataLoaderModel * model, { current_data_state = model->data_state; }, false);
+    DataLoaderModel *loader_model = NULL;
+    with_view_model(
+        view,
+        DataLoaderModel * model,
+        {
+            current_data_state = model->data_state;
+            loader_model = model;
+        },
+        false);
+    if (!loader_model || !loader_model->fhttp)
+    {
+        FURI_LOG_E(TAG, "Model or fhttp is NULL");
+        DEV_CRASH();
+        return;
+    }
 
     if (current_data_state == DataStateInitial)
     {
@@ -2233,7 +2296,7 @@ static void flip_social_loader_process_callback(void *context)
                 }
 
                 // Clear any previous responses
-                strncpy(fhttp.last_response, "", 1);
+                strncpy(model->fhttp->last_response, "", 1);
                 bool request_status = fetch(model);
                 if (!request_status)
                 {
@@ -2244,21 +2307,21 @@ static void flip_social_loader_process_callback(void *context)
     }
     else if (current_data_state == DataStateRequested || current_data_state == DataStateError)
     {
-        if (fhttp.state == IDLE && fhttp.last_response != NULL)
+        if (loader_model->fhttp->state == IDLE && loader_model->fhttp->last_response != NULL)
         {
-            if (strstr(fhttp.last_response, "[PONG]") != NULL)
+            if (strstr(loader_model->fhttp->last_response, "[PONG]") != NULL)
             {
                 FURI_LOG_DEV(TAG, "PONG received.");
             }
-            else if (strncmp(fhttp.last_response, "[SUCCESS]", 9) == 0)
+            else if (strncmp(loader_model->fhttp->last_response, "[SUCCESS]", 9))
             {
-                FURI_LOG_DEV(TAG, "SUCCESS received. %s", fhttp.last_response ? fhttp.last_response : "NULL");
+                FURI_LOG_DEV(TAG, "SUCCESS received. %s", loader_model->fhttp->last_response ? loader_model->fhttp->last_response : "NULL");
             }
-            else if (strncmp(fhttp.last_response, "[ERROR]", 9) == 0)
+            else if (strncmp(loader_model->fhttp->last_response, "[ERROR]", 9))
             {
-                FURI_LOG_DEV(TAG, "ERROR received. %s", fhttp.last_response ? fhttp.last_response : "NULL");
+                FURI_LOG_DEV(TAG, "ERROR received. %s", loader_model->fhttp->last_response ? loader_model->fhttp->last_response : "NULL");
             }
-            else if (strlen(fhttp.last_response) == 0)
+            else if (strlen(loader_model->fhttp->last_response))
             {
                 // Still waiting on response
             }
@@ -2267,21 +2330,21 @@ static void flip_social_loader_process_callback(void *context)
                 with_view_model(view, DataLoaderModel * model, { model->data_state = DataStateReceived; }, true);
             }
         }
-        else if (fhttp.state == SENDING || fhttp.state == RECEIVING)
+        else if (loader_model->fhttp->state == SENDING || loader_model->fhttp->state == RECEIVING)
         {
             // continue waiting
         }
-        else if (fhttp.state == INACTIVE)
+        else if (loader_model->fhttp->state == INACTIVE)
         {
             // inactive. try again
         }
-        else if (fhttp.state == ISSUE)
+        else if (loader_model->fhttp->state == ISSUE)
         {
             with_view_model(view, DataLoaderModel * model, { model->data_state = DataStateError; }, true);
         }
         else
         {
-            FURI_LOG_DEV(TAG, "Unexpected state: %d lastresp: %s", fhttp.state, fhttp.last_response ? fhttp.last_response : "NULL");
+            FURI_LOG_DEV(TAG, "Unexpected state: %d lastresp: %s", loader_model->fhttp->state, loader_model->fhttp->last_response ? loader_model->fhttp->last_response : "NULL");
             DEV_CRASH();
         }
     }
@@ -2302,7 +2365,7 @@ static void flip_social_loader_process_callback(void *context)
                 {
                     data_text = model->parser(model);
                 }
-                FURI_LOG_DEV(TAG, "Parsed data: %s\r\ntext: %s", fhttp.last_response ? fhttp.last_response : "NULL", data_text ? data_text : "NULL");
+                FURI_LOG_DEV(TAG, "Parsed data: %s\r\ntext: %s", model->fhttp->last_response ? model->fhttp->last_response : "NULL", data_text ? data_text : "NULL");
                 model->data_text = data_text;
                 if (data_text == NULL)
                 {
@@ -2327,14 +2390,14 @@ static void flip_social_loader_process_callback(void *context)
                 }
                 else
                 {
-                    flip_social_widget_set_text(model->data_text != NULL ? model->data_text : "", &app_instance->widget_result);
+                    flip_social_widget_set_text(model->data_text != NULL ? model->data_text : "", &app->widget_result);
                     if (model->data_text != NULL)
                     {
                         free(model->data_text);
                         model->data_text = NULL;
                     }
-                    view_set_previous_callback(widget_get_view(app_instance->widget_result), model->back_callback);
-                    view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
+                    view_set_previous_callback(widget_get_view(app->widget_result), model->back_callback);
+                    view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
                 }
             },
             true);
@@ -2416,7 +2479,7 @@ void flip_social_loader_free_model(View *view)
 {
     if (view == NULL)
     {
-        FURI_LOG_E(TAG, "flip_social_loader_free_model - view is NULL");
+        FURI_LOG_E(TAG, "loader_free_model - view is NULL");
         DEV_CRASH();
         return;
     }
@@ -2431,8 +2494,14 @@ void flip_social_loader_free_model(View *view)
             }
             if (model->parser_context)
             {
-                free(model->parser_context);
-                model->parser_context = NULL;
+                // do not free the context here, it is the app context
+                // free(model->parser_context);
+                // model->parser_context = NULL;
+            }
+            if (model->fhttp)
+            {
+                flipper_http_free(model->fhttp);
+                model->fhttp = NULL;
             }
         },
         false);
@@ -2487,22 +2556,28 @@ void flip_social_generic_switch_to_view(FlipSocialApp *app, char *title, DataLoa
             model->back_callback = back;
             model->data_state = DataStateInitial;
             model->data_text = NULL;
+            //
+            model->parser_context = app;
+            if (!model->fhttp)
+            {
+                model->fhttp = flipper_http_alloc();
+            }
         },
         true);
 
     view_dispatcher_switch_to_view(app->view_dispatcher, view_id);
 }
 
-static bool flip_social_get_home_notification()
+bool flip_social_get_home_notification(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
         return false;
     }
-    if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+    if (!fhttp)
     {
-        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
     // Create the directory for saving settings
@@ -2514,24 +2589,35 @@ static bool flip_social_get_home_notification()
     storage_common_mkdir(storage, directory_path);
     furi_record_close(RECORD_STORAGE);
     auth_headers_alloc();
+
     snprintf(
-        fhttp.file_path,
-        sizeof(fhttp.file_path),
+        fhttp->file_path,
+        sizeof(fhttp->file_path),
         STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data/notification.json");
 
-    fhttp.save_received_data = true;
-    return flipper_http_get_request_with_headers("https://www.jblanked.com/flipper/api/flip-social-notifications/", auth_headers);
+    fhttp->save_received_data = true;
+    return flipper_http_request(fhttp, GET, "https://www.jblanked.com/flipper/api/flip-social-notifications/", auth_headers, NULL);
 }
-static bool flip_social_parse_home_notification()
+bool flip_social_parse_home_notification(FlipperHTTP *fhttp)
 {
-    FuriString *notification = flipper_http_load_from_file(fhttp.file_path);
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "app_instance is NULL");
+        return false;
+    }
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
+        return false;
+    }
+
+    // Load the notification from the file
+    FuriString *notification = flipper_http_load_from_file(fhttp->file_path);
     if (notification == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load notification from file");
-        flipper_http_deinit();
         return false;
     }
-    flipper_http_deinit();
 
     // Check if announcement and analytics key exists
     FuriString *announcement_json = get_json_value_furi("announcement", notification);
@@ -2677,5 +2763,6 @@ static bool flip_social_parse_home_notification()
 // home notification
 bool flip_social_home_notification()
 {
-    return flipper_http_process_response_async(flip_social_get_home_notification, flip_social_parse_home_notification);
+    // return flipper_http_process_response_async(flip_social_get_home_notification, flip_social_parse_home_notification);
+    return true; // for now
 }

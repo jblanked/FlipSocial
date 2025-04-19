@@ -372,7 +372,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp.state = ISSUE;
             return false;
         }
         if (feed_view_alloc())
@@ -382,7 +381,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         else
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-            fhttp.state = ISSUE;
             return false;
         }
     }
@@ -399,12 +397,19 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
 
             save_char("series_index", new_series_index);
 
-            if (!flip_social_load_initial_feed(true, flip_feed_info->series_index))
+            FlipperHTTP *fhttp = flipper_http_alloc();
+            if (!fhttp)
             {
-                FURI_LOG_E(TAG, "Failed to load initial feed");
-                fhttp.state = ISSUE;
+                FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
                 return false;
             }
+            if (!flip_social_load_initial_feed(fhttp, flip_feed_info->series_index))
+            {
+                FURI_LOG_E(TAG, "Failed to load initial feed");
+                flipper_http_free(fhttp);
+                return false;
+            }
+            flipper_http_free(fhttp);
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
             flip_social_free_feed_view();
@@ -412,7 +417,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
             {
                 FURI_LOG_E(TAG, "Failed to load nexy feed post");
-                fhttp.state = ISSUE;
                 return false;
             }
             if (feed_view_alloc())
@@ -422,7 +426,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             else
             {
                 FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-                fhttp.state = ISSUE;
                 return false;
             }
         }
@@ -437,7 +440,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp.state = ISSUE;
             return false;
         }
         if (feed_view_alloc())
@@ -447,7 +449,6 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         else
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
-            fhttp.state = ISSUE;
             return false;
         }
     }
@@ -474,7 +475,8 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             FURI_LOG_E(TAG, "Username is NULL");
             return false;
         }
-        if (!flipper_http_init(flipper_http_rx_callback, app_instance))
+        FlipperHTTP *fhttp = flipper_http_alloc();
+        if (!fhttp)
         {
             FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
             return false;
@@ -482,7 +484,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         auth_headers_alloc();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
-        if (flipper_http_post_request_with_headers("https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
+        if (flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
         {
             // save feed item
             char new_save[512];
@@ -493,7 +495,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             if (!flip_social_save_post(id, new_save))
             {
                 FURI_LOG_E(TAG, "Failed to save the feed post");
-                flipper_http_deinit();
+                flipper_http_free(fhttp);
                 return false;
             }
         }
@@ -504,7 +506,8 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
-            fhttp.state = ISSUE;
+            fhttp->state = ISSUE;
+            flipper_http_free(fhttp);
             return false;
         }
         if (feed_view_alloc())
@@ -515,7 +518,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         {
             FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         }
-        flipper_http_deinit();
+        flipper_http_free(fhttp);
     }
     return false;
 }

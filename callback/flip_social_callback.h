@@ -291,6 +291,7 @@ struct DataLoaderModel
     size_t request_count;
     ViewNavigationCallback back_callback;
     FuriTimer *timer;
+    FlipperHTTP *fhttp;
 };
 void flip_social_generic_switch_to_view(FlipSocialApp *app, char *title, DataLoaderFetch fetcher, DataLoaderParser parser, size_t request_count, ViewNavigationCallback back, uint32_t view_id);
 
