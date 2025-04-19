@@ -2,7 +2,7 @@
 #include <flip_storage/flip_social_storage.h>
 #include <feed/feed.h>
 
-FlipSocialApp *flip_social_app_alloc()
+FlipSocialApp *alloc_flip_social_app()
 {
     // Initiailize the app
     FlipSocialApp *app = (FlipSocialApp *)malloc(sizeof(FlipSocialApp));
@@ -368,7 +368,7 @@ FlipSocialApp *flip_social_app_alloc()
             app->wifi_ssid_logged_out_temp_buffer[app->wifi_ssid_logged_in_temp_buffer_size - 1] = '\0';
         }
 
-        auth_headers_alloc();
+        alloc_headers();
 
         if (app->is_logged_in != NULL && strcmp(app->is_logged_in, "true") == 0)
         {
@@ -433,7 +433,7 @@ FlipSocialModel *alloc_explore(void)
     return explore;
 }
 
-void auth_headers_alloc(void)
+void alloc_headers(void)
 {
     if (!app_instance)
     {
@@ -455,7 +455,7 @@ void auth_headers_alloc(void)
     }
 }
 
-FlipSocialFeedMini *flip_feed_info_alloc(void)
+FlipSocialFeedMini *alloc_feed_info(void)
 {
     FlipSocialFeedMini *feed_info = (FlipSocialFeedMini *)malloc(sizeof(FlipSocialFeedMini));
     if (!feed_info)
@@ -467,7 +467,7 @@ FlipSocialFeedMini *flip_feed_info_alloc(void)
     feed_info->index = 0;
     return feed_info;
 }
-bool messages_dialog_alloc(bool free_first)
+bool allow_messages_dialog(bool free_first)
 {
     if (free_first)
     {
@@ -481,7 +481,7 @@ bool messages_dialog_alloc(bool free_first)
                 flip_social_messages->usernames[flip_social_messages->index],
                 0,
                 0,
-                updated_user_message(flip_social_messages->messages[flip_social_messages->index]),
+                alloc_format_message(flip_social_messages->messages[flip_social_messages->index]),
                 0,
                 10,
                 flip_social_messages->index != 0 ? "Prev" : NULL,
@@ -498,7 +498,7 @@ bool messages_dialog_alloc(bool free_first)
     }
     return false;
 }
-char *updated_user_message(const char *user_message)
+char *alloc_format_message(const char *user_message)
 {
     if (user_message == NULL)
     {
@@ -807,7 +807,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
             return false;
         }
-        if (feed_view_alloc())
+        if (alloc_feed_view())
         {
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
@@ -852,7 +852,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
                 FURI_LOG_E(TAG, "Failed to load nexy feed post");
                 return false;
             }
-            if (feed_view_alloc())
+            if (alloc_feed_view())
             {
                 view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
             }
@@ -875,7 +875,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
             return false;
         }
-        if (feed_view_alloc())
+        if (alloc_feed_view())
         {
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
@@ -914,7 +914,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
             return false;
         }
-        auth_headers_alloc();
+        alloc_headers();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"post_id\":\"%u\"}", app_instance->login_username_logged_in, flip_feed_item->id);
         if (flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/feed/flip/", auth_headers, payload))
@@ -943,7 +943,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             flipper_http_free(fhttp);
             return false;
         }
-        if (feed_view_alloc())
+        if (alloc_feed_view())
         {
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInFeed);
         }
@@ -956,7 +956,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
     return false;
 }
 
-bool feed_view_alloc()
+bool alloc_feed_view()
 {
     if (!app_instance)
     {
@@ -1115,7 +1115,7 @@ bool alloc_text_input(uint32_t view_id)
     return true;
 }
 
-bool about_widget_alloc(bool is_logged_in)
+bool alloc_about_widget(bool is_logged_in)
 {
     if (!is_logged_in)
     {

@@ -26,7 +26,7 @@ bool feed_fetch(FlipperHTTP *fhttp, int series_index)
         STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed.json");
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     char command[96];
     if (strstr(flip_social_feed_type[flip_social_feed_type_index], "Global"))
     {
@@ -261,7 +261,7 @@ bool feed_load_initial_feed(FlipperHTTP *fhttp, int series_index)
         loading_free(loading);
         return false;
     }
-    if (!feed_view_alloc())
+    if (!alloc_feed_view())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);

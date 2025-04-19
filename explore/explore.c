@@ -29,7 +29,7 @@ bool explore_fetch(FlipperHTTP *fhttp)
         keyword);
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     char url[256];
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
     if (!flipper_http_request(fhttp, GET, url, auth_headers, NULL))
@@ -67,7 +67,7 @@ bool explore_fetch_2(FlipperHTTP *fhttp)
         keyword);
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     char url[256];
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
     return flipper_http_request(fhttp, GET, url, auth_headers, NULL);

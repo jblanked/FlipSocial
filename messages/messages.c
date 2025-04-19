@@ -85,7 +85,7 @@ bool messages_get_message_users(FlipperHTTP *fhttp)
         STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages/message_users.json");
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     snprintf(command, 128, "https://www.jblanked.com/flipper/api/messages/%s/get/list/%d/", app_instance->login_username_logged_out, MAX_MESSAGE_USERS);
     if (!flipper_http_request(fhttp, GET, command, auth_headers, NULL))
     {
@@ -135,7 +135,7 @@ bool messages_get_messages_with_user(FlipperHTTP *fhttp)
         flip_social_message_users->usernames[flip_social_message_users->index]);
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     snprintf(command, sizeof(command), "https://www.jblanked.com/flipper/api/messages/%s/get/%s/%d/", app_instance->login_username_logged_out, flip_social_message_users->usernames[flip_social_message_users->index], MAX_MESSAGES);
     if (!flipper_http_request(fhttp, GET, command, auth_headers, NULL))
     {
@@ -307,7 +307,7 @@ bool messages_parse_json_messages(FlipperHTTP *fhttp)
         furi_string_free(sender);
         furi_string_free(content);
     }
-    if (!messages_dialog_alloc(true))
+    if (!allow_messages_dialog(true))
     {
         FURI_LOG_E(TAG, "Failed to allocate and set messages dialog.");
         furi_string_free(message_data);

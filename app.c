@@ -13,7 +13,7 @@ int32_t main_flip_social(void *p)
     UNUSED(p);
 
     // Initialize the Hello World application
-    app_instance = flip_social_app_alloc();
+    app_instance = alloc_flip_social_app();
     if (!app_instance)
     {
         // Allocation failed

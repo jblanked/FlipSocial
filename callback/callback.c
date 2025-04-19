@@ -27,7 +27,7 @@ static bool flip_social_login_fetch(DataLoaderModel *model)
     }
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->login_username_logged_out, app_instance->login_password_logged_out);
-    auth_headers_alloc();
+    alloc_headers();
     return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/login/", auth_headers, buffer);
 }
 
@@ -147,7 +147,7 @@ static char *flip_social_register_parse(DataLoaderModel *model)
         app_instance->is_logged_in = "true";
 
         // update header credentials
-        auth_headers_alloc();
+        alloc_headers();
 
         // save the credentials
         save_settings(app_instance->wifi_ssid_logged_out, app_instance->wifi_password_logged_out, app_instance->login_username_logged_out, app_instance->login_username_logged_in, app_instance->login_password_logged_out, app_instance->change_password_logged_in, app_instance->change_bio_logged_in, app_instance->is_logged_in);
@@ -380,7 +380,7 @@ void explore_dialog_callback(DialogExResult result, void *context)
             // remove friend
             char remove_payload[128];
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
-            auth_headers_alloc();
+            alloc_headers();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             free_explore_dialog();
@@ -396,7 +396,7 @@ void explore_dialog_callback(DialogExResult result, void *context)
             // add friend
             char add_payload[128];
             snprintf(add_payload, sizeof(add_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_explore->usernames[flip_social_explore->index]);
-            auth_headers_alloc();
+            alloc_headers();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/add-friend/", auth_headers, add_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             free_explore_dialog();
@@ -417,7 +417,7 @@ static void friends_dialog_callback(DialogExResult result, void *context)
             // remove friend
             char remove_payload[128];
             snprintf(remove_payload, sizeof(remove_payload), "{\"username\":\"%s\",\"friend\":\"%s\"}", app_instance->login_username_logged_in, flip_social_friends->usernames[flip_social_friends->index]);
-            auth_headers_alloc();
+            alloc_headers();
             flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/remove-friend/", auth_headers, remove_payload);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
             free_friends_dialog();
@@ -437,7 +437,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             flip_social_messages->index--;
             dialog_ex_reset(app->dialog_messages);
             dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
-            dialog_ex_set_text(app->dialog_messages, updated_user_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, alloc_format_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
             if (flip_social_messages->index != 0)
             {
                 dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
@@ -447,7 +447,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
             free_messages_dialog();
-            messages_dialog_alloc(false);
+            allow_messages_dialog(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
         }
     }
@@ -458,7 +458,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             flip_social_messages->index++;
             dialog_ex_reset(app->dialog_messages);
             dialog_ex_set_header(app->dialog_messages, flip_social_messages->usernames[flip_social_messages->index], 0, 0, AlignLeft, AlignTop);
-            dialog_ex_set_text(app->dialog_messages, updated_user_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
+            dialog_ex_set_text(app->dialog_messages, alloc_format_message(flip_social_messages->messages[flip_social_messages->index]), 0, 10, AlignLeft, AlignTop);
             dialog_ex_set_left_button_text(app->dialog_messages, "Prev");
             if (flip_social_messages->index != flip_social_messages->count - 1)
             {
@@ -468,7 +468,7 @@ void callback_message_dialog(DialogExResult result, void *context)
             // switch view, free dialog, re-alloc dialog, switch back to dialog
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewWidgetResult);
             free_messages_dialog();
-            messages_dialog_alloc(false);
+            allow_messages_dialog(false);
             view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewMessagesDialog);
         }
     }
@@ -690,7 +690,7 @@ void callback_submenu_choices(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewVariableItemList);
         break;
     case FlipSocialSubmenuLoggedOutIndexAbout:
-        if (!about_widget_alloc(false))
+        if (!alloc_about_widget(false))
         {
             return;
         }
@@ -782,7 +782,7 @@ void callback_submenu_choices(void *context, uint32_t index)
         break;
     case FlipSocialSubmenuLoggedInIndexAbout:
         free_all(true, false, context);
-        if (!about_widget_alloc(true))
+        if (!alloc_about_widget(true))
         {
             FURI_LOG_E(TAG, "Failed to allocate about widget");
             return;
@@ -844,7 +844,7 @@ void callback_submenu_choices(void *context, uint32_t index)
                         "New Feed Post",
                         0,
                         0,
-                        updated_user_message(selected_message),
+                        alloc_format_message(selected_message),
                         0,
                         10,
                         "Delete",
@@ -891,7 +891,7 @@ void callback_submenu_choices(void *context, uint32_t index)
             //                 flip_social_explore->usernames[flip_social_explore->index],
             //                 0,
             //                 0,
-            //                 updated_user_message(app->explore_user_bio),
+            //                 alloc_format_message(app->explore_user_bio),
             //                 0,
             //                 10,
             //                 "Remove", // remove if user is a friend (future update)
@@ -1683,7 +1683,7 @@ void callback_logged_in_profile_change_password_updated(void *context)
     FlipperHTTP *fhttp = flipper_http_alloc();
     if (fhttp)
     {
-        auth_headers_alloc();
+        alloc_headers();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"old_password\":\"%s\",\"new_password\":\"%s\"}", app->login_username_logged_out, old_password, app->change_password_logged_in);
         if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-password/", auth_headers, payload))
@@ -1725,7 +1725,7 @@ void callback_logged_in_profile_change_bio_updated(void *context)
     FlipperHTTP *fhttp = flipper_http_alloc();
     if (fhttp)
     {
-        auth_headers_alloc();
+        alloc_headers();
         char payload[256];
         snprintf(payload, sizeof(payload), "{\"username\":\"%s\",\"bio\":\"%s\"}", app->login_username_logged_out, app->change_bio_logged_in);
         if (!flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/change-bio/", auth_headers, payload))
@@ -1842,7 +1842,7 @@ void callback_logged_in_messages_user_choice_message_updated(void *context)
         FURI_LOG_E(TAG, "Failed to initialize HTTP");
         return;
     }
-    auth_headers_alloc();
+    alloc_headers();
     char url[128];
     char payload[256];
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
@@ -1920,7 +1920,7 @@ void callback_logged_in_messages_new_message_updated(void *context)
     bool send_message_to_user()
     {
         // send post request to send message
-        auth_headers_alloc();
+        alloc_headers();
         char url[128];
         char payload[256];
         snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/messages/%s/post/", app->login_username_logged_in);
@@ -2057,7 +2057,7 @@ bool callback_get_home_notification(FlipperHTTP *fhttp)
     Storage *storage = furi_record_open(RECORD_STORAGE);
     storage_common_mkdir(storage, directory_path);
     furi_record_close(RECORD_STORAGE);
-    auth_headers_alloc();
+    alloc_headers();
 
     snprintf(
         fhttp->file_path,

@@ -26,7 +26,7 @@ bool friends_fetch(FlipperHTTP *fhttp)
         STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends.json");
 
     fhttp->save_received_data = true;
-    auth_headers_alloc();
+    alloc_headers();
     snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/friends/%s/", app_instance->login_username_logged_in);
     if (!flipper_http_request(fhttp, GET, url, auth_headers, NULL))
     {
