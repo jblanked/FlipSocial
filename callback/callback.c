@@ -1,6 +1,6 @@
 #include <callback/callback.h>
 #include <callback/loader.h>
-#include <messages/flip_social_messages.h>
+#include <messages/messages.h>
 #include <friends/friends.h>
 #include <explore/explore.h>
 #include <feed/feed.h>
@@ -722,8 +722,8 @@ void callback_submenu_choices(void *context, uint32_t index)
             return;
         }
         // flipper_http_loading_task(
-        //     flip_social_get_message_users,        // get the message users
-        //     flip_social_parse_json_message_users, // parse the message users
+        //     messages_get_message_users,        // get the message users
+        //     messages_parse_json_message_users, // parse the message users
         //     FlipSocialViewSubmenu,                // switch to the messages submenu if successful
         //     FlipSocialViewLoggedInSubmenu,        // switch back to the main submenu if failed
         //     &app->view_dispatcher);               // view dispatcher
@@ -981,8 +981,8 @@ void callback_submenu_choices(void *context, uint32_t index)
             }
             flip_social_message_users->index = index - FlipSocialSubmenuLoggedInIndexMessagesUsersStart;
             // flipper_http_loading_task(
-            //     flip_social_get_messages_with_user,    // get the messages with the selected user
-            //     flip_social_parse_json_messages,       // parse the messages
+            //     messages_get_messages_with_user,    // get the messages with the selected user
+            //     messages_parse_json_messages,       // parse the messages
             //     FlipSocialViewMessagesDialog,          // switch to the messages process if successful
             //     FlipSocialViewLoggedInMessagesSubmenu, // switch back to the messages submenu if failed
             //     &app->view_dispatcher                  // view dispatcher
@@ -1878,7 +1878,7 @@ void callback_logged_in_messages_user_choice_message_updated(void *context)
     flip_social_message_users->count++;
 
     // redraw submenu
-    flip_social_update_messages_submenu();
+    messages_submenu_update();
     view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewSubmenu);
 }
 
@@ -2031,7 +2031,7 @@ void callback_logged_in_message_users_updated(void *context)
     // get users
     // flipper_http_loading_task(
     //     explore_fetch_2,                             // get the explore users
-    //     flip_social_parse_json_message_user_choices, // parse the explore users
+    //     messages_parse_json_message_user_choices, // parse the explore users
     //     FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
     //     FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed
     //     &app->view_dispatcher);                      // view dispatcher

@@ -1,7 +1,7 @@
-#include "flip_social_messages.h"
+#include <messages/messages.h>
 #include <alloc/alloc.h>
 
-bool flip_social_update_messages_submenu()
+bool messages_submenu_update()
 {
     if (!app_instance)
     {
@@ -28,7 +28,7 @@ bool flip_social_update_messages_submenu()
     return true;
 }
 
-bool flip_social_update_submenu_user_choices()
+bool messages_update_submenu_user_choices()
 {
     if (app_instance == NULL)
     {
@@ -55,7 +55,7 @@ bool flip_social_update_submenu_user_choices()
 }
 
 // Get all the users that have sent messages to the logged in user
-bool flip_social_get_message_users(FlipperHTTP *fhttp)
+bool messages_get_message_users(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -98,7 +98,7 @@ bool flip_social_get_message_users(FlipperHTTP *fhttp)
 }
 
 // Get all the messages between the logged in user and the selected user
-bool flip_social_get_messages_with_user(FlipperHTTP *fhttp)
+bool messages_get_messages_with_user(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -148,7 +148,7 @@ bool flip_social_get_messages_with_user(FlipperHTTP *fhttp)
 }
 
 // Parse the users that have sent messages to the logged-in user
-bool flip_social_parse_json_message_users(FlipperHTTP *fhttp)
+bool messages_parse_json_message_users(FlipperHTTP *fhttp)
 {
     if (!fhttp)
     {
@@ -188,7 +188,7 @@ bool flip_social_parse_json_message_users(FlipperHTTP *fhttp)
     }
 
     // Add submenu items for the users
-    flip_social_update_messages_submenu();
+    messages_submenu_update();
 
     // Free the JSON data
     furi_string_free(message_data);
@@ -196,7 +196,7 @@ bool flip_social_parse_json_message_users(FlipperHTTP *fhttp)
 }
 
 // Parse the users that the logged in user can message
-bool flip_social_parse_json_message_user_choices(FlipperHTTP *fhttp)
+bool messages_parse_json_message_user_choices(FlipperHTTP *fhttp)
 {
     if (!fhttp)
     {
@@ -237,7 +237,7 @@ bool flip_social_parse_json_message_user_choices(FlipperHTTP *fhttp)
     }
 
     // Add submenu items for the users
-    flip_social_update_submenu_user_choices();
+    messages_update_submenu_user_choices();
 
     // Free the JSON data
     furi_string_free(user_data);
@@ -245,7 +245,7 @@ bool flip_social_parse_json_message_user_choices(FlipperHTTP *fhttp)
 }
 
 // parse messages between the logged in user and the selected user
-bool flip_social_parse_json_messages(FlipperHTTP *fhttp)
+bool messages_parse_json_messages(FlipperHTTP *fhttp)
 {
     if (!fhttp)
     {
