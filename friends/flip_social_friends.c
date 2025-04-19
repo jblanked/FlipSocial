@@ -60,7 +60,7 @@ bool flip_social_update_friends()
     submenu_set_header(app_instance->submenu, "Friends");
     for (int i = 0; i < flip_social_friends->count; i++)
     {
-        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, callback_submenu_choices, app_instance);
     }
     return true;
 }
@@ -107,7 +107,7 @@ bool flip_social_parse_json_friends(FlipperHTTP *fhttp)
             break;
         }
         snprintf(flip_social_friends->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(friend));
-        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_friends->usernames[i], FlipSocialSubmenuLoggedInIndexFriendsStart + i, callback_submenu_choices, app_instance);
         flip_social_friends->count++;
         furi_string_free(friend);
     }

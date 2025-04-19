@@ -63,8 +63,13 @@ int32_t main_flip_social(void *p)
             strcmp(is_notifications, "on") == 0 &&
             strcmp(is_logged_in, "true") == 0)
         {
-            flip_social_home_notification();
+            callback_home_notification();
         }
+
+        // if (update_is_ready(fhttp, true))
+        // {
+        //     easy_flipper_dialog("Update Status", "Complete.\nRestart your Flipper Zero.");
+        // }
     }
 
     flipper_http_free(fhttp);

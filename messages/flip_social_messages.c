@@ -20,10 +20,10 @@ bool flip_social_update_messages_submenu()
     }
     submenu_reset(app_instance->submenu);
     submenu_set_header(app_instance->submenu, "Messages");
-    submenu_add_item(app_instance->submenu, "[New Message]", FlipSocialSubmenuLoggedInIndexMessagesNewMessage, flip_social_callback_submenu_choices, app_instance);
+    submenu_add_item(app_instance->submenu, "[New Message]", FlipSocialSubmenuLoggedInIndexMessagesNewMessage, callback_submenu_choices, app_instance);
     for (int i = 0; i < flip_social_message_users->count; i++)
     {
-        submenu_add_item(app_instance->submenu, flip_social_message_users->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUsersStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_message_users->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUsersStart + i, callback_submenu_choices, app_instance);
     }
     return true;
 }
@@ -49,7 +49,7 @@ bool flip_social_update_submenu_user_choices()
     submenu_set_header(app_instance->submenu, "Users");
     for (int i = 0; i < flip_social_explore->count; i++)
     {
-        submenu_add_item(app_instance->submenu, flip_social_explore->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_explore->usernames[i], FlipSocialSubmenuLoggedInIndexMessagesUserChoicesIndexStart + i, callback_submenu_choices, app_instance);
     }
     return true;
 }

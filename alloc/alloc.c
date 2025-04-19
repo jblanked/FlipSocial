@@ -183,27 +183,27 @@ FlipSocialApp *flip_social_app_alloc()
     }
 
     // Allocate Submenu(s)
-    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, VERSION_TAG, flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_out, FlipSocialViewLoggedOutSubmenu, VERSION_TAG, callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
-    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, VERSION_TAG, flip_social_callback_exit_app, &app->view_dispatcher))
+    if (!easy_flipper_set_submenu(&app->submenu_logged_in, FlipSocialViewLoggedInSubmenu, VERSION_TAG, callback_exit_app, &app->view_dispatcher))
     {
         return NULL;
     }
 
-    submenu_add_item(app->submenu_logged_out, "Login", FlipSocialSubmenuLoggedOutIndexLogin, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_out, "Register", FlipSocialSubmenuLoggedOutIndexRegister, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_out, "About", FlipSocialSubmenuLoggedOutIndexAbout, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_out, "Settings", FlipSocialSubmenuLoggedOutIndexWifiSettings, flip_social_callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_out, "Login", FlipSocialSubmenuLoggedOutIndexLogin, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_out, "Register", FlipSocialSubmenuLoggedOutIndexRegister, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_out, "About", FlipSocialSubmenuLoggedOutIndexAbout, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_out, "Settings", FlipSocialSubmenuLoggedOutIndexWifiSettings, callback_submenu_choices, app);
     //
-    submenu_add_item(app->submenu_logged_in, "Explore", FlipSocialSubmenuExploreIndex, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Feed", FlipSocialSubmenuLoggedInIndexFeed, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Post", FlipSocialSubmenuLoggedInIndexCompose, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Messages", FlipSocialSubmenuLoggedInIndexMessages, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Settings", FlipSocialSubmenuLoggedInIndexSettings, flip_social_callback_submenu_choices, app);
-    submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, flip_social_callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Explore", FlipSocialSubmenuExploreIndex, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Feed", FlipSocialSubmenuLoggedInIndexFeed, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Post", FlipSocialSubmenuLoggedInIndexCompose, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Messages", FlipSocialSubmenuLoggedInIndexMessages, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Profile", FlipSocialSubmenuLoggedInIndexProfile, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Settings", FlipSocialSubmenuLoggedInIndexSettings, callback_submenu_choices, app);
+    submenu_add_item(app->submenu_logged_in, "Sign Out", FlipSocialSubmenuLoggedInSignOutButton, callback_submenu_choices, app);
 
     // Load the settings
     if (!load_settings(app->wifi_ssid_logged_out,
@@ -487,8 +487,8 @@ bool messages_dialog_alloc(bool free_first)
                 flip_social_messages->index != 0 ? "Prev" : NULL,
                 flip_social_messages->index != flip_social_messages->count - 1 ? "Next" : NULL,
                 "Create",
-                messages_dialog_callback,
-                flip_social_callback_to_messages_logged_in,
+                callback_message_dialog,
+                callback_to_messages_logged_in,
                 &app_instance->view_dispatcher,
                 app_instance))
         {
@@ -975,7 +975,7 @@ bool feed_view_alloc()
                 FlipSocialViewLoggedInFeed,
                 flip_social_feed_draw_callback,
                 flip_social_feed_input_callback,
-                flip_social_callback_to_submenu_logged_in,
+                callback_to_submenu_logged_in,
                 &app_instance->view_dispatcher,
                 app_instance))
         {
@@ -998,112 +998,112 @@ bool alloc_text_input(uint32_t view_id)
         {
         case FlipSocialViewLoggedOutWifiSettingsSSIDInput:
             // memset(app_instance->wifi_ssid_logged_out_temp_buffer, 0, app_instance->wifi_ssid_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_out_temp_buffer, app_instance->wifi_ssid_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_out_temp_buffer, app_instance->wifi_ssid_logged_out_temp_buffer_size, callback_logged_out_wifi_settings_ssid_updated, callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutWifiSettingsPasswordInput:
             // memset(app_instance->wifi_password_logged_out_temp_buffer, 0, app_instance->wifi_password_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_out_temp_buffer, app_instance->wifi_password_logged_out_temp_buffer_size, flip_social_logged_out_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_out_temp_buffer, app_instance->wifi_password_logged_out_temp_buffer_size, callback_logged_out_wifi_settings_password_updated, callback_to_wifi_settings_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutLoginUsernameInput:
             // memset(app_instance->login_username_logged_out_temp_buffer, 0, app_instance->login_username_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->login_username_logged_out_temp_buffer, app_instance->login_username_logged_out_temp_buffer_size, flip_social_logged_out_login_username_updated, flip_social_callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->login_username_logged_out_temp_buffer, app_instance->login_username_logged_out_temp_buffer_size, callback_logged_out_login_username_updated, callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutLoginPasswordInput:
             // memset(app_instance->login_password_logged_out_temp_buffer, 0, app_instance->login_password_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->login_password_logged_out_temp_buffer, app_instance->login_password_logged_out_temp_buffer_size, flip_social_logged_out_login_password_updated, flip_social_callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->login_password_logged_out_temp_buffer, app_instance->login_password_logged_out_temp_buffer_size, callback_logged_out_login_password_updated, callback_to_login_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterUsernameInput:
             memset(app_instance->register_username_logged_out_temp_buffer, 0, app_instance->register_username_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->register_username_logged_out_temp_buffer, app_instance->register_username_logged_out_temp_buffer_size, flip_social_logged_out_register_username_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username", app_instance->register_username_logged_out_temp_buffer, app_instance->register_username_logged_out_temp_buffer_size, callback_logged_out_register_username_updated, callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterPasswordInput:
             memset(app_instance->register_password_logged_out_temp_buffer, 0, app_instance->register_password_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->register_password_logged_out_temp_buffer, app_instance->register_password_logged_out_temp_buffer_size, flip_social_logged_out_register_password_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->register_password_logged_out_temp_buffer, app_instance->register_password_logged_out_temp_buffer_size, callback_logged_out_register_password_updated, callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedOutRegisterPassword2Input:
             memset(app_instance->register_password_2_logged_out_temp_buffer, 0, app_instance->register_password_2_logged_out_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Confirm Password", app_instance->register_password_2_logged_out_temp_buffer, app_instance->register_password_2_logged_out_temp_buffer_size, flip_social_logged_out_register_password_2_updated, flip_social_callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Confirm Password", app_instance->register_password_2_logged_out_temp_buffer, app_instance->register_password_2_logged_out_temp_buffer_size, callback_logged_out_register_password_2_updated, callback_to_register_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInChangePasswordInput:
             // memset(app_instance->change_password_logged_in_temp_buffer, 0, app_instance->change_password_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Change Password", app_instance->change_password_logged_in_temp_buffer, app_instance->change_password_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_password_updated, flip_social_callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Change Password", app_instance->change_password_logged_in_temp_buffer, app_instance->change_password_logged_in_temp_buffer_size, callback_logged_in_profile_change_password_updated, callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInChangeBioInput:
             // memset(app_instance->change_bio_logged_in_temp_buffer, 0, app_instance->change_bio_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Bio", app_instance->change_bio_logged_in_temp_buffer, app_instance->change_bio_logged_in_temp_buffer_size, flip_social_logged_in_profile_change_bio_updated, flip_social_callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Bio", app_instance->change_bio_logged_in_temp_buffer, app_instance->change_bio_logged_in_temp_buffer_size, callback_logged_in_profile_change_bio_updated, callback_to_profile_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInComposeAddPreSaveInput:
             memset(app_instance->compose_pre_save_logged_in_temp_buffer, 0, app_instance->compose_pre_save_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Pre-Save Message", app_instance->compose_pre_save_logged_in_temp_buffer, app_instance->compose_pre_save_logged_in_temp_buffer_size, flip_social_logged_in_compose_pre_save_updated, flip_social_callback_to_compose_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Pre-Save Message", app_instance->compose_pre_save_logged_in_temp_buffer, app_instance->compose_pre_save_logged_in_temp_buffer_size, callback_logged_in_compose_pre_save_updated, callback_to_compose_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInWifiSettingsSSIDInput:
             // memset(app_instance->wifi_ssid_logged_in_temp_buffer, 0, app_instance->wifi_ssid_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_in_temp_buffer, app_instance->wifi_ssid_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_ssid_updated, flip_social_callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter SSID", app_instance->wifi_ssid_logged_in_temp_buffer, app_instance->wifi_ssid_logged_in_temp_buffer_size, callback_logged_in_wifi_settings_ssid_updated, callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInWifiSettingsPasswordInput:
             // memset(app_instance->wifi_password_logged_in_temp_buffer, 0, app_instance->wifi_password_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_in_temp_buffer, app_instance->wifi_password_logged_in_temp_buffer_size, flip_social_logged_in_wifi_settings_password_updated, flip_social_callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Password", app_instance->wifi_password_logged_in_temp_buffer, app_instance->wifi_password_logged_in_temp_buffer_size, callback_logged_in_wifi_settings_password_updated, callback_to_wifi_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessagesNewMessageInput:
             memset(app_instance->messages_new_message_logged_in_temp_buffer, 0, app_instance->messages_new_message_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->messages_new_message_logged_in_temp_buffer, app_instance->messages_new_message_logged_in_temp_buffer_size, flip_social_logged_in_messages_new_message_updated, flip_social_callback_to_messages_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->messages_new_message_logged_in_temp_buffer, app_instance->messages_new_message_logged_in_temp_buffer_size, callback_logged_in_messages_new_message_updated, callback_to_messages_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessagesNewMessageUserChoicesInput:
             memset(app_instance->message_user_choice_logged_in_temp_buffer, 0, app_instance->message_user_choice_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->message_user_choice_logged_in_temp_buffer, app_instance->message_user_choice_logged_in_temp_buffer_size, flip_social_logged_in_messages_user_choice_message_updated, flip_social_callback_to_messages_user_choices, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Message", app_instance->message_user_choice_logged_in_temp_buffer, app_instance->message_user_choice_logged_in_temp_buffer_size, callback_logged_in_messages_user_choice_message_updated, callback_to_messages_user_choices, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInExploreInput:
             memset(app_instance->explore_logged_in_temp_buffer, 0, app_instance->explore_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->explore_logged_in_temp_buffer, app_instance->explore_logged_in_temp_buffer_size, flip_social_logged_in_explore_updated, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->explore_logged_in_temp_buffer, app_instance->explore_logged_in_temp_buffer_size, callback_logged_in_explore_updated, callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
             break;
         case FlipSocialViewLoggedInMessageUsersInput:
             memset(app_instance->message_users_logged_in_temp_buffer, 0, app_instance->message_users_logged_in_temp_buffer_size);
-            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->message_users_logged_in_temp_buffer, app_instance->message_users_logged_in_temp_buffer_size, flip_social_logged_in_message_users_updated, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_uart_text_input(&app_instance->text_input, FlipSocialViewTextInput, "Enter Username or Keyword", app_instance->message_users_logged_in_temp_buffer, app_instance->message_users_logged_in_temp_buffer_size, callback_logged_in_message_users_updated, callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1121,14 +1121,14 @@ bool about_widget_alloc(bool is_logged_in)
     {
         if (!app_instance->widget_logged_out_about)
         {
-            return easy_flipper_set_widget(&app_instance->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.jblanked.com/flipper\n---\nPress BACK to return.", flip_social_callback_to_submenu_logged_out, &app_instance->view_dispatcher);
+            return easy_flipper_set_widget(&app_instance->widget_logged_out_about, FlipSocialViewLoggedOutAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.jblanked.com/flipper\n---\nPress BACK to return.", callback_to_submenu_logged_out, &app_instance->view_dispatcher);
         }
     }
     else
     {
         if (!app_instance->widget_logged_in_about)
         {
-            return easy_flipper_set_widget(&app_instance->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.jblanked.com/flipper\n---\nPress BACK to return.", flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher);
+            return easy_flipper_set_widget(&app_instance->widget_logged_in_about, FlipSocialViewLoggedInSettingsAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked: www.jblanked.com/flipper\n---\nPress BACK to return.", callback_to_settings_logged_in, &app_instance->view_dispatcher);
         }
     }
     return true;
@@ -1145,22 +1145,22 @@ bool alloc_submenu(uint32_t view_id)
         switch (view_id)
         {
         case FlipSocialViewLoggedInSettings:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Settings", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Settings", callback_to_submenu_logged_in, &app_instance->view_dispatcher))
             {
                 return false;
             }
             submenu_reset(app_instance->submenu);
-            submenu_add_item(app_instance->submenu, "About", FlipSocialSubmenuLoggedInIndexAbout, flip_social_callback_submenu_choices, app_instance);
-            submenu_add_item(app_instance->submenu, "WiFi", FlipSocialSubmenuLoggedInIndexWifiSettings, flip_social_callback_submenu_choices, app_instance);
-            submenu_add_item(app_instance->submenu, "User", FlipSocialSubmenuLoggedInIndexUserSettings, flip_social_callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "About", FlipSocialSubmenuLoggedInIndexAbout, callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "WiFi", FlipSocialSubmenuLoggedInIndexWifiSettings, callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "User", FlipSocialSubmenuLoggedInIndexUserSettings, callback_submenu_choices, app_instance);
             break;
         case FlipSocialViewLoggedInCompose:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Create A Post", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Create A Post", callback_to_submenu_logged_in, &app_instance->view_dispatcher))
             {
                 return false;
             }
             submenu_reset(app_instance->submenu);
-            submenu_add_item(app_instance->submenu, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, flip_social_callback_submenu_choices, app_instance);
+            submenu_add_item(app_instance->submenu, "Add Pre-Save", FlipSocialSubmenuComposeIndexAddPreSave, callback_submenu_choices, app_instance);
 
             // Load the playlist
             if (load_playlist(&app_instance->pre_saved_messages))
@@ -1170,13 +1170,13 @@ bool alloc_submenu(uint32_t view_id)
                 {
                     if (app_instance->pre_saved_messages.messages[i][0] != '\0') // Check if the string is not empty
                     {
-                        submenu_add_item(app_instance->submenu, app_instance->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, flip_social_callback_submenu_choices, app_instance);
+                        submenu_add_item(app_instance->submenu, app_instance->pre_saved_messages.messages[i], FlipSocialSubemnuComposeIndexStartIndex + i, callback_submenu_choices, app_instance);
                     }
                 }
             }
             break;
         case FlipSocialViewLoggedInFriendsSubmenu:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Friends", flip_social_callback_to_profile_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Friends", callback_to_profile_logged_in, &app_instance->view_dispatcher))
             {
                 FURI_LOG_E(TAG, "Failed to set submenu for friends");
                 return false;
@@ -1185,7 +1185,7 @@ bool alloc_submenu(uint32_t view_id)
             went_to_friends = true;
             break;
         case FlipSocialViewLoggedInMessagesUserChoices:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Users", flip_social_callback_to_messages_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Users", callback_to_messages_logged_in, &app_instance->view_dispatcher))
             {
                 FURI_LOG_E(TAG, "Failed to set submenu for user choices");
                 return false;
@@ -1193,14 +1193,14 @@ bool alloc_submenu(uint32_t view_id)
             submenu_reset(app_instance->submenu);
             break;
         case FlipSocialViewLoggedInMessagesSubmenu:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Messages", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Messages", callback_to_submenu_logged_in, &app_instance->view_dispatcher))
             {
                 return false;
             }
             submenu_reset(app_instance->submenu);
             break;
         case FlipSocialViewLoggedInExploreSubmenu:
-            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Explore", flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher))
+            if (!easy_flipper_set_submenu(&app_instance->submenu, FlipSocialViewSubmenu, "Explore", callback_to_submenu_logged_in, &app_instance->view_dispatcher))
             {
                 return false;
             }
@@ -1242,7 +1242,7 @@ bool alloc_variable_item_list(uint32_t view_id)
         switch (view_id)
         {
         case FlipSocialViewLoggedOutWifiSettings:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_out_wifi_settings_item_selected, flip_social_callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_out_wifi_settings_item_selected, callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1252,7 +1252,7 @@ bool alloc_variable_item_list(uint32_t view_id)
                 variable_item_set_current_value_text(app_instance->variable_item_logged_out_wifi_settings_ssid, app_instance->wifi_ssid_logged_out);
             return true;
         case FlipSocialViewLoggedOutLogin:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_out_login_item_selected, flip_social_callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_out_login_item_selected, callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1263,7 +1263,7 @@ bool alloc_variable_item_list(uint32_t view_id)
                 variable_item_set_current_value_text(app_instance->variable_item_logged_out_login_username, app_instance->login_username_logged_out);
             return true;
         case FlipSocialViewLoggedOutRegister:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_out_register_item_selected, flip_social_callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_out_register_item_selected, callback_to_submenu_logged_out, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1273,7 +1273,7 @@ bool alloc_variable_item_list(uint32_t view_id)
             app_instance->variable_item_logged_out_register_button = variable_item_list_add(app_instance->variable_item_list, "Register", 0, NULL, app_instance);
             return true;
         case FlipSocialViewLoggedInProfile:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_in_profile_item_selected, flip_social_callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_in_profile_item_selected, callback_to_submenu_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1287,7 +1287,7 @@ bool alloc_variable_item_list(uint32_t view_id)
                 variable_item_set_current_value_text(app_instance->variable_item_logged_in_profile_change_bio, app_instance->change_bio_logged_in);
             return true;
         case FlipSocialViewLoggedInSettingsWifi:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_text_input_logged_in_wifi_settings_item_selected, flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_in_wifi_settings_item_selected, callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }
@@ -1297,7 +1297,7 @@ bool alloc_variable_item_list(uint32_t view_id)
                 variable_item_set_current_value_text(app_instance->variable_item_logged_in_wifi_settings_ssid, app_instance->wifi_ssid_logged_in);
             return true;
         case FlipSocialViewLoggedInSettingsUser:
-            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, flip_social_logged_in_user_settings_item_selected, flip_social_callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))
+            if (!easy_flipper_set_variable_item_list(&app_instance->variable_item_list, FlipSocialViewVariableItemList, callback_logged_in_user_settings_item_selected, callback_to_settings_logged_in, &app_instance->view_dispatcher, app_instance))
             {
                 return false;
             }

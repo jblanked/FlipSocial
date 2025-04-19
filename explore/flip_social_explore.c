@@ -117,7 +117,7 @@ bool flip_social_parse_json_explore(FlipperHTTP *fhttp)
             break;
         }
         snprintf(flip_social_explore->usernames[i], MAX_USER_LENGTH, "%s", furi_string_get_cstr(username));
-        submenu_add_item(app_instance->submenu, flip_social_explore->usernames[i], FlipSocialSubmenuExploreIndexStartIndex + i, flip_social_callback_submenu_choices, app_instance);
+        submenu_add_item(app_instance->submenu, flip_social_explore->usernames[i], FlipSocialSubmenuExploreIndexStartIndex + i, callback_submenu_choices, app_instance);
         flip_social_explore->count++;
         furi_string_free(username);
     }

@@ -19,14 +19,14 @@ bool loader_view_alloc(void *context)
 
     view_dispatcher_set_custom_event_callback(app->view_dispatcher, loader_custom_event_callback);
 
-    if (!easy_flipper_set_view(&app->view_loader, FlipSocialViewLoader, loader_draw_callback, NULL, flip_social_callback_to_submenu_logged_in, &app->view_dispatcher, app))
+    if (!easy_flipper_set_view(&app->view_loader, FlipSocialViewLoader, loader_draw_callback, NULL, callback_to_submenu_logged_in, &app->view_dispatcher, app))
     {
         return false;
     }
 
     loader_init(app->view_loader);
 
-    return easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "", flip_social_callback_to_submenu_logged_in, &app->view_dispatcher);
+    return easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "", callback_to_submenu_logged_in, &app->view_dispatcher);
 }
 
 void loader_view_free(void *context)
