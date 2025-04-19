@@ -1,7 +1,7 @@
 #pragma once
 #include <flip_social.h>
-#include <callback/flip_social_callback.h>
-void free_all(bool should_free_variable_item_list, bool should_free_submenu);
+#include <callback/callback.h>
+void free_all(bool should_free_variable_item_list, bool should_free_submenu, void *context);
 void free_text_input();
 void flip_social_free_explore_dialog();
 void flip_social_free_friends_dialog();

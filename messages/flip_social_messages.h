@@ -2,7 +2,7 @@
 #define FLIP_SOCIAL_MESSAGES_H
 
 #include "flip_social.h"
-#include <callback/flip_social_callback.h>
+#include <callback/callback.h>
 #include <explore/flip_social_explore.h>
 
 FlipSocialModel2 *flip_social_messages_alloc();

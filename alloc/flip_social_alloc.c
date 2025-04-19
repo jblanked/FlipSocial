@@ -13,17 +13,6 @@ FlipSocialApp *flip_social_app_alloc()
     {
         return NULL;
     }
-    view_dispatcher_set_custom_event_callback(app->view_dispatcher, flip_social_custom_event_callback);
-    // Main view
-    if (!easy_flipper_set_view(&app->view_loader, FlipSocialViewLoader, flip_social_loader_draw_callback, NULL, flip_social_callback_to_submenu_logged_out, &app->view_dispatcher, app))
-    {
-        return NULL;
-    }
-    flip_social_loader_init(app->view_loader);
-    if (!easy_flipper_set_widget(&app->widget_result, FlipSocialViewWidgetResult, "", flip_social_callback_to_submenu_logged_out, &app->view_dispatcher))
-    {
-        return NULL;
-    }
 
     // Allocate the text input buffers
     app->wifi_ssid_logged_out_temp_buffer_size = MAX_USER_LENGTH;

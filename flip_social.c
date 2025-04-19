@@ -23,8 +23,6 @@ uint8_t flip_social_feed_type_index = 0;
 char *flip_social_notification_type[] = {"OFF", "ON"};
 uint8_t flip_social_notification_type_index = 0;
 
-void flip_social_loader_free_model(View *view);
-
 /**
  * @brief Function to free the resources used by FlipSocialApp.
  * @details Cleans up all allocated resources before exiting the application.
@@ -55,22 +53,9 @@ void flip_social_app_free(FlipSocialApp *app)
         view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         submenu_free(app->submenu_logged_in);
     }
-    //
 
-    // Free Widget(s)
-    if (app->widget_result)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        widget_free(app->widget_result);
-    }
-
-    // Free View(s)
-    if (app->view_loader)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoader);
-        flip_social_loader_free_model(app->view_loader);
-        view_free(app->view_loader);
-    }
+    if (app->fhttp)
+        flipper_http_free(app->fhttp);
 
     if (app->view_dispatcher)
         view_dispatcher_free(app->view_dispatcher);

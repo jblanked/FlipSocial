@@ -1,6 +1,9 @@
 #include <alloc/free.h>
-void free_all(bool should_free_variable_item_list, bool should_free_submenu)
+#include <callback/loader.h>
+void free_all(bool should_free_variable_item_list, bool should_free_submenu, void *context)
 {
+    FlipSocialApp *app = (FlipSocialApp *)context;
+    furi_check(app, "FlipSocialApp is NULL");
 
     if (should_free_submenu)
     {
@@ -28,6 +31,9 @@ void free_all(bool should_free_variable_item_list, bool should_free_submenu)
         // flipper_http_deinit();
         went_to_friends = false;
     }
+
+    // free Derek's loader
+    loader_view_free(app);
 }
 void free_text_input()
 {

@@ -1,7 +1,7 @@
 #ifndef FLIP_SOCIAL_ALLOC_H
 #define FLIP_SOCIAL_ALLOC_H
 #include <flip_social.h>
-#include <callback/flip_social_callback.h>
+#include <callback/callback.h>
 #include <flip_storage/flip_social_storage.h>
 
 /**
