@@ -2,7 +2,7 @@
 #include <callback/loader.h>
 #include <messages/flip_social_messages.h>
 #include <friends/flip_social_friends.h>
-#include <explore/flip_social_explore.h>
+#include <explore/explore.h>
 #include <feed/flip_social_feed.h>
 #include <flip_storage/flip_social_storage.h>
 #include <free/free.h>
@@ -1989,8 +1989,8 @@ void callback_logged_in_explore_updated(void *context)
     }
 
     // flipper_http_loading_task(
-    //     flip_social_get_explore,        // get the explore users
-    //     flip_social_parse_json_explore, // parse the explore users
+    //     explore_fetch,        // get the explore users
+    //     explore_parse_json, // parse the explore users
     //     FlipSocialViewSubmenu,          // switch to the explore submenu if successful
     //     FlipSocialViewLoggedInSubmenu,  // switch back to the main submenu if failed
     //     &app->view_dispatcher);         // view dispatcher
@@ -2030,7 +2030,7 @@ void callback_logged_in_message_users_updated(void *context)
 
     // get users
     // flipper_http_loading_task(
-    //     flip_social_get_explore_2,                   // get the explore users
+    //     explore_fetch_2,                             // get the explore users
     //     flip_social_parse_json_message_user_choices, // parse the explore users
     //     FlipSocialViewSubmenu,                       // switch to the explore submenu if successful
     //     FlipSocialViewLoggedInSubmenu,               // switch back to the main submenu if failed

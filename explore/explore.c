@@ -1,9 +1,9 @@
-#include "flip_social_explore.h"
+#include <explore/explore.h>
 #include <alloc/alloc.h>
 
 // for now we're just listing the current users
 // as the feed is upgraded, then we can port more to the explore view
-bool flip_social_get_explore(FlipperHTTP *fhttp)
+bool explore_fetch(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -41,7 +41,7 @@ bool flip_social_get_explore(FlipperHTTP *fhttp)
     fhttp->state = RECEIVING;
     return true;
 }
-bool flip_social_get_explore_2(FlipperHTTP *fhttp)
+bool explore_fetch_2(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -73,7 +73,7 @@ bool flip_social_get_explore_2(FlipperHTTP *fhttp)
     return flipper_http_request(fhttp, GET, url, auth_headers, NULL);
 }
 
-bool flip_social_parse_json_explore(FlipperHTTP *fhttp)
+bool explore_parse_json(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
