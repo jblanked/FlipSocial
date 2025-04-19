@@ -3,7 +3,7 @@
 #include <messages/flip_social_messages.h>
 #include <friends/flip_social_friends.h>
 #include <explore/explore.h>
-#include <feed/flip_social_feed.h>
+#include <feed/feed.h>
 #include <flip_storage/flip_social_storage.h>
 #include <free/free.h>
 #include <alloc/alloc.h>
@@ -580,7 +580,7 @@ static void compose_dialog_callback(DialogExResult result, void *context)
         {
             furi_delay_ms(100);
         }
-        if (flip_social_load_initial_feed(false, 1))
+        if (feed_load_initial_feed(fhttp, 1))
         {
             free_compose_dialog();
         }
@@ -746,7 +746,7 @@ void callback_submenu_choices(void *context, uint32_t index)
             FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
             return;
         }
-        if (!flip_social_load_initial_feed(fhttp, 1))
+        if (!feed_load_initial_feed(fhttp, 1))
         {
             FURI_LOG_E(TAG, "Failed to load the initial feed");
             return;

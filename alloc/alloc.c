@@ -1,6 +1,6 @@
 #include <alloc/alloc.h>
 #include <flip_storage/flip_social_storage.h>
-#include <feed/flip_social_feed.h>
+#include <feed/feed.h>
 
 FlipSocialApp *flip_social_app_alloc()
 {
@@ -802,7 +802,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
         free_feed_view();
         // load feed item
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
             return false;
@@ -836,7 +836,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
                 FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
                 return false;
             }
-            if (!flip_social_load_initial_feed(fhttp, flip_feed_info->series_index))
+            if (!feed_load_initial_feed(fhttp, flip_feed_info->series_index))
             {
                 FURI_LOG_E(TAG, "Failed to load initial feed");
                 flipper_http_free(fhttp);
@@ -847,7 +847,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
             view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
             free_feed_view();
             // load feed item
-            if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+            if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
             {
                 FURI_LOG_E(TAG, "Failed to load nexy feed post");
                 return false;
@@ -870,7 +870,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
         free_feed_view();
         // load feed item
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
             return false;
@@ -936,7 +936,7 @@ static bool flip_social_feed_input_callback(InputEvent *event, void *context)
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewWidgetResult);
         free_feed_view();
         // load feed item
-        if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+        if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
         {
             FURI_LOG_E(TAG, "Failed to load nexy feed post");
             fhttp->state = ISSUE;

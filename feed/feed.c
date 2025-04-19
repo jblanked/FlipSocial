@@ -1,8 +1,8 @@
-#include "flip_social_feed.h"
+#include <feed/feed.h>
 #include <flip_storage/flip_social_storage.h>
 #include <alloc/alloc.h>
 
-bool flip_social_get_feed(FlipperHTTP *fhttp, int series_index)
+bool feed_fetch(FlipperHTTP *fhttp, int series_index)
 {
     if (!app_instance)
     {
@@ -46,7 +46,7 @@ bool flip_social_get_feed(FlipperHTTP *fhttp, int series_index)
     return true;
 }
 
-FlipSocialFeedMini *flip_social_parse_json_feed(FlipperHTTP *fhttp)
+FlipSocialFeedMini *feed_parse_json(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
@@ -118,7 +118,7 @@ FlipSocialFeedMini *flip_social_parse_json_feed(FlipperHTTP *fhttp)
     return feed_info;
 }
 
-bool flip_social_load_feed_post(int post_id)
+bool feed_load_post(int post_id)
 {
     char file_path[128];
     snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%d.json", post_id);
@@ -193,7 +193,7 @@ bool flip_social_load_feed_post(int post_id)
     return true;
 }
 
-bool flip_social_load_initial_feed(FlipperHTTP *fhttp, int series_index)
+bool feed_load_initial_feed(FlipperHTTP *fhttp, int series_index)
 {
     if (!app_instance)
     {
@@ -220,7 +220,7 @@ bool flip_social_load_initial_feed(FlipperHTTP *fhttp, int series_index)
     }
     view_dispatcher_add_view(app_instance->view_dispatcher, loading_view_id, loading_get_view(loading));
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, loading_view_id);
-    if (flip_social_get_feed(fhttp, series_index)) // start the async request
+    if (feed_fetch(fhttp, series_index)) // start the async request
     {
         furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
         fhttp->state = RECEIVING;
@@ -242,7 +242,7 @@ bool flip_social_load_initial_feed(FlipperHTTP *fhttp, int series_index)
     furi_timer_stop(fhttp->get_timeout_timer);
 
     // load feed info
-    flip_feed_info = flip_social_parse_json_feed(fhttp);
+    flip_feed_info = feed_parse_json(fhttp);
     if (!flip_feed_info || flip_feed_info->count < 1)
     {
         FURI_LOG_E(TAG, "Failed to parse JSON feed");
@@ -253,7 +253,7 @@ bool flip_social_load_initial_feed(FlipperHTTP *fhttp, int series_index)
     }
 
     // load the current feed post
-    if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+    if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
     {
         FURI_LOG_E(TAG, "Failed to load feed post");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
