@@ -20,10 +20,16 @@ bool feed_fetch(FlipperHTTP *fhttp, int series_index)
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    // create the feed directory
+    if (!flip_social_subfolder_mkdir("feed"))
+    {
+        FURI_LOG_E(TAG, "Failed to create feed directory");
+        return false;
+    }
     snprintf(
         fhttp->file_path,
         sizeof(fhttp->file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed.json");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed.json");
 
     fhttp->save_received_data = true;
     alloc_headers();

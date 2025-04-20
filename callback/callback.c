@@ -2542,14 +2542,14 @@ bool callback_get_home_notification(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
-    // Create the directory for saving settings
-    char directory_path[256];
-    snprintf(directory_path, sizeof(directory_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/data");
 
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, directory_path);
-    furi_record_close(RECORD_STORAGE);
+    // create the data directory
+    if (!flip_social_subfolder_mkdir("data"))
+    {
+        FURI_LOG_E(TAG, "Failed to create data directory");
+        return false;
+    }
+
     alloc_headers();
 
     snprintf(

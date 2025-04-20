@@ -72,12 +72,13 @@ bool messages_get_message_users(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
-    char directory[128];
-    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages");
+    // create the messages directory
+    if (!flip_social_subfolder_mkdir("messages"))
+    {
+        FURI_LOG_E(TAG, "Failed to create messages directory");
+        return false;
+    }
 
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, directory);
     char command[128];
     snprintf(
         fhttp->file_path,
@@ -120,12 +121,13 @@ bool messages_get_messages_with_user(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
-    char directory[128];
-    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/messages");
 
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, directory);
+    // create the messages directory
+    if (!flip_social_subfolder_mkdir("messages"))
+    {
+        FURI_LOG_E(TAG, "Failed to create messages directory");
+        return false;
+    }
 
     char command[256];
     snprintf(

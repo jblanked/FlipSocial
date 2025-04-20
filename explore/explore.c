@@ -10,17 +10,20 @@ bool explore_fetch(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "App instance is NULL");
         return false;
     }
+
     if (!fhttp)
     {
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
-    char directory[128];
-    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/explore");
 
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, directory);
+    // create the explore directory
+    if (!flip_social_subfolder_mkdir("explore"))
+    {
+        FURI_LOG_E(TAG, "Failed to create explore directory");
+        return false;
+    }
+
     char *keyword = !app_instance->explore_logged_in || strlen(app_instance->explore_logged_in) == 0 ? "a" : app_instance->explore_logged_in;
     snprintf(
         fhttp->file_path,
@@ -53,12 +56,13 @@ bool explore_fetch_2(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
-    char directory[128];
-    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/explore");
+    // create the explore directory
+    if (!flip_social_subfolder_mkdir("explore"))
+    {
+        FURI_LOG_E(TAG, "Failed to create explore directory");
+        return false;
+    }
 
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, directory);
     char *keyword = !app_instance->message_users_logged_in || strlen(app_instance->message_users_logged_in) == 0 ? "a" : app_instance->message_users_logged_in;
     snprintf(
         fhttp->file_path,

@@ -15,10 +15,13 @@ bool friends_fetch(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
-    // Create the directory
-    Storage *storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends");
-    furi_record_close(RECORD_STORAGE);
+
+    // create the friends directory
+    if (!flip_social_subfolder_mkdir("friends"))
+    {
+        FURI_LOG_E(TAG, "Failed to create friends directory");
+        return false;
+    }
 
     char url[100];
     snprintf(
