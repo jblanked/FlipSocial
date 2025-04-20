@@ -1,6 +1,7 @@
 #include <flip_social.h>
 #include <alloc/alloc.h>
 #include <flip_storage/flip_social_storage.h>
+#include <update/update.h>
 
 /**
  * @brief Entry point for the Hello World application.
@@ -65,10 +66,10 @@ int32_t main_flip_social(void *p)
             callback_home_notification(app_instance->fhttp);
         }
 
-        // if (update_is_ready(app_instance->fhttp, true))
-        // {
-        //     easy_flipper_dialog("Update Status", "Complete.\nRestart your Flipper Zero.");
-        // }
+        if (update_is_ready(app_instance->fhttp, true))
+        {
+            easy_flipper_dialog("Update Status", "Complete.\nRestart your Flipper Zero.");
+        }
     }
 
     free_flipper_http();
