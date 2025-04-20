@@ -335,4 +335,6 @@ extern uint8_t flip_social_notification_type_index;
 //
 extern bool went_to_friends;
 extern Loading *loading_global;
+
+bool flip_social_subfolder_mkdir(char *folder_name);
 #endif

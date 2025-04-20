@@ -25,3 +25,20 @@ uint8_t flip_social_notification_type_index = 1;
 
 bool went_to_friends = false;
 Loading *loading_global = NULL;
+
+bool flip_social_subfolder_mkdir(char *folder_name)
+{
+    if (!folder_name || strlen(folder_name) == 0)
+    {
+        FURI_LOG_E(TAG, "Folder name is NULL/empty.");
+        return false;
+    }
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    char directory[128];
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social");
+    storage_common_mkdir(storage, directory);
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s", folder_name);
+    storage_common_mkdir(storage, directory);
+    furi_record_close(RECORD_STORAGE);
+    return true;
+}
