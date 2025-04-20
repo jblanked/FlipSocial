@@ -8,16 +8,18 @@
 #include <input/input.h>
 #include <flip_social_icons.h>
 #include <font/font.h>
+#include <gui/modules/empty_screen.h>
 
 #define TAG "FlipSocial"
-#define VERSION_TAG TAG " v1.0.4"
+#define VERSION "1.1"
+#define VERSION_TAG TAG " v" VERSION
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_FEED_ITEMS 20         // Maximum number of feed items
+#define MAX_FEED_ITEMS 12         // Maximum number of feed items
 #define MAX_LINE_LENGTH 27
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
@@ -170,11 +172,16 @@ typedef enum
     FlipSocialViewVariableItemList,
     //
     FlipSocialViewSubmenu,
+    //
+    FlipSocialViewEmpty,
 } FlipSocialView;
+
+#define BUFFER_VIEW FlipSocialViewEmpty
 
 // Define the application structure
 typedef struct
 {
+    FlipperHTTP *fhttp; // The HTTP client
     View *view_loader;
     Widget *widget_result;
     //
@@ -298,9 +305,9 @@ typedef struct
     View *view_feed;
 
     char *explore_user_bio; // Store the bio of the selected user
-} FlipSocialApp;
 
-void flip_social_app_free(FlipSocialApp *app);
+    EmptyScreen *empty_screen; // The empty screen
+} FlipSocialApp;
 
 extern FlipSocialModel *flip_social_friends;        // Store the friends
 extern FlipSocialModel2 *flip_social_message_users; // Store the users that have sent messages to the logged in user
@@ -325,4 +332,9 @@ extern uint8_t flip_social_feed_type_index;
 //
 extern char *flip_social_notification_type[];
 extern uint8_t flip_social_notification_type_index;
+//
+extern bool went_to_friends;
+extern Loading *loading_global;
+
+bool flip_social_subfolder_mkdir(char *folder_name);
 #endif

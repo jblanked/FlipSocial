@@ -1,15 +1,17 @@
-#include "flip_social_feed.h"
+#include <feed/feed.h>
+#include <flip_storage/flip_social_storage.h>
+#include <alloc/alloc.h>
 
-bool flip_social_get_feed(bool alloc_http, int series_index)
+bool feed_fetch(FlipperHTTP *fhttp, int series_index)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "FlipSocialApp is NULL");
         return false;
     }
-    if (alloc_http && !flipper_http_init(flipper_http_rx_callback, app_instance))
+    if (!fhttp)
     {
-        FURI_LOG_E(TAG, "Failed to initialize FlipperHTTP");
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
     // Get the feed from the server
@@ -18,13 +20,19 @@ bool flip_social_get_feed(bool alloc_http, int series_index)
         FURI_LOG_E(TAG, "Username is NULL");
         return false;
     }
+    // create the feed directory
+    if (!flip_social_subfolder_mkdir("feed"))
+    {
+        FURI_LOG_E(TAG, "Failed to create feed directory");
+        return false;
+    }
     snprintf(
-        fhttp.file_path,
-        sizeof(fhttp.file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed.json");
+        fhttp->file_path,
+        sizeof(fhttp->file_path),
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed.json");
 
-    fhttp.save_received_data = true;
-    auth_headers_alloc();
+    fhttp->save_received_data = true;
+    alloc_headers();
     char command[96];
     if (strstr(flip_social_feed_type[flip_social_feed_type_index], "Global"))
     {
@@ -34,27 +42,30 @@ bool flip_social_get_feed(bool alloc_http, int series_index)
     {
         snprintf(command, 96, "https://www.jblanked.com/flipper/api/feed/%d/%s/%d/max/friends/series/", MAX_FEED_ITEMS, app_instance->login_username_logged_out, series_index);
     }
-    if (!flipper_http_get_request_with_headers(command, auth_headers))
+    if (!flipper_http_request(fhttp, GET, command, auth_headers, NULL))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for feed");
-        fhttp.state = ISSUE;
+        fhttp->state = ISSUE;
         return false;
     }
-    fhttp.state = RECEIVING;
+    fhttp->state = RECEIVING;
     return true;
 }
 
-FlipSocialFeedMini *flip_social_parse_json_feed()
+FlipSocialFeedMini *feed_parse_json(FlipperHTTP *fhttp)
 {
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
+        return NULL;
+    }
     // load the received data from the saved file
-    FuriString *feed_data = flipper_http_load_from_file(fhttp.file_path);
+    FuriString *feed_data = flipper_http_load_from_file(fhttp->file_path);
     if (feed_data == NULL)
     {
         FURI_LOG_E(TAG, "Failed to load received data from file.");
-        flipper_http_deinit();
         return NULL;
     }
-    flipper_http_deinit();
 
     FlipSocialFeedMini *feed_info = (FlipSocialFeedMini *)malloc(sizeof(FlipSocialFeedMini));
     if (!feed_info)
@@ -81,7 +92,8 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
         {
             FURI_LOG_E(TAG, "Failed to parse item fields.");
             furi_string_free(item);
-            furi_string_free(id);
+            if (id)
+                furi_string_free(id);
             continue;
         }
         if (!flip_social_save_post(furi_string_get_cstr(id), furi_string_get_cstr(item)))
@@ -107,7 +119,7 @@ FlipSocialFeedMini *flip_social_parse_json_feed()
     return feed_info;
 }
 
-bool flip_social_load_feed_post(int post_id)
+bool feed_load_post(int post_id)
 {
     char file_path[128];
     snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/feed/feed_post_%d.json", post_id);
@@ -148,11 +160,16 @@ bool flip_social_load_feed_post(int post_id)
     if (username == NULL || message == NULL || flipped == NULL || flips == NULL || date_created == NULL)
     {
         FURI_LOG_E(TAG, "Failed to parse item fields.");
-        furi_string_free(username);
-        furi_string_free(message);
-        furi_string_free(flipped);
-        furi_string_free(flips);
-        furi_string_free(date_created);
+        if (username)
+            furi_string_free(username);
+        if (message)
+            furi_string_free(message);
+        if (flipped)
+            furi_string_free(flipped);
+        if (flips)
+            furi_string_free(flips);
+        if (date_created)
+            furi_string_free(date_created);
         furi_string_free(feed_data);
         return false;
     }
@@ -177,9 +194,19 @@ bool flip_social_load_feed_post(int post_id)
     return true;
 }
 
-bool flip_social_load_initial_feed(bool alloc_http, int series_index)
+bool feed_load_initial_feed(FlipperHTTP *fhttp, int series_index)
 {
-    if (fhttp.state == INACTIVE)
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
+        return false;
+    }
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "FlipperHTTP is NULL");
+        return false;
+    }
+    if (fhttp->state == INACTIVE)
     {
         FURI_LOG_E(TAG, "HTTP state is INACTIVE");
         return false;
@@ -194,29 +221,29 @@ bool flip_social_load_initial_feed(bool alloc_http, int series_index)
     }
     view_dispatcher_add_view(app_instance->view_dispatcher, loading_view_id, loading_get_view(loading));
     view_dispatcher_switch_to_view(app_instance->view_dispatcher, loading_view_id);
-    if (flip_social_get_feed(alloc_http, series_index)) // start the async request
+    if (feed_fetch(fhttp, series_index)) // start the async request
     {
-        furi_timer_start(fhttp.get_timeout_timer, TIMEOUT_DURATION_TICKS);
-        fhttp.state = RECEIVING;
+        furi_timer_start(fhttp->get_timeout_timer, TIMEOUT_DURATION_TICKS);
+        fhttp->state = RECEIVING;
     }
     else
     {
         FURI_LOG_E(HTTP_TAG, "Failed to send request");
-        fhttp.state = ISSUE;
+        fhttp->state = ISSUE;
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
         view_dispatcher_remove_view(app_instance->view_dispatcher, loading_view_id);
         loading_free(loading);
         return false;
     }
-    while (fhttp.state == RECEIVING && furi_timer_is_running(fhttp.get_timeout_timer) > 0)
+    while (fhttp->state == RECEIVING && furi_timer_is_running(fhttp->get_timeout_timer) > 0)
     {
         // Wait for the request to be received
         furi_delay_ms(100);
     }
-    furi_timer_stop(fhttp.get_timeout_timer);
+    furi_timer_stop(fhttp->get_timeout_timer);
 
     // load feed info
-    flip_feed_info = flip_social_parse_json_feed();
+    flip_feed_info = feed_parse_json(fhttp);
     if (!flip_feed_info || flip_feed_info->count < 1)
     {
         FURI_LOG_E(TAG, "Failed to parse JSON feed");
@@ -227,7 +254,7 @@ bool flip_social_load_initial_feed(bool alloc_http, int series_index)
     }
 
     // load the current feed post
-    if (!flip_social_load_feed_post(flip_feed_info->ids[flip_feed_info->index]))
+    if (!feed_load_post(flip_feed_info->ids[flip_feed_info->index]))
     {
         FURI_LOG_E(TAG, "Failed to load feed post");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
@@ -235,7 +262,7 @@ bool flip_social_load_initial_feed(bool alloc_http, int series_index)
         loading_free(loading);
         return false;
     }
-    if (!feed_view_alloc())
+    if (!alloc_feed_view())
     {
         FURI_LOG_E(TAG, "Failed to allocate feed dialog");
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);

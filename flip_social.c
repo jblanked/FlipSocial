@@ -21,135 +21,24 @@ char auth_headers[256] = {0};
 char *flip_social_feed_type[] = {"Global", "Friends"};
 uint8_t flip_social_feed_type_index = 0;
 char *flip_social_notification_type[] = {"OFF", "ON"};
-uint8_t flip_social_notification_type_index = 0;
+uint8_t flip_social_notification_type_index = 1;
 
-void flip_social_loader_free_model(View *view);
+bool went_to_friends = false;
+Loading *loading_global = NULL;
 
-/**
- * @brief Function to free the resources used by FlipSocialApp.
- * @details Cleans up all allocated resources before exiting the application.
- * @param app The FlipSocialApp object to free.
- * @return void
- */
-void flip_social_app_free(FlipSocialApp *app)
+bool flip_social_subfolder_mkdir(char *folder_name)
 {
-    if (!app)
+    if (!folder_name || strlen(folder_name) == 0)
     {
-        FURI_LOG_E(TAG, "FlipSocialApp is NULL");
-        return;
+        FURI_LOG_E(TAG, "Folder name is NULL/empty.");
+        return false;
     }
-    if (!app->view_dispatcher)
-    {
-        FURI_LOG_E(TAG, "ViewDispatcher is NULL");
-        return;
-    }
-
-    // Free Submenu(s)
-    if (app->submenu_logged_out)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedOutSubmenu);
-        submenu_free(app->submenu_logged_out);
-    }
-    if (app->submenu_logged_in)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        submenu_free(app->submenu_logged_in);
-    }
-    //
-
-    // Free Widget(s)
-    if (app->widget_result)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewWidgetResult);
-        widget_free(app->widget_result);
-    }
-
-    // Free View(s)
-    if (app->view_loader)
-    {
-        view_dispatcher_remove_view(app->view_dispatcher, FlipSocialViewLoader);
-        flip_social_loader_free_model(app->view_loader);
-        view_free(app->view_loader);
-    }
-
-    if (app->view_dispatcher)
-        view_dispatcher_free(app->view_dispatcher);
-
-    // Free the app structure members
-    if (app->wifi_ssid_logged_out)
-        free(app->wifi_ssid_logged_out);
-    if (app->wifi_ssid_logged_out_temp_buffer)
-        free(app->wifi_ssid_logged_out_temp_buffer);
-    if (app->wifi_password_logged_out)
-        free(app->wifi_password_logged_out);
-    if (app->wifi_password_logged_out_temp_buffer)
-        free(app->wifi_password_logged_out_temp_buffer);
-    if (app->login_username_logged_out)
-        free(app->login_username_logged_out);
-    if (app->login_username_logged_out_temp_buffer)
-        free(app->login_username_logged_out_temp_buffer);
-    if (app->login_password_logged_out)
-        free(app->login_password_logged_out);
-    if (app->login_password_logged_out_temp_buffer)
-        free(app->login_password_logged_out_temp_buffer);
-    if (app->register_username_logged_out)
-        free(app->register_username_logged_out);
-    if (app->register_username_logged_out_temp_buffer)
-        free(app->register_username_logged_out_temp_buffer);
-    if (app->register_password_logged_out)
-        free(app->register_password_logged_out);
-    if (app->register_password_logged_out_temp_buffer)
-        free(app->register_password_logged_out_temp_buffer);
-    if (app->register_password_2_logged_out)
-        free(app->register_password_2_logged_out);
-    if (app->register_password_2_logged_out_temp_buffer)
-        free(app->register_password_2_logged_out_temp_buffer);
-    if (app->change_password_logged_in)
-        free(app->change_password_logged_in);
-    if (app->change_password_logged_in_temp_buffer)
-        free(app->change_password_logged_in_temp_buffer);
-    if (app->change_bio_logged_in)
-        free(app->change_bio_logged_in);
-    if (app->compose_pre_save_logged_in)
-        free(app->compose_pre_save_logged_in);
-    if (app->compose_pre_save_logged_in_temp_buffer)
-        free(app->compose_pre_save_logged_in_temp_buffer);
-    if (app->explore_logged_in)
-        free(app->explore_logged_in);
-    if (app->explore_logged_in_temp_buffer)
-        free(app->explore_logged_in_temp_buffer);
-    if (app->message_users_logged_in)
-        free(app->message_users_logged_in);
-    if (app->message_users_logged_in_temp_buffer)
-        free(app->message_users_logged_in_temp_buffer);
-    if (app->wifi_ssid_logged_in)
-        free(app->wifi_ssid_logged_in);
-    if (app->wifi_ssid_logged_in_temp_buffer)
-        free(app->wifi_ssid_logged_in_temp_buffer);
-    if (app->wifi_password_logged_in)
-        free(app->wifi_password_logged_in);
-    if (app->wifi_password_logged_in_temp_buffer)
-        free(app->wifi_password_logged_in_temp_buffer);
-    if (app->is_logged_in)
-        free(app->is_logged_in);
-    if (app->login_username_logged_in)
-        free(app->login_username_logged_in);
-    if (app->login_username_logged_in_temp_buffer)
-        free(app->login_username_logged_in_temp_buffer);
-    if (app->messages_new_message_logged_in)
-        free(app->messages_new_message_logged_in);
-    if (app->messages_new_message_logged_in_temp_buffer)
-        free(app->messages_new_message_logged_in_temp_buffer);
-    if (app->message_user_choice_logged_in)
-        free(app->message_user_choice_logged_in);
-    if (app->message_user_choice_logged_in_temp_buffer)
-        free(app->message_user_choice_logged_in_temp_buffer);
-    if (selected_message)
-        free(selected_message);
-    if (app->explore_user_bio)
-        free(app->explore_user_bio);
-
-    // Free the app structure
-    if (app_instance)
-        free(app_instance);
+    Storage *storage = furi_record_open(RECORD_STORAGE);
+    char directory[128];
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social");
+    storage_common_mkdir(storage, directory);
+    snprintf(directory, sizeof(directory), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/%s", folder_name);
+    storage_common_mkdir(storage, directory);
+    furi_record_close(RECORD_STORAGE);
+    return true;
 }

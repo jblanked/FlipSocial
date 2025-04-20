@@ -1,3 +1,11 @@
+## 1.1
+- Restructured code.
+- Added auto‑updating.
+- Updated login and registration views to display errors.
+- Reduced maximum feed posts from 20 to 12 per batch for faster parsing.
+- Fixed an out‑of‑memory crash in the Friends view.
+- Fixed several bugs.
+
 ## 1.0.4
 - New server backend.
 
