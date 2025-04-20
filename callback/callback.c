@@ -181,20 +181,24 @@ static bool callback_login_parse(FlipperHTTP *fhttp)
     }
 }
 
-static bool callback_register_fetch(DataLoaderModel *model)
+static bool callback_register_fetch(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
-        model->fhttp->state = ISSUE;
-        return "Failed to register...";
+        return false;
+    }
+    if (!fhttp)
+    {
+        FURI_LOG_E(TAG, "fhttp is NULL");
+        return false;
     }
 
     // check if the username and password are valid
     if (!app_instance->register_username_logged_out || !app_instance->register_password_logged_out || strlen(app_instance->register_username_logged_out) == 0 || strlen(app_instance->register_password_logged_out) == 0)
     {
         FURI_LOG_E(TAG, "Username or password is NULL");
-        model->fhttp->state = ISSUE;
+        fhttp->state = ISSUE;
         return false;
     }
 
@@ -202,31 +206,37 @@ static bool callback_register_fetch(DataLoaderModel *model)
     if (strcmp(app_instance->register_password_logged_out, app_instance->register_password_2_logged_out) != 0)
     {
         FURI_LOG_E(TAG, "Passwords do not match");
-        model->fhttp->state = ISSUE;
+        fhttp->state = ISSUE;
         return false;
     }
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "{\"username\":\"%s\",\"password\":\"%s\"}", app_instance->register_username_logged_out, app_instance->register_password_logged_out);
 
-    return flipper_http_request(model->fhttp, POST, "https://www.jblanked.com/flipper/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
+    return flipper_http_request(fhttp, POST, "https://www.jblanked.com/flipper/api/user/register/", "{\"Content-Type\":\"application/json\"}", buffer);
 }
 
-static char *callback_register_parse(DataLoaderModel *model)
+static bool callback_register_parse(FlipperHTTP *fhttp)
 {
     if (!app_instance)
     {
         FURI_LOG_E(TAG, "app_instance is NULL");
-        model->fhttp->state = ISSUE;
-        return "Failed to register...";
+        fhttp->state = ISSUE;
+        return false;
     }
-    if (!model->fhttp->last_response)
+    if (!fhttp)
     {
-        model->fhttp->state = ISSUE;
+        FURI_LOG_E(TAG, "fhttp is NULL");
+        fhttp->state = ISSUE;
+        return false;
+    }
+    if (!fhttp->last_response)
+    {
+        fhttp->state = ISSUE;
         FURI_LOG_E(TAG, "last_response is NULL");
-        return "Failed to register...";
+        return false;
     }
     // read response
-    if (model->fhttp->last_response != NULL && (strstr(model->fhttp->last_response, "[SUCCESS]") != NULL || strstr(model->fhttp->last_response, "User created") != NULL))
+    if (fhttp->last_response != NULL && (strstr(fhttp->last_response, "[SUCCESS]") != NULL || strstr(fhttp->last_response, "User created") != NULL))
     {
         // set the login credentials
         if (app_instance->login_username_logged_out)
@@ -253,36 +263,32 @@ static char *callback_register_parse(DataLoaderModel *model)
 
         // send user to the logged in submenu
         view_dispatcher_switch_to_view(app_instance->view_dispatcher, FlipSocialViewLoggedInSubmenu);
-        return "Registration successful!\nWelcome to FlipSocial!";
+        easy_flipper_dialog("Success", "Welcome to FlipSocial!");
+        return true;
     }
-    else if (strstr(model->fhttp->last_response, "Username or password not provided") != NULL)
+    else if (strstr(fhttp->last_response, "Username or password not provided") != NULL)
     {
-        model->fhttp->state = ISSUE;
+        fhttp->state = ISSUE;
         FURI_LOG_E(TAG, "Username or password not provided");
-        return "Please enter your credentials.\nPress BACK to return.";
+        easy_flipper_dialog("Error", "Please enter your credentials.\nPress BACK to return.");
+        return false;
     }
-    else if (strstr(model->fhttp->last_response, "User already exists") != NULL || strstr(model->fhttp->last_response, "Multiple users found") != NULL)
+    else if (strstr(fhttp->last_response, "User already exists") != NULL || strstr(fhttp->last_response, "Multiple users found") != NULL)
     {
-        model->fhttp->state = ISSUE;
+        fhttp->state = ISSUE;
         FURI_LOG_E(TAG, "User already exists");
-        return "Registration failed...\nUsername already exists.\nPress BACK to return.";
+        easy_flipper_dialog("Error", "Registration failed...\nUsername already exists.\nPress BACK to return.");
+        return false;
     }
     else
     {
-        model->fhttp->state = ISSUE;
+        fhttp->state = ISSUE;
         FURI_LOG_E(TAG, "Registration failed");
-        return "Registration failed...\nUpdate your credentials.\nPress BACK to return.";
+        char error_message[128];
+        snprintf(error_message, sizeof(error_message), "Registration failed...\n%s\nPress BACK to return.", fhttp->last_response);
+        easy_flipper_dialog("Error", error_message);
+        return false;
     }
-}
-
-static void callback_register_switch_to_view(FlipSocialApp *app)
-{
-    if (!loader_view_alloc(app))
-    {
-        FURI_LOG_E(TAG, "Failed to allocate view loader");
-        return;
-    }
-    loader_switch_to_view(app, "Registering...", callback_register_fetch, callback_register_parse, 1, callback_to_register_logged_out, FlipSocialViewLoader);
 }
 
 /**
@@ -1865,7 +1871,25 @@ void callback_logged_out_register_item_selected(void *context, uint32_t index)
         view_dispatcher_switch_to_view(app->view_dispatcher, FlipSocialViewTextInput);
         break;
     case 3: // Register button
-        callback_register_switch_to_view(app);
+        free_all(false, true, app);
+        if (!alloc_flipper_http())
+        {
+            FURI_LOG_E(TAG, "Failed to allocate FlipperHTTP");
+            return;
+        }
+
+        callback_loading_task(
+            app->fhttp,
+            callback_register_fetch,
+            callback_register_parse,
+            FlipSocialViewLoggedInSubmenu,
+            FlipSocialViewLoggedOutSubmenu,
+            &app->view_dispatcher,
+            false);
+
+        // we cannot do this here because we get a freeze
+        // free_flipper_http();
+        // it will be freed later anyways
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
