@@ -19,7 +19,7 @@
 #define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
 #define MAX_USER_LENGTH 32        // Maximum length of a username
 #define MAX_FRIENDS 50            // Maximum number of friends
-#define MAX_FEED_ITEMS 20         // Maximum number of feed items
+#define MAX_FEED_ITEMS 12         // Maximum number of feed items
 #define MAX_LINE_LENGTH 27
 #define MAX_MESSAGE_USERS 40 // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20      // Maximum number of meesages between each user
