@@ -2270,13 +2270,16 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
         {
             return;
         }
+
         callback_loading_task(
             app->fhttp,
             friends_fetch,
             friends_parse_json,
             FlipSocialViewSubmenu,
             FlipSocialViewVariableItemList,
-            &app->view_dispatcher, true);
+            &app->view_dispatcher,
+            true);
+
         free_flipper_http();
         break;
     default:

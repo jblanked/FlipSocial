@@ -18,23 +18,23 @@ bool friends_fetch(FlipperHTTP *fhttp)
     // Create the directory
     Storage *storage = furi_record_open(RECORD_STORAGE);
     storage_common_mkdir(storage, STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends");
-    // will return true unless the devboard is not connected
+    furi_record_close(RECORD_STORAGE);
+
     char url[100];
     snprintf(
         fhttp->file_path,
         sizeof(fhttp->file_path),
-        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends.json");
+        STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/friends/friends.json");
 
     fhttp->save_received_data = true;
     alloc_headers();
-    snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/friends/%s/", app_instance->login_username_logged_in);
+    snprintf(url, sizeof(url), "https://www.jblanked.com/flipper/api/user/friends/%s/%d/", app_instance->login_username_logged_in, MAX_FRIENDS);
     if (!flipper_http_request(fhttp, GET, url, auth_headers, NULL))
     {
         FURI_LOG_E(TAG, "Failed to send HTTP request for friends");
         fhttp->state = ISSUE;
         return false;
     }
-    fhttp->state = RECEIVING;
     return true;
 }
 
@@ -72,6 +72,17 @@ bool friends_parse_json(FlipperHTTP *fhttp)
         FURI_LOG_E(TAG, "FlipperHTTP is NULL");
         return false;
     }
+    if (!app_instance)
+    {
+        FURI_LOG_E(TAG, "App instance is NULL");
+        return false;
+    }
+    if (!app_instance->submenu)
+    {
+        FURI_LOG_E(TAG, "Friends submenu is NULL");
+        return false;
+    }
+
     // load the received data from the saved file
     FuriString *friend_data = flipper_http_load_from_file(fhttp->file_path);
     if (friend_data == NULL)
