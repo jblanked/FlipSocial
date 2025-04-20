@@ -2278,9 +2278,11 @@ void callback_logged_in_profile_item_selected(void *context, uint32_t index)
             FlipSocialViewSubmenu,
             FlipSocialViewVariableItemList,
             &app->view_dispatcher,
-            true);
+            false);
 
-        free_flipper_http();
+        // we cannot do this here because we get a freeze
+        // free_flipper_http();
+        // it will be freed later anyways
         break;
     default:
         FURI_LOG_E(TAG, "Unknown configuration item index");
