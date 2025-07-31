@@ -1,5 +1,6 @@
 #pragma once
 #include "easy_flipper/easy_flipper.h"
+#include "loading/loading.hpp"
 
 typedef enum
 {
@@ -34,24 +35,47 @@ typedef enum
 
 typedef enum
 {
+    UserInfoCredentialsMissing = -1, // Credentials missing
+    UserInfoSuccess = 0,             // User info fetched successfully
+    UserInfoRequestError = 1,        // Request error
+    UserInfoNotStarted = 2,          // User info request not started
+    UserInfoWaiting = 3,             // Waiting for response
+    UserInfoParseError = 4,          // Error parsing user info
+} UserInfoStatus;
+
+typedef enum
+{
     RequestTypeLogin = 0,        // Request login (login the user)
     RequestTypeRegistration = 1, // Request registration (register the user)
     RequestTypeUserInfo = 2,     // Request user info (fetch user info)
+    RequestTypeFeed = 3,         // Request feed (fetch user feed)
+    RequestTypeMessages = 4,     // Request messages (fetch user messages)
 } RequestType;
 
 class FlipSocialApp;
 
 class FlipSocialRun
 {
-    void *appContext;            // reference to the app context
-    SocialView currentMenuIndex; // current menu index
-    SocialView currentView;      // current view of the social run
-    bool inputHeld;              // flag to check if input is held
-    InputKey lastInput;          // last input key pressed
-    bool shouldDebounce;         // flag to debounce input
-    bool shouldReturnToMenu;     // Flag to signal return to menu
+    void *appContext;                      // reference to the app context
+    SocialView currentMenuIndex;           // current menu index
+    SocialView currentView;                // current view of the social run
+    bool inputHeld;                        // flag to check if input is held
+    bool isLoggedIn;                       // flag to check if user is logged in
+    InputKey lastInput;                    // last input key pressed
+    std::unique_ptr<Loading> loading;      // loading animation instance
+    LoginStatus loginStatus;               // current login status
+    RegistrationStatus registrationStatus; // current registration status
+    bool shouldDebounce;                   // flag to debounce input
+    bool shouldReturnToMenu;               // Flag to signal return to menu
+    UserInfoStatus userInfoStatus;         // current user info status
     //
-    void debounceInput(); // debounce input to prevent multiple triggers
+    void debounceInput();                      // debounce input to prevent multiple triggers
+    void drawLoginView(Canvas *canvas);        // draw the login view
+    void drawMainMenuView(Canvas *canvas);     // draw the main menu view
+    void drawRegistrationView(Canvas *canvas); // draw the registration view
+    void drawUserInfoView(Canvas *canvas);     // draw the user info view
+    bool httpRequestIsFinished();              // check if the HTTP request is finished
+    void userRequest(RequestType requestType); // Send a user request to the server based on the request type
 public:
     FlipSocialRun(void *appContext);
     ~FlipSocialRun();

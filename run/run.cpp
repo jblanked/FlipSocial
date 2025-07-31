@@ -3,8 +3,9 @@
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentView(SocialViewMenu),
-                                                 inputHeld(false), lastInput(InputKeyMAX),
-                                                 shouldDebounce(false), shouldReturnToMenu(false)
+                                                 inputHeld(false), isLoggedIn(false), lastInput(InputKeyMAX),
+                                                 loginStatus(LoginNotStarted), registrationStatus(RegistrationNotStarted),
+                                                 shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
 {
 }
 
@@ -28,6 +29,113 @@ void FlipSocialRun::debounceInput()
         shouldDebounce = false;
         inputHeld = false;
     }
+}
+
+void FlipSocialRun::drawLoginView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+    canvas_set_font(canvas, FontPrimary);
+    static bool loadingStarted = false;
+    switch (loginStatus)
+    {
+    case LoginWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Logging in...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                loginStatus = LoginRequestError;
+                return;
+            }
+            char response[256];
+            if (app && app->loadChar("login", response, sizeof(response)))
+            {
+                if (strstr(response, "[SUCCESS]") != NULL)
+                {
+                    loginStatus = LoginSuccess;
+                    currentView = SocialViewProfile; // switch to user info view
+                    userRequest(RequestTypeUserInfo);
+                    userInfoStatus = UserInfoWaiting; // set user info status to waiting
+                }
+                else if (strstr(response, "User not found") != NULL)
+                {
+                    loginStatus = LoginNotStarted;
+                    currentView = SocialViewRegistration;
+                    userRequest(RequestTypeRegistration);
+                    registrationStatus = RegistrationWaiting;
+                }
+                else if (strstr(response, "Incorrect password") != NULL)
+                {
+                    loginStatus = LoginWrongPassword;
+                }
+                else if (strstr(response, "Username or password is empty.") != NULL)
+                {
+                    loginStatus = LoginCredentialsMissing;
+                }
+                else
+                {
+                    loginStatus = LoginRequestError;
+                }
+            }
+            else
+            {
+                loginStatus = LoginRequestError;
+            }
+        }
+        break;
+    case LoginSuccess:
+        canvas_draw_str(canvas, 0, 10, "Login successful!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        break;
+    case LoginCredentialsMissing:
+        canvas_draw_str(canvas, 0, 10, "Missing credentials!");
+        canvas_draw_str(canvas, 0, 20, "Please set your username");
+        canvas_draw_str(canvas, 0, 30, "and password in the app.");
+        break;
+    case LoginRequestError:
+        canvas_draw_str(canvas, 0, 10, "Login request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case LoginWrongPassword:
+        canvas_draw_str(canvas, 0, 10, "Wrong password!");
+        canvas_draw_str(canvas, 0, 20, "Please check your password");
+        canvas_draw_str(canvas, 0, 30, "and try again.");
+        break;
+    default:
+        canvas_draw_str(canvas, 0, 10, "Logging in...");
+        break;
+    }
+}
+
+void FlipSocialRun::drawMainMenuView(Canvas *canvas)
+{
+    const char *menuItems[] = {"Feed", "Messages", "Profile"};
+    drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 3);
 }
 
 void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char **menuItems, uint8_t menuCount)
@@ -98,20 +206,30 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     }
 }
 
+bool FlipSocialRun::httpRequestIsFinished()
+{
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app)
+    {
+        return true;
+    }
+    auto state = app->getHttpState();
+    return state == IDLE || state == ISSUE || state == INACTIVE;
+}
+
 void FlipSocialRun::updateDraw(Canvas *canvas)
 {
     canvas_clear(canvas);
     switch (currentView)
     {
     case SocialViewMenu:
-    {
-        const char *menuItems[] = {"Feed", "Messages", "Profile"};
-        drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 3);
+        drawMainMenuView(canvas);
         break;
-    }
+    case SocialViewLogin:
+        drawLoginView(canvas);
+        break;
     default:
-        canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
-        canvas_draw_str(canvas, 10, 30, "View not implemented yet.");
+        canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
         break;
     };
 }
@@ -154,13 +272,207 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 currentMenuIndex = SocialViewProfile;
             }
             break;
+        case InputKeyOk:
+            switch (currentMenuIndex)
+            {
+            case SocialViewFeed:
+                currentView = SocialViewFeed;
+                shouldDebounce = true;
+                break;
+            case SocialViewMessages:
+                currentView = SocialViewMessages;
+                shouldDebounce = true;
+                break;
+            case SocialViewProfile:
+                currentView = SocialViewProfile;
+                shouldDebounce = true;
+                break;
+            default:
+                break;
+            };
+            break;
         default:
             break;
         }
+        break;
     }
-    break;
+    case SocialViewFeed:
+    {
+        switch (lastInput)
+        {
+        case InputKeyBack:
+            currentView = SocialViewMenu;
+            shouldDebounce = true;
+            break;
+        default:
+            break;
+        };
+        break;
+    }
+    case SocialViewMessages:
+    {
+        switch (lastInput)
+        {
+        case InputKeyBack:
+            currentView = SocialViewMenu;
+            shouldDebounce = true;
+            break;
+        default:
+            break;
+        };
+        break;
+    }
+    case SocialViewProfile:
+    {
+        switch (lastInput)
+        {
+        case InputKeyBack:
+            currentView = SocialViewMenu;
+            shouldDebounce = true;
+            break;
+        default:
+            break;
+        };
+        break;
+    }
+    case SocialViewLogin:
+    case SocialViewRegistration:
+    {
+        if (lastInput == InputKeyBack)
+        {
+            currentView = SocialViewMenu;
+            shouldDebounce = true;
+        }
+        break;
+    }
     default:
         // Handle other views or default behavior
         break;
     };
+}
+
+void FlipSocialRun::userRequest(RequestType requestType)
+{
+    // Get app context to access HTTP functionality
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "userRequest: App context is null");
+        return;
+    }
+
+    // Allocate memory for credentials
+    char *username = (char *)malloc(64);
+    char *password = (char *)malloc(64);
+    if (!username || !password)
+    {
+        FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for credentials");
+        if (username)
+            free(username);
+        if (password)
+            free(password);
+        return;
+    }
+
+    // Load credentials from storage
+    bool credentialsLoaded = true;
+    if (!app->loadChar("user_name", username, 64))
+    {
+        FURI_LOG_E(TAG, "Failed to load user_name");
+        credentialsLoaded = false;
+    }
+    if (!app->loadChar("user_pass", password, 64))
+    {
+        FURI_LOG_E(TAG, "Failed to load user_pass");
+        credentialsLoaded = false;
+    }
+
+    if (!credentialsLoaded)
+    {
+        switch (requestType)
+        {
+        case RequestTypeLogin:
+            loginStatus = LoginCredentialsMissing;
+            break;
+        case RequestTypeRegistration:
+            registrationStatus = RegistrationCredentialsMissing;
+            break;
+        case RequestTypeUserInfo:
+            userInfoStatus = UserInfoCredentialsMissing;
+            break;
+        default:
+            FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
+            loginStatus = LoginRequestError;
+            registrationStatus = RegistrationRequestError;
+            userInfoStatus = UserInfoRequestError;
+            break;
+        }
+        free(username);
+        free(password);
+        return;
+    }
+
+    // Create JSON payload for login/registration
+    char *payload = (char *)malloc(256);
+    if (!payload)
+    {
+        FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for payload");
+        free(username);
+        free(password);
+        return;
+    }
+    snprintf(payload, 256, "{\"username\":\"%s\",\"password\":\"%s\"}", username, password);
+
+    switch (requestType)
+    {
+    case RequestTypeLogin:
+        if (!app->httpRequestAsync("login.txt",
+                                   "https://www.jblanked.com/flipper/api/user/login/",
+                                   POST, "{\"Content-Type\":\"application/json\"}", payload))
+        {
+            loginStatus = LoginRequestError;
+        }
+        break;
+    case RequestTypeRegistration:
+        if (!app->httpRequestAsync("register.txt",
+                                   "https://www.jblanked.com/flipper/api/user/register/",
+                                   POST, "{\"Content-Type\":\"application/json\"}", payload))
+        {
+            registrationStatus = RegistrationRequestError;
+        }
+        break;
+    case RequestTypeUserInfo:
+    {
+        char *url = (char *)malloc(128);
+        if (!url)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url");
+            userInfoStatus = UserInfoRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            return;
+        }
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/user/profile/%s/", username);
+        if (!app->httpRequestAsync("user_info.txt", url, GET, "{\"Content-Type\":\"application/json\"}"))
+        {
+            userInfoStatus = UserInfoRequestError;
+        }
+        free(url);
+        break;
+    }
+    default:
+        FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
+        loginStatus = LoginRequestError;
+        registrationStatus = RegistrationRequestError;
+        userInfoStatus = UserInfoRequestError;
+        free(username);
+        free(password);
+        free(payload);
+        return;
+    }
+
+    free(username);
+    free(password);
+    free(payload);
 }
