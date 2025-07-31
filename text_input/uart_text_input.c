@@ -2,7 +2,7 @@
 // all credits to xMasterX for the code
 #include "uart_text_input.h"
 #include <gui/elements.h>
-#include "hello_world_icons.h"
+#include "flip_social_icons.h"
 #include <furi.h>
 
 struct UART_TextInput

@@ -478,7 +478,7 @@ void HelloWorldApp::viewPortInput(InputEvent *event, void *context)
 
 extern "C"
 {
-    int32_t hello_world_main(void *p)
+    int32_t main_flip_social(void *p)
     {
         // Suppress unused parameter warning
         UNUSED(p);
