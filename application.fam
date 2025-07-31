@@ -1,0 +1,14 @@
+App(
+    appid="hello_world",
+    name="Hello World",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="hello_world_main",
+    stack_size=4 * 1024,
+    fap_icon="app.png",
+    fap_category="GPIO",
+    fap_icon_assets="assets",
+    fap_description="Hello World C++ Flipper app", 
+    fap_author="JBlanked",
+    fap_weburl="https://github.com/jblanked",
+    fap_version="1.0",
+)
