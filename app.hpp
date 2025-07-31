@@ -55,6 +55,8 @@ public:
     size_t getBytesReceived() const noexcept { return flipperHttp ? flipperHttp->bytes_received : 0; } // get the number of bytes received
     size_t getContentLength() const noexcept { return flipperHttp ? flipperHttp->content_length : 0; } // get the content length of the last response
     HTTPState getHttpState() const noexcept { return flipperHttp ? flipperHttp->state : INACTIVE; }    // get the HTTP state
+    bool hasWiFiCredentials();                                                                         // check if WiFi credentials are set
+    bool hasUserCredentials();                                                                         // check if user credentials are set
     FuriString *httpRequest(                                                                           // synchronous HTTP request
         const char *url,                                                                               // URL to send the request to
         HTTPMethod method = GET,                                                                       // HTTP method to use (GET, POST, etc.)
