@@ -1,22 +1,22 @@
 #include "run/run.hpp"
 #include "app.hpp"
 
-HelloWorldRun::HelloWorldRun(void *appContext) : appContext(appContext), shouldReturnToMenu(false)
+FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), shouldReturnToMenu(false)
 {
 }
 
-HelloWorldRun::~HelloWorldRun()
+FlipSocialRun::~FlipSocialRun()
 {
     // nothing to do
 }
 
-void HelloWorldRun::updateDraw(Canvas *canvas)
+void FlipSocialRun::updateDraw(Canvas *canvas)
 {
     canvas_clear(canvas);
     canvas_draw_str(canvas, 0, 10, "Hello World Run!");
 }
 
-void HelloWorldRun::updateInput(InputEvent *event)
+void FlipSocialRun::updateInput(InputEvent *event)
 {
     if (event->key == InputKeyBack)
     {

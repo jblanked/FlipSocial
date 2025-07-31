@@ -13,27 +13,27 @@
 
 typedef enum
 {
-    HelloWorldSubmenuRun = 0,
-    HelloWorldSubmenuAbout = 1,
-    HelloWorldSubmenuSettings = 2,
-} HelloWorldSubmenuIndex;
+    FlipSocialSubmenuRun = 0,
+    FlipSocialSubmenuAbout = 1,
+    FlipSocialSubmenuSettings = 2,
+} FlipSocialSubmenuIndex;
 
 typedef enum
 {
-    HelloWorldViewMain = 0,
-    HelloWorldViewSubmenu = 1,
-    HelloWorldViewAbout = 2,
-    HelloWorldViewSettings = 3,
-    HelloWorldViewTextInput = 4,
-} HelloWorldView;
+    FlipSocialViewMain = 0,
+    FlipSocialViewSubmenu = 1,
+    FlipSocialViewAbout = 2,
+    FlipSocialViewSettings = 3,
+    FlipSocialViewTextInput = 4,
+} FlipSocialView;
 
-class HelloWorldApp
+class FlipSocialApp
 {
 private:
-    std::unique_ptr<HelloWorldAbout> about;       // About class instance
+    std::unique_ptr<FlipSocialAbout> about;       // About class instance
     FlipperHTTP *flipperHttp = nullptr;           // FlipperHTTP instance for HTTP requests
-    std::unique_ptr<HelloWorldRun> run;           // Run class instance
-    std::unique_ptr<HelloWorldSettings> settings; // Settings class instance
+    std::unique_ptr<FlipSocialRun> run;           // Run class instance
+    std::unique_ptr<FlipSocialSettings> settings; // Settings class instance
     Submenu *submenu = nullptr;                   // Submenu for the app
     FuriTimer *timer = nullptr;                   // Timer for run updates
     //
@@ -45,8 +45,8 @@ private:
     static void timerCallback(void *context);                          // Timer callback for run updates
 
 public:
-    HelloWorldApp();
-    ~HelloWorldApp();
+    FlipSocialApp();
+    ~FlipSocialApp();
     //
     Gui *gui = nullptr;                       // GUI instance for the app
     ViewDispatcher *viewDispatcher = nullptr; // ViewDispatcher for managing views

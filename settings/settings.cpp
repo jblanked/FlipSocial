@@ -1,9 +1,9 @@
 #include "settings.hpp"
 #include "app.hpp"
 
-HelloWorldSettings::HelloWorldSettings(ViewDispatcher **view_dispatcher, void *appContext) : appContext(appContext), view_dispatcher_ref(view_dispatcher)
+FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *appContext) : appContext(appContext), view_dispatcher_ref(view_dispatcher)
 {
-    if (!easy_flipper_set_variable_item_list(&variable_item_list, HelloWorldViewSettings,
+    if (!easy_flipper_set_variable_item_list(&variable_item_list, FlipSocialViewSettings,
                                              settingsItemSelectedCallback, callbackToSubmenu, view_dispatcher, this))
     {
         return;
@@ -15,7 +15,7 @@ HelloWorldSettings::HelloWorldSettings(ViewDispatcher **view_dispatcher, void *a
 
     char loaded_ssid[64];
     char loaded_pass[64];
-    HelloWorldApp *app = static_cast<HelloWorldApp *>(appContext);
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
     if (app->loadChar("wifi_ssid", loaded_ssid, sizeof(loaded_ssid)))
     {
         variable_item_set_current_value_text(variable_item_wifi_ssid, loaded_ssid);
@@ -35,14 +35,14 @@ HelloWorldSettings::HelloWorldSettings(ViewDispatcher **view_dispatcher, void *a
     variable_item_set_current_value_text(variable_item_connect, "");
 }
 
-HelloWorldSettings::~HelloWorldSettings()
+FlipSocialSettings::~FlipSocialSettings()
 {
     // Free text input first
     freeTextInput();
 
     if (variable_item_list && view_dispatcher_ref && *view_dispatcher_ref)
     {
-        view_dispatcher_remove_view(*view_dispatcher_ref, HelloWorldViewSettings);
+        view_dispatcher_remove_view(*view_dispatcher_ref, FlipSocialViewSettings);
         variable_item_list_free(variable_item_list);
         variable_item_list = nullptr;
         variable_item_wifi_ssid = nullptr;
@@ -50,23 +50,23 @@ HelloWorldSettings::~HelloWorldSettings()
     }
 }
 
-uint32_t HelloWorldSettings::callbackToSettings(void *context)
+uint32_t FlipSocialSettings::callbackToSettings(void *context)
 {
     UNUSED(context);
-    return HelloWorldViewSettings;
+    return FlipSocialViewSettings;
 }
 
-uint32_t HelloWorldSettings::callbackToSubmenu(void *context)
+uint32_t FlipSocialSettings::callbackToSubmenu(void *context)
 {
     UNUSED(context);
-    return HelloWorldViewSubmenu;
+    return FlipSocialViewSubmenu;
 }
 
-void HelloWorldSettings::freeTextInput()
+void FlipSocialSettings::freeTextInput()
 {
     if (text_input && view_dispatcher_ref && *view_dispatcher_ref)
     {
-        view_dispatcher_remove_view(*view_dispatcher_ref, HelloWorldViewTextInput);
+        view_dispatcher_remove_view(*view_dispatcher_ref, FlipSocialViewTextInput);
 #ifndef FW_ORIGIN_Momentum
         uart_text_input_free(text_input);
 #else
@@ -78,7 +78,7 @@ void HelloWorldSettings::freeTextInput()
     text_input_temp_buffer.reset();
 }
 
-bool HelloWorldSettings::initTextInput(uint32_t view)
+bool FlipSocialSettings::initTextInput(uint32_t view)
 {
     // check if already initialized
     if (text_input_buffer || text_input_temp_buffer)
@@ -99,7 +99,7 @@ bool HelloWorldSettings::initTextInput(uint32_t view)
     }
 
     // app context
-    HelloWorldApp *app = static_cast<HelloWorldApp *>(appContext);
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
     char loaded[256];
 
     if (view == SettingsViewSSID)
@@ -114,11 +114,11 @@ bool HelloWorldSettings::initTextInput(uint32_t view)
         }
         text_input_temp_buffer[text_input_buffer_size - 1] = '\0'; // Ensure null-termination
 #ifndef FW_ORIGIN_Momentum
-        return easy_flipper_set_uart_text_input(&text_input, HelloWorldViewTextInput,
+        return easy_flipper_set_uart_text_input(&text_input, FlipSocialViewTextInput,
                                                 "Enter SSID", text_input_temp_buffer.get(), text_input_buffer_size,
                                                 textUpdatedSsidCallback, callbackToSettings, view_dispatcher_ref, this);
 #else
-        return easy_flipper_set_text_input(&text_input, HelloWorldViewTextInput,
+        return easy_flipper_set_text_input(&text_input, FlipSocialViewTextInput,
                                            "Enter SSID", text_input_temp_buffer.get(), text_input_buffer_size,
                                            textUpdatedSsidCallback, callbackToSettings, view_dispatcher_ref, this);
 #endif
@@ -135,11 +135,11 @@ bool HelloWorldSettings::initTextInput(uint32_t view)
         }
         text_input_temp_buffer[text_input_buffer_size - 1] = '\0'; // Ensure null-termination
 #ifndef FW_ORIGIN_Momentum
-        return easy_flipper_set_uart_text_input(&text_input, HelloWorldViewTextInput,
+        return easy_flipper_set_uart_text_input(&text_input, FlipSocialViewTextInput,
                                                 "Enter Password", text_input_temp_buffer.get(), text_input_buffer_size,
                                                 textUpdatedPassCallback, callbackToSettings, view_dispatcher_ref, this);
 #else
-        return easy_flipper_set_text_input(&text_input, HelloWorldViewTextInput,
+        return easy_flipper_set_text_input(&text_input, FlipSocialViewTextInput,
                                            "Enter Password", text_input_temp_buffer.get(), text_input_buffer_size,
                                            textUpdatedPassCallback, callbackToSettings, view_dispatcher_ref, this);
 #endif
@@ -147,7 +147,7 @@ bool HelloWorldSettings::initTextInput(uint32_t view)
     return false;
 }
 
-void HelloWorldSettings::settingsItemSelected(uint32_t index)
+void FlipSocialSettings::settingsItemSelected(uint32_t index)
 {
     switch (index)
     {
@@ -157,7 +157,7 @@ void HelloWorldSettings::settingsItemSelected(uint32_t index)
         break;
     case SettingsViewConnect:
     {
-        HelloWorldApp *app = static_cast<HelloWorldApp *>(appContext);
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
         char loaded_ssid[64];
         char loaded_pass[64];
         if (!app->loadChar("wifi_ssid", loaded_ssid, sizeof(loaded_ssid)) ||
@@ -177,13 +177,13 @@ void HelloWorldSettings::settingsItemSelected(uint32_t index)
     };
 }
 
-void HelloWorldSettings::settingsItemSelectedCallback(void *context, uint32_t index)
+void FlipSocialSettings::settingsItemSelectedCallback(void *context, uint32_t index)
 {
-    HelloWorldSettings *settings = (HelloWorldSettings *)context;
+    FlipSocialSettings *settings = (FlipSocialSettings *)context;
     settings->settingsItemSelected(index);
 }
 
-bool HelloWorldSettings::startTextInput(uint32_t view)
+bool FlipSocialSettings::startTextInput(uint32_t view)
 {
     freeTextInput();
     if (!initTextInput(view))
@@ -193,7 +193,7 @@ bool HelloWorldSettings::startTextInput(uint32_t view)
     }
     if (view_dispatcher_ref && *view_dispatcher_ref)
     {
-        view_dispatcher_switch_to_view(*view_dispatcher_ref, HelloWorldViewTextInput);
+        view_dispatcher_switch_to_view(*view_dispatcher_ref, FlipSocialViewTextInput);
         return true;
     }
     else
@@ -203,7 +203,7 @@ bool HelloWorldSettings::startTextInput(uint32_t view)
     }
 }
 
-void HelloWorldSettings::textUpdated(uint32_t view)
+void FlipSocialSettings::textUpdated(uint32_t view)
 {
     // store the entered text
     strncpy(text_input_buffer.get(), text_input_temp_buffer.get(), text_input_buffer_size);
@@ -212,7 +212,7 @@ void HelloWorldSettings::textUpdated(uint32_t view)
     text_input_buffer[text_input_buffer_size - 1] = '\0';
 
     // app context
-    HelloWorldApp *app = static_cast<HelloWorldApp *>(appContext);
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
 
     switch (view)
     {
@@ -237,18 +237,18 @@ void HelloWorldSettings::textUpdated(uint32_t view)
     // switch to the settings view
     if (view_dispatcher_ref && *view_dispatcher_ref)
     {
-        view_dispatcher_switch_to_view(*view_dispatcher_ref, HelloWorldViewSettings);
+        view_dispatcher_switch_to_view(*view_dispatcher_ref, FlipSocialViewSettings);
     }
 }
 
-void HelloWorldSettings::textUpdatedSsidCallback(void *context)
+void FlipSocialSettings::textUpdatedSsidCallback(void *context)
 {
-    HelloWorldSettings *settings = (HelloWorldSettings *)context;
+    FlipSocialSettings *settings = (FlipSocialSettings *)context;
     settings->textUpdated(SettingsViewSSID);
 }
 
-void HelloWorldSettings::textUpdatedPassCallback(void *context)
+void FlipSocialSettings::textUpdatedPassCallback(void *context)
 {
-    HelloWorldSettings *settings = (HelloWorldSettings *)context;
+    FlipSocialSettings *settings = (FlipSocialSettings *)context;
     settings->textUpdated(SettingsViewPassword);
 }
