@@ -2,11 +2,32 @@
 #include "app.hpp"
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
-                                                 currentMenuIndex(SocialViewFeed), currentView(SocialViewMenu),
-                                                 inputHeld(false), isLoggedIn(false), lastInput(InputKeyMAX),
+                                                 currentMenuIndex(SocialViewFeed), currentView(SocialViewLogin),
+                                                 inputHeld(false), lastInput(InputKeyMAX),
                                                  loginStatus(LoginNotStarted), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
 {
+    char *loginStatusStr = (char *)malloc(64);
+    if (loginStatusStr)
+    {
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (app && app->loadChar("login_status", loginStatusStr, 64))
+        {
+            if (strcmp(loginStatusStr, "success") == 0)
+            {
+                loginStatus = LoginSuccess;
+                currentView = SocialViewMenu;
+                // no need to fetch user info again
+                // we'll get it again if they go to profile
+            }
+            else
+            {
+                loginStatus = LoginNotStarted;
+                currentView = SocialViewLogin;
+            }
+        }
+        free(loginStatusStr);
+    }
 }
 
 FlipSocialRun::~FlipSocialRun()
@@ -77,16 +98,16 @@ void FlipSocialRun::drawLoginView(Canvas *canvas)
                 if (strstr(response, "[SUCCESS]") != NULL)
                 {
                     loginStatus = LoginSuccess;
-                    currentView = SocialViewProfile; // switch to user info view
+                    currentView = SocialViewUserInfo;
+                    userInfoStatus = UserInfoWaiting;
                     userRequest(RequestTypeUserInfo);
-                    userInfoStatus = UserInfoWaiting; // set user info status to waiting
                 }
                 else if (strstr(response, "User not found") != NULL)
                 {
                     loginStatus = LoginNotStarted;
                     currentView = SocialViewRegistration;
-                    userRequest(RequestTypeRegistration);
                     registrationStatus = RegistrationWaiting;
+                    userRequest(RequestTypeRegistration);
                 }
                 else if (strstr(response, "Incorrect password") != NULL)
                 {
@@ -125,6 +146,10 @@ void FlipSocialRun::drawLoginView(Canvas *canvas)
         canvas_draw_str(canvas, 0, 10, "Wrong password!");
         canvas_draw_str(canvas, 0, 20, "Please check your password");
         canvas_draw_str(canvas, 0, 30, "and try again.");
+        break;
+    case LoginNotStarted:
+        loginStatus = LoginWaiting;
+        userRequest(RequestTypeLogin);
         break;
     default:
         canvas_draw_str(canvas, 0, 10, "Logging in...");
@@ -206,6 +231,189 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     }
 }
 
+void FlipSocialRun::drawRegistrationView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+    canvas_set_font(canvas, FontPrimary);
+    static bool loadingStarted = false;
+    switch (registrationStatus)
+    {
+    case RegistrationWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Registering...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                registrationStatus = RegistrationRequestError;
+                return;
+            }
+            char response[256];
+            if (app && app->loadChar("register", response, sizeof(response)))
+            {
+                if (strstr(response, "[SUCCESS]") != NULL)
+                {
+                    registrationStatus = RegistrationSuccess;
+                    currentView = SocialViewUserInfo;
+                    userInfoStatus = UserInfoWaiting; // set user info status to waiting
+                    userRequest(RequestTypeUserInfo);
+                }
+                else if (strstr(response, "Username or password not provided") != NULL)
+                {
+                    registrationStatus = RegistrationCredentialsMissing;
+                }
+                else if (strstr(response, "User already exists") != NULL)
+                {
+                    registrationStatus = RegistrationUserExists;
+                }
+                else
+                {
+                    registrationStatus = RegistrationRequestError;
+                }
+            }
+            else
+            {
+                registrationStatus = RegistrationRequestError;
+            }
+        }
+        break;
+    case RegistrationSuccess:
+        canvas_draw_str(canvas, 0, 10, "Registration successful!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        break;
+    case RegistrationCredentialsMissing:
+        canvas_draw_str(canvas, 0, 10, "Missing credentials!");
+        canvas_draw_str(canvas, 0, 20, "Please set your username");
+        canvas_draw_str(canvas, 0, 30, "and password in the app.");
+        break;
+    case RegistrationRequestError:
+        canvas_draw_str(canvas, 0, 10, "Registration request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    default:
+        canvas_draw_str(canvas, 0, 10, "Registering...");
+        break;
+    }
+}
+
+void FlipSocialRun::drawUserInfoView(Canvas *canvas)
+{
+    static bool loadingStarted = false;
+    switch (userInfoStatus)
+    {
+    case UserInfoWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Syncing...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            canvas_draw_str(canvas, 0, 10, "Loading user info...");
+            canvas_draw_str(canvas, 0, 20, "Please wait...");
+            canvas_draw_str(canvas, 0, 30, "It may take up to 15 seconds.");
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                userInfoStatus = UserInfoRequestError;
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                return;
+            }
+            char response[512];
+            if (app && app->loadChar("user_info", response, sizeof(response)))
+            {
+                userInfoStatus = UserInfoSuccess;
+                app->saveChar("login_status", "success");
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                currentView = SocialViewMenu;
+                return;
+            }
+            else
+            {
+                userInfoStatus = UserInfoRequestError;
+            }
+        }
+        break;
+    case UserInfoSuccess:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "User info loaded successfully!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        break;
+    case UserInfoCredentialsMissing:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Missing credentials!");
+        canvas_draw_str(canvas, 0, 20, "Please update your username");
+        canvas_draw_str(canvas, 0, 30, "and password in the settings.");
+        break;
+    case UserInfoRequestError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "User info request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case UserInfoParseError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Failed to parse user info!");
+        canvas_draw_str(canvas, 0, 20, "Try again...");
+        break;
+    default:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Loading user info...");
+        break;
+    }
+}
+
 bool FlipSocialRun::httpRequestIsFinished()
 {
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
@@ -227,6 +435,12 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
         break;
     case SocialViewLogin:
         drawLoginView(canvas);
+        break;
+    case SocialViewRegistration:
+        drawRegistrationView(canvas);
+        break;
+    case SocialViewUserInfo:
+        drawUserInfoView(canvas);
         break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
@@ -337,16 +551,17 @@ void FlipSocialRun::updateInput(InputEvent *event)
     }
     case SocialViewLogin:
     case SocialViewRegistration:
+    case SocialViewUserInfo:
     {
         if (lastInput == InputKeyBack)
         {
-            currentView = SocialViewMenu;
+            currentView = SocialViewLogin;
+            shouldReturnToMenu = true;
             shouldDebounce = true;
         }
         break;
     }
     default:
-        // Handle other views or default behavior
         break;
     };
 }

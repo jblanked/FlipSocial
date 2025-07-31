@@ -10,6 +10,7 @@ typedef enum
     SocialViewProfile = 2,      // profile view
     SocialViewLogin = 3,        // login view
     SocialViewRegistration = 4, // registration view
+    SocialViewUserInfo = 5      // user info view
 } SocialView;
 
 typedef enum
@@ -60,7 +61,6 @@ class FlipSocialRun
     SocialView currentMenuIndex;           // current menu index
     SocialView currentView;                // current view of the social run
     bool inputHeld;                        // flag to check if input is held
-    bool isLoggedIn;                       // flag to check if user is logged in
     InputKey lastInput;                    // last input key pressed
     std::unique_ptr<Loading> loading;      // loading animation instance
     LoginStatus loginStatus;               // current login status
