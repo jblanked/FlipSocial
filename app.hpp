@@ -6,10 +6,10 @@
 #include "settings/settings.hpp"
 #include "about/about.hpp"
 
-#define TAG "Hello World"
-#define VERSION "1.0"
+#define TAG "FlipSocial"
+#define VERSION "2.0"
 #define VERSION_TAG TAG " " VERSION
-#define APP_ID "hello_world"
+#define APP_ID "flip_social"
 
 typedef enum
 {
@@ -73,6 +73,7 @@ public:
     bool saveChar(const char *path_name, const char *value);                                           // save a string to storage
     bool setHttpState(HTTPState state = IDLE) noexcept;                                                // set the HTTP state
     bool sendWiFiCredentials(const char *ssid, const char *password);                                  // send WiFi credentials to the board
+    void updateApp();                                                                                  // update the app (used in the main function)
     static void viewPortDraw(Canvas *canvas, void *context);                                           // draw callback for the ViewPort (used in run instance)
     static void viewPortInput(InputEvent *event, void *context);                                       // input callback for the ViewPort (used in run instance)
 };

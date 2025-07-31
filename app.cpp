@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include <update/update.h>
 
 HelloWorldApp::HelloWorldApp()
 {
@@ -454,6 +455,17 @@ void HelloWorldApp::timerCallback(void *context)
     }
 }
 
+void HelloWorldApp::updateApp()
+{
+    if (flipperHttp && isBoardConnected())
+    {
+        if (update_is_ready(flipperHttp, true))
+        {
+            easy_flipper_dialog("Update Status", "Complete.\nRestart your Flipper Zero.");
+        }
+    }
+}
+
 void HelloWorldApp::viewPortDraw(Canvas *canvas, void *context)
 {
     HelloWorldApp *app = static_cast<HelloWorldApp *>(context);
@@ -485,6 +497,9 @@ extern "C"
 
         // Create the app
         HelloWorldApp app;
+
+        // check if update is available from lab.flipper.net
+        app.updateApp();
 
         // Run the app
         app.runDispatcher();
