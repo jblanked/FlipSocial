@@ -11,7 +11,9 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
 
     variable_item_wifi_ssid = variable_item_list_add(variable_item_list, "WiFi SSID", 1, nullptr, nullptr);
     variable_item_wifi_pass = variable_item_list_add(variable_item_list, "WiFi Password", 1, nullptr, nullptr);
-    variable_item_connect = variable_item_list_add(variable_item_list, "Connect", 1, nullptr, nullptr);
+    variable_item_connect = variable_item_list_add(variable_item_list, "[Connect To WiFi]", 1, nullptr, nullptr);
+    variable_item_user_name = variable_item_list_add(variable_item_list, "User Name", 1, nullptr, nullptr);
+    variable_item_user_pass = variable_item_list_add(variable_item_list, "User Password", 1, nullptr, nullptr);
 
     char loaded_ssid[64];
     char loaded_pass[64];
@@ -33,6 +35,22 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
         variable_item_set_current_value_text(variable_item_wifi_pass, "");
     }
     variable_item_set_current_value_text(variable_item_connect, "");
+    if (app->loadChar("user_name", loaded_ssid, sizeof(loaded_ssid)))
+    {
+        variable_item_set_current_value_text(variable_item_user_name, loaded_ssid);
+    }
+    else
+    {
+        variable_item_set_current_value_text(variable_item_user_name, "");
+    }
+    if (app->loadChar("user_pass", loaded_pass, sizeof(loaded_pass)))
+    {
+        variable_item_set_current_value_text(variable_item_user_pass, "*****");
+    }
+    else
+    {
+        variable_item_set_current_value_text(variable_item_user_pass, "");
+    }
 }
 
 FlipSocialSettings::~FlipSocialSettings()
@@ -144,6 +162,48 @@ bool FlipSocialSettings::initTextInput(uint32_t view)
                                            textUpdatedPassCallback, callbackToSettings, view_dispatcher_ref, this);
 #endif
     }
+    else if (view == SettingsViewUserName)
+    {
+        if (app->loadChar("user_name", loaded, sizeof(loaded)))
+        {
+            strncpy(text_input_temp_buffer.get(), loaded, text_input_buffer_size);
+        }
+        else
+        {
+            text_input_temp_buffer[0] = '\0'; // Ensure empty if not loaded
+        }
+        text_input_temp_buffer[text_input_buffer_size - 1] = '\0'; // Ensure null-termination
+#ifndef FW_ORIGIN_Momentum
+        return easy_flipper_set_uart_text_input(&text_input, FlipSocialViewTextInput,
+                                                "Enter User Name", text_input_temp_buffer.get(), text_input_buffer_size,
+                                                textUpdatedUserNameCallback, callbackToSettings, view_dispatcher_ref, this);
+#else
+        return easy_flipper_set_text_input(&text_input, FlipSocialViewTextInput,
+                                           "Enter User Name", text_input_temp_buffer.get(), text_input_buffer_size,
+                                           textUpdatedUserNameCallback, callbackToSettings, view_dispatcher_ref, this);
+#endif
+    }
+    else if (view == SettingsViewUserPass)
+    {
+        if (app->loadChar("user_pass", loaded, sizeof(loaded)))
+        {
+            strncpy(text_input_temp_buffer.get(), loaded, text_input_buffer_size);
+        }
+        else
+        {
+            text_input_temp_buffer[0] = '\0'; // Ensure empty if not loaded
+        }
+        text_input_temp_buffer[text_input_buffer_size - 1] = '\0'; // Ensure null-termination
+#ifndef FW_ORIGIN_Momentum
+        return easy_flipper_set_uart_text_input(&text_input, FlipSocialViewTextInput,
+                                                "Enter User Password", text_input_temp_buffer.get(), text_input_buffer_size,
+                                                textUpdatedUserPassCallback, callbackToSettings, view_dispatcher_ref, this);
+#else
+        return easy_flipper_set_text_input(&text_input, FlipSocialViewTextInput,
+                                           "Enter User Password", text_input_temp_buffer.get(), text_input_buffer_size,
+                                           textUpdatedUserPassCallback, callbackToSettings, view_dispatcher_ref, this);
+#endif
+    }
     return false;
 }
 
@@ -153,6 +213,8 @@ void FlipSocialSettings::settingsItemSelected(uint32_t index)
     {
     case SettingsViewSSID:
     case SettingsViewPassword:
+    case SettingsViewUserName:
+    case SettingsViewUserPass:
         startTextInput(index);
         break;
     case SettingsViewConnect:
@@ -230,6 +292,20 @@ void FlipSocialSettings::textUpdated(uint32_t view)
         }
         app->saveChar("wifi_pass", text_input_buffer.get());
         break;
+    case SettingsViewUserName:
+        if (variable_item_user_name)
+        {
+            variable_item_set_current_value_text(variable_item_user_name, text_input_buffer.get());
+        }
+        app->saveChar("user_name", text_input_buffer.get());
+        break;
+    case SettingsViewUserPass:
+        if (variable_item_user_pass)
+        {
+            variable_item_set_current_value_text(variable_item_user_pass, text_input_buffer.get());
+        }
+        app->saveChar("user_pass", text_input_buffer.get());
+        break;
     default:
         break;
     }
@@ -251,4 +327,16 @@ void FlipSocialSettings::textUpdatedPassCallback(void *context)
 {
     FlipSocialSettings *settings = (FlipSocialSettings *)context;
     settings->textUpdated(SettingsViewPassword);
+}
+
+void FlipSocialSettings::textUpdatedUserNameCallback(void *context)
+{
+    FlipSocialSettings *settings = (FlipSocialSettings *)context;
+    settings->textUpdated(SettingsViewUserName);
+}
+
+void FlipSocialSettings::textUpdatedUserPassCallback(void *context)
+{
+    FlipSocialSettings *settings = (FlipSocialSettings *)context;
+    settings->textUpdated(SettingsViewUserPass);
 }
