@@ -12,6 +12,11 @@ Loading::Loading(Canvas *canvas)
 }
 void Loading::animate()
 {
+    if (!canvas)
+    {
+        FURI_LOG_E("Loading", "Canvas is null, cannot animate.");
+        return;
+    }
     if (!animating)
     {
         animating = true;
@@ -33,6 +38,11 @@ void Loading::stop()
 
 void Loading::drawSpinner()
 {
+    if (!canvas)
+    {
+        FURI_LOG_E("Loading", "Canvas is null, cannot draw spinner.");
+        return;
+    }
     // Get the screen dimensions for positioning
     int centerX = 64;
     int centerY = 32;
