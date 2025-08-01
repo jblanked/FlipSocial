@@ -15,11 +15,12 @@ typedef enum
 {
     SocialViewMenu = -1,        // main menu view
     SocialViewFeed = 0,         // feed view
-    SocialViewMessages = 1,     // messages view
+    SocialViewMessageUsers = 1, // (initial) messages view
     SocialViewProfile = 2,      // profile view
     SocialViewLogin = 3,        // login view
     SocialViewRegistration = 4, // registration view
-    SocialViewUserInfo = 5      // user info view
+    SocialViewUserInfo = 5,     // user info view
+    SocialViewMessages = 6      // messages view
 } SocialView;
 
 typedef enum
@@ -55,13 +56,13 @@ typedef enum
 
 typedef enum
 {
-    RequestTypeLogin = 0,        // Request login (login the user)
-    RequestTypeRegistration = 1, // Request registration (register the user)
-    RequestTypeUserInfo = 2,     // Request user info (fetch user info)
-    RequestTypeFeed = 3,         // Request feed (fetch user feed)
-    RequestTypeFlipPost = 4,     // Request flip post (flip the current seelected post)
-    RequestTypeCommentFetch = 5, // Request comments (fetch comments for a post)
-    RequestTypeMessages = 5,     // Request messages (fetch user messages)
+    RequestTypeLogin = 0,            // Request login (login the user)
+    RequestTypeRegistration = 1,     // Request registration (register the user)
+    RequestTypeUserInfo = 2,         // Request user info (fetch user info)
+    RequestTypeFeed = 3,             // Request feed (fetch user feed)
+    RequestTypeFlipPost = 4,         // Request flip post (flip the current seelected post)
+    RequestTypeCommentFetch = 5,     // Request comments (fetch comments for a post)
+    RequestTypeMessagesUserList = 6, // Request messages (fetch list of users who sent messages)
 } RequestType;
 
 typedef enum
@@ -81,6 +82,15 @@ typedef enum
     FeedRequestError = 4, // Error in feed request
 } FeedStatus;
 
+typedef enum
+{
+    MessageUsersNotStarted = 0,   // Messages not started
+    MessageUsersWaiting = 1,      // Waiting for messages response
+    MessageUsersSuccess = 2,      // Messages fetched successfully
+    MessageUsersParseError = 3,   // Error parsing messages
+    MessageUsersRequestError = 4, // Error in messages request
+} MessageUsersStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
@@ -89,7 +99,7 @@ class FlipSocialRun
     SocialView currentMenuIndex;           // current menu index
     uint8_t currentProfileElement;         // current profile element being viewed
     SocialView currentView;                // current view of the social run
-    int feedItemID;                        // current feed item ID
+    uint16_t feedItemID;                   // current feed item ID
     uint8_t feedItemIndex;                 // current feed item index
     uint8_t feedIteration;                 // current feed iteration
     FeedStatus feedStatus;                 // current feed status
@@ -97,6 +107,8 @@ class FlipSocialRun
     InputKey lastInput;                    // last input key pressed
     std::unique_ptr<Loading> loading;      // loading animation instance
     LoginStatus loginStatus;               // current login status
+    MessageUsersStatus messageUsersStatus; // current messages status
+    uint8_t messageUserIndex;              // index of the user in the messages submenu
     RegistrationStatus registrationStatus; // current registration status
     bool shouldDebounce;                   // flag to debounce input
     bool shouldReturnToMenu;               // Flag to signal return to menu
@@ -108,10 +120,12 @@ class FlipSocialRun
     void drawFeedView(Canvas *canvas);                                                                                // draw the feed view
     void drawLoginView(Canvas *canvas);                                                                               // draw the login view
     void drawMainMenuView(Canvas *canvas);                                                                            // draw the main menu view
+    void drawMessageUsersView(Canvas *canvas);                                                                        // draw the message users view
     void drawProfileView(Canvas *canvas);                                                                             // draw the profile view
     void drawRegistrationView(Canvas *canvas);                                                                        // draw the registration view
     void drawUserInfoView(Canvas *canvas);                                                                            // draw the user info view
     void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y);                                      // draw wrapped text on the canvas
+    bool getMessageUser(uint8_t index, char *buffer, size_t buffer_size);                                             // get the message user at the specified messageUserIndex
     bool httpRequestIsFinished();                                                                                     // check if the HTTP request is finished
     void userRequest(RequestType requestType);                                                                        // Send a user request to the server based on the request type
 public:

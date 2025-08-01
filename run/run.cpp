@@ -1,10 +1,11 @@
 #include "run/run.hpp"
 #include "app.hpp"
+#include <vector>
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
-                                                 feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
-                                                 loginStatus(LoginNotStarted), registrationStatus(RegistrationNotStarted),
+                                                 feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
+                                                 loginStatus(LoginNotStarted), messageUsersStatus(MessageUsersNotStarted), messageUserIndex(0), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
 {
     char *loginStatusStr = (char *)malloc(64);
@@ -548,6 +549,131 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     }
 }
 
+void FlipSocialRun::drawMessageUsersView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+    canvas_set_font(canvas, FontPrimary);
+    static bool loadingStarted = false;
+    switch (messageUsersStatus)
+    {
+    case MessageUsersWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Retrieving...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                messageUsersStatus = MessageUsersRequestError;
+                return;
+            }
+            char *response = (char *)malloc(1024);
+            if (response && app->loadChar("messages_user_list", response, 1024) && strstr(response, "users") != NULL)
+            {
+                messageUsersStatus = MessageUsersSuccess;
+                free(response);
+                return;
+            }
+            else
+            {
+                messageUsersStatus = MessageUsersRequestError;
+            }
+        }
+        break;
+    case MessageUsersSuccess:
+    {
+        canvas_draw_str(canvas, 0, 10, "Messages retrieved successfully!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        char *messagesUserList = (char *)malloc(1024);
+        if (!messagesUserList)
+        {
+            FURI_LOG_E(TAG, "drawMessageUsersView: Failed to allocate memory for messagesUserList");
+            messageUsersStatus = MessageUsersParseError;
+            return;
+        }
+
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (!app || !app->loadChar("messages_user_list", messagesUserList, 1024))
+        {
+            FURI_LOG_E(TAG, "drawMessageUsersView: Failed to load messages user list from storage");
+            canvas_draw_str(canvas, 0, 30, "Failed to load messages.");
+            free(messagesUserList);
+            return;
+        }
+
+        // store users
+        std::vector<std::string> usersList;
+        for (int i = 0; i < MAX_MESSAGE_USERS; i++)
+        {
+            char *user = get_json_array_value("users", i, messagesUserList);
+            if (!user)
+            {
+                break; // No more users in the list
+            }
+            usersList.push_back(user);
+            free(user);
+        }
+
+        if (usersList.empty())
+        {
+            canvas_draw_str(canvas, 0, 30, "No messages found.");
+        }
+        else
+        {
+            // std::vector<std::string> to const char** for drawMenu
+            std::vector<const char *> userPtrs;
+            userPtrs.reserve(usersList.size());
+            for (const auto &user : usersList)
+            {
+                userPtrs.push_back(user.c_str());
+            }
+            drawMenu(canvas, messageUserIndex, userPtrs.data(), userPtrs.size());
+        }
+        free(messagesUserList);
+        break;
+    }
+    case MessageUsersRequestError:
+        canvas_draw_str(canvas, 0, 10, "Messages request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case MessageUsersParseError:
+        canvas_draw_str(canvas, 0, 10, "Error parsing messages!");
+        canvas_draw_str(canvas, 0, 20, "Please set your username");
+        canvas_draw_str(canvas, 0, 30, "and password in the app.");
+        break;
+    case MessageUsersNotStarted:
+        messageUsersStatus = MessageUsersWaiting;
+        userRequest(RequestTypeMessagesUserList);
+        break;
+    default:
+        canvas_draw_str(canvas, 0, 10, "Retrieving messages...");
+        break;
+    }
+}
+
 void FlipSocialRun::drawProfileView(Canvas *canvas)
 {
     canvas_clear(canvas);
@@ -940,6 +1066,35 @@ void FlipSocialRun::drawUserInfoView(Canvas *canvas)
     }
 }
 
+bool FlipSocialRun::getMessageUser(uint8_t index, char *buffer, size_t buffer_size)
+{
+    char *messagesUserList = (char *)malloc(1024);
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app || !messagesUserList || !app->loadChar("messages_user_list", messagesUserList, 1024))
+    {
+        FURI_LOG_E(TAG, "drawMessageUsersView: Failed to load messages user list from storage");
+        free(messagesUserList);
+        return false;
+    }
+    for (int i = 0; i < MAX_MESSAGE_USERS; i++)
+    {
+        if (i != index)
+        {
+            continue; // Only return the requested user
+        }
+        char *user = get_json_array_value("users", i, messagesUserList);
+        if (user && strlen(user) > 0)
+        {
+            snprintf(buffer, buffer_size, "%s", user);
+            free(user);
+            free(messagesUserList);
+            return true;
+        }
+    }
+    free(messagesUserList);
+    return false;
+}
+
 bool FlipSocialRun::httpRequestIsFinished()
 {
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
@@ -975,6 +1130,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
     case SocialViewFeed:
         drawFeedView(canvas);
         break;
+    case SocialViewMessageUsers:
+        drawMessageUsersView(canvas);
+        break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
         break;
@@ -997,13 +1155,13 @@ void FlipSocialRun::updateInput(InputEvent *event)
             break;
         case InputKeyDown:
         case InputKeyLeft:
-            if (currentMenuIndex == SocialViewMessages)
+            if (currentMenuIndex == SocialViewMessageUsers)
             {
                 currentMenuIndex = SocialViewFeed;
             }
             else if (currentMenuIndex == SocialViewProfile)
             {
-                currentMenuIndex = SocialViewMessages;
+                currentMenuIndex = SocialViewMessageUsers;
                 shouldDebounce = true;
             }
             break;
@@ -1011,10 +1169,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
         case InputKeyRight:
             if (currentMenuIndex == SocialViewFeed)
             {
-                currentMenuIndex = SocialViewMessages;
+                currentMenuIndex = SocialViewMessageUsers;
                 shouldDebounce = true;
             }
-            else if (currentMenuIndex == SocialViewMessages)
+            else if (currentMenuIndex == SocialViewMessageUsers)
             {
                 currentMenuIndex = SocialViewProfile;
             }
@@ -1026,8 +1184,8 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 currentView = SocialViewFeed;
                 shouldDebounce = true;
                 break;
-            case SocialViewMessages:
-                currentView = SocialViewMessages;
+            case SocialViewMessageUsers:
+                currentView = SocialViewMessageUsers;
                 shouldDebounce = true;
                 break;
             case SocialViewProfile:
@@ -1106,13 +1264,29 @@ void FlipSocialRun::updateInput(InputEvent *event)
         };
         break;
     }
-    case SocialViewMessages:
+    case SocialViewMessageUsers:
     {
         switch (lastInput)
         {
         case InputKeyBack:
             currentView = SocialViewMenu;
             shouldDebounce = true;
+            break;
+        case InputKeyLeft:
+        case InputKeyDown:
+            if (messageUserIndex > 0)
+            {
+                messageUserIndex--;
+                shouldDebounce = true;
+            }
+            break;
+        case InputKeyRight:
+        case InputKeyUp:
+            if (messageUserIndex < (MAX_MESSAGE_USERS - 1))
+            {
+                messageUserIndex++;
+                shouldDebounce = true;
+            }
             break;
         default:
             break;
@@ -1184,7 +1358,12 @@ void FlipSocialRun::userRequest(RequestType requestType)
             userInfoStatus = UserInfoRequestError;
             break;
         case RequestTypeFeed:
+        case RequestTypeFlipPost:
+        case RequestTypeCommentFetch:
             feedStatus = FeedRequestError;
+            break;
+        case RequestTypeMessagesUserList:
+            messageUsersStatus = MessageUsersRequestError;
             break;
         default:
             break;
@@ -1231,11 +1410,21 @@ void FlipSocialRun::userRequest(RequestType requestType)
         case RequestTypeUserInfo:
             userInfoStatus = UserInfoCredentialsMissing;
             break;
+        case RequestTypeFeed:
+        case RequestTypeFlipPost:
+        case RequestTypeCommentFetch:
+            feedStatus = FeedRequestError;
+            break;
+        case RequestTypeMessagesUserList:
+            messageUsersStatus = MessageUsersRequestError;
+            break;
         default:
             FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
             loginStatus = LoginRequestError;
             registrationStatus = RegistrationRequestError;
             userInfoStatus = UserInfoRequestError;
+            feedStatus = FeedRequestError;
+            messageUsersStatus = MessageUsersRequestError;
             break;
         }
         free(username);
@@ -1368,12 +1557,40 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(feedSaveName);
         break;
     }
+    case RequestTypeMessagesUserList:
+    {
+        char *url = (char *)malloc(128);
+        char *authHeader = (char *)malloc(256);
+        if (!url || !authHeader)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url or authHeader");
+            messageUsersStatus = MessageUsersRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (url)
+                free(url);
+            if (authHeader)
+                free(authHeader);
+            return;
+        }
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/messages/%s/get/list/%d/", username, MAX_MESSAGE_USERS);
+        snprintf(authHeader, 256, "{\"Content-Type\":\"application/json\",\"Username\":\"%s\",\"Password\":\"%s\"}", username, password);
+        if (!app->httpRequestAsync("messages_user_list.txt", url, GET, authHeader))
+        {
+            messageUsersStatus = MessageUsersRequestError;
+        }
+        free(url);
+        free(authHeader);
+        break;
+    }
     default:
         FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
         loginStatus = LoginRequestError;
         registrationStatus = RegistrationRequestError;
         userInfoStatus = UserInfoRequestError;
         feedStatus = FeedRequestError;
+        messageUsersStatus = MessageUsersRequestError;
         free(username);
         free(password);
         free(payload);
