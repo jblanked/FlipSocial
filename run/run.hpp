@@ -63,6 +63,7 @@ typedef enum
     RequestTypeFlipPost = 4,         // Request flip post (flip the current seelected post)
     RequestTypeCommentFetch = 5,     // Request comments (fetch comments for a post)
     RequestTypeMessagesUserList = 6, // Request messages (fetch list of users who sent messages)
+    RequestTypeMessagesWithUser = 7, // Request messages with a specific user
 } RequestType;
 
 typedef enum
@@ -91,6 +92,15 @@ typedef enum
     MessageUsersRequestError = 4, // Error in messages request
 } MessageUsersStatus;
 
+typedef enum
+{
+    MessagesNotStarted = 0,   // Messages not started
+    MessagesWaiting = 1,      // Waiting for messages response
+    MessagesSuccess = 2,      // Messages fetched successfully
+    MessagesParseError = 3,   // Error parsing messages
+    MessagesRequestError = 4, // Error in messages request
+} MessagesStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
@@ -107,8 +117,10 @@ class FlipSocialRun
     InputKey lastInput;                    // last input key pressed
     std::unique_ptr<Loading> loading;      // loading animation instance
     LoginStatus loginStatus;               // current login status
+    MessagesStatus messagesStatus;         // current messages status
     MessageUsersStatus messageUsersStatus; // current messages status
-    uint8_t messageUserIndex;              // index of the user in the messages submenu
+    uint8_t messagesIndex;                 // index of the message in the messages submenu
+    uint8_t messageUserIndex;              // index of the user in the Message Users submenu
     RegistrationStatus registrationStatus; // current registration status
     bool shouldDebounce;                   // flag to debounce input
     bool shouldReturnToMenu;               // Flag to signal return to menu
@@ -120,6 +132,7 @@ class FlipSocialRun
     void drawFeedView(Canvas *canvas);                                                                                // draw the feed view
     void drawLoginView(Canvas *canvas);                                                                               // draw the login view
     void drawMainMenuView(Canvas *canvas);                                                                            // draw the main menu view
+    void drawMessagesView(Canvas *canvas);                                                                            // draw the messages view
     void drawMessageUsersView(Canvas *canvas);                                                                        // draw the message users view
     void drawProfileView(Canvas *canvas);                                                                             // draw the profile view
     void drawRegistrationView(Canvas *canvas);                                                                        // draw the registration view
