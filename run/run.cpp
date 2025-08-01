@@ -2,7 +2,7 @@
 #include "app.hpp"
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
-                                                 currentMenuIndex(SocialViewFeed), currentView(SocialViewLogin),
+                                                 currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
                                                  inputHeld(false), lastInput(InputKeyMAX),
                                                  loginStatus(LoginNotStarted), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
@@ -17,8 +17,6 @@ FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
             {
                 loginStatus = LoginSuccess;
                 currentView = SocialViewMenu;
-                // no need to fetch user info again
-                // we'll get it again if they go to profile
             }
             else
             {
@@ -98,9 +96,7 @@ void FlipSocialRun::drawLoginView(Canvas *canvas)
                 if (strstr(response, "[SUCCESS]") != NULL)
                 {
                     loginStatus = LoginSuccess;
-                    currentView = SocialViewUserInfo;
-                    userInfoStatus = UserInfoWaiting;
-                    userRequest(RequestTypeUserInfo);
+                    currentView = SocialViewMenu;
                 }
                 else if (strstr(response, "User not found") != NULL)
                 {
@@ -231,6 +227,217 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     }
 }
 
+void FlipSocialRun::drawProfileView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "drawProfileView: App context is null");
+        return;
+    }
+
+    char userInfo[256];
+    if (!app->loadChar("user_info", userInfo, sizeof(userInfo)))
+    {
+        canvas_set_font(canvas, FontSecondary);
+        canvas_draw_str_aligned(canvas, 64, 32, AlignCenter, AlignCenter,
+                                "Failed to load user info.");
+        return;
+    }
+
+    char username[64];
+    if (!app->loadChar("user_name", username, sizeof(username)))
+    {
+        canvas_set_font(canvas, FontSecondary);
+        canvas_draw_str_aligned(canvas, 64, 32, AlignCenter, AlignCenter,
+                                "Failed to load username.");
+        return;
+    }
+
+    char *bio = get_json_value("bio", userInfo);
+    char *friendsCount = get_json_value("friends_count", userInfo);
+    char *dateCreated = get_json_value("date_created", userInfo);
+
+    if (!bio || !friendsCount || !dateCreated)
+    {
+        canvas_set_font(canvas, FontSecondary);
+        canvas_draw_str_aligned(canvas, 64, 32, AlignCenter, AlignCenter,
+                                "Incomplete profile data.");
+        if (bio)
+            free(bio);
+        if (friendsCount)
+            free(friendsCount);
+        if (dateCreated)
+            free(dateCreated);
+        return;
+    }
+
+    canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
+    int title_width = canvas_string_width(canvas, username);
+    int title_x = (128 - title_width) / 2;
+    canvas_draw_str(canvas, title_x, 12, username);
+
+    // underline for username
+    canvas_draw_line(canvas, title_x, 14, title_x + title_width, 14);
+
+    // decorative top pattern
+    for (int i = 0; i < 128; i += 4)
+    {
+        canvas_draw_dot(canvas, i, 18);
+    }
+
+    // Profile element labels
+    const char *elementLabels[] = {"Bio", "Friends", "Joined"};
+
+    // current element label
+    canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
+    const char *currentLabel = elementLabels[currentProfileElement];
+    int label_width = canvas_string_width(canvas, currentLabel);
+    int label_x = (128 - label_width) / 2;
+    canvas_draw_str(canvas, label_x, 28, currentLabel);
+
+    // main content box
+    canvas_draw_rbox(canvas, 7, 32, 114, 20, 4);
+    canvas_set_color(canvas, ColorWhite);
+
+    // Draw content based on current element
+    canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+    switch (currentProfileElement)
+    {
+    case ProfileElementBio:
+        if (strlen(bio) == 0)
+        {
+            canvas_draw_str_aligned(canvas, 64, 42, AlignCenter, AlignCenter, "No bio");
+        }
+        else
+        {
+            drawWrappedBio(canvas, bio, 10, 40);
+        }
+        break;
+    case ProfileElementFriends:
+    {
+        canvas_draw_str_aligned(canvas, 64, 42, AlignCenter, AlignCenter, friendsCount);
+    }
+    break;
+    case ProfileElementJoined:
+    {
+        canvas_draw_str_aligned(canvas, 64, 42, AlignCenter, AlignCenter, dateCreated);
+    }
+    break;
+    default:
+        canvas_draw_str_aligned(canvas, 64, 42, AlignCenter, AlignCenter, "Unknown");
+        break;
+    }
+
+    canvas_set_color(canvas, ColorBlack);
+
+    // navigation arrows
+    if (currentProfileElement > 0)
+    {
+        canvas_draw_str(canvas, 2, 42, "<");
+    }
+    if (currentProfileElement < (ProfileElementMAX - 1))
+    {
+        canvas_draw_str(canvas, 122, 42, ">");
+    }
+
+    // page indicator dots
+    int dots_spacing = 6;
+    int dots_start_x = (128 - (ProfileElementMAX * dots_spacing)) / 2;
+    for (int i = 0; i < ProfileElementMAX; i++)
+    {
+        int dot_x = dots_start_x + (i * dots_spacing);
+        if (i == currentProfileElement)
+        {
+            canvas_draw_box(canvas, dot_x, 56, 4, 4);
+        }
+        else
+        {
+            canvas_draw_frame(canvas, dot_x, 56, 4, 4);
+        }
+    }
+
+    // decorative bottom pattern
+    for (int i = 0; i < 128; i += 4)
+    {
+        canvas_draw_dot(canvas, i, 62);
+    }
+
+    free(bio);
+    free(friendsCount);
+    free(dateCreated);
+}
+
+void FlipSocialRun::drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y)
+{
+    if (!text || strlen(text) == 0)
+    {
+        canvas_draw_str_aligned(canvas, 64, y + 2, AlignCenter, AlignCenter, "No bio");
+        return;
+    }
+
+    const uint8_t maxCharsPerLine = 18;
+    uint8_t textLen = strlen(text);
+
+    if (textLen <= maxCharsPerLine)
+    {
+        canvas_draw_str_aligned(canvas, 64, y + 2, AlignCenter, AlignCenter, text);
+        return;
+    }
+
+    char line1[maxCharsPerLine + 1] = {0};
+    char line2[maxCharsPerLine + 1] = {0};
+
+    // First line
+    uint8_t line1Len = (textLen > maxCharsPerLine) ? maxCharsPerLine : textLen;
+
+    // Try to break at word boundary for first line
+    uint8_t breakPoint = line1Len;
+    if (textLen > maxCharsPerLine)
+    {
+        for (int i = maxCharsPerLine - 1; i > maxCharsPerLine - 8; i--) // Look back up to 7 chars
+        {
+            if (text[i] == ' ')
+            {
+                breakPoint = i;
+                break;
+            }
+        }
+    }
+
+    strncpy(line1, text, breakPoint);
+    line1[breakPoint] = '\0';
+
+    // Second line
+    if (textLen > breakPoint)
+    {
+        uint8_t remainingLen = textLen - breakPoint;
+        if (text[breakPoint] == ' ')
+            breakPoint++; // Skip space at beginning of line2
+
+        uint8_t line2Len = (remainingLen > maxCharsPerLine) ? maxCharsPerLine - 3 : remainingLen;
+        strncpy(line2, &text[breakPoint], line2Len);
+
+        // Add ellipsis if text is truncated
+        if (remainingLen > maxCharsPerLine)
+        {
+            line2[line2Len - 3] = '.';
+            line2[line2Len - 2] = '.';
+            line2[line2Len - 1] = '.';
+        }
+        line2[line2Len] = '\0';
+    }
+
+    // Draw the lines
+    canvas_draw_str(canvas, x, y, line1);
+    if (strlen(line2) > 0)
+    {
+        canvas_draw_str(canvas, x, y + 8, line2);
+    }
+}
+
 void FlipSocialRun::drawRegistrationView(Canvas *canvas)
 {
     canvas_clear(canvas);
@@ -277,9 +484,7 @@ void FlipSocialRun::drawRegistrationView(Canvas *canvas)
                 if (strstr(response, "[SUCCESS]") != NULL)
                 {
                     registrationStatus = RegistrationSuccess;
-                    currentView = SocialViewUserInfo;
-                    userInfoStatus = UserInfoWaiting; // set user info status to waiting
-                    userRequest(RequestTypeUserInfo);
+                    currentView = SocialViewMenu;
                 }
                 else if (strstr(response, "Username or password not provided") != NULL)
                 {
@@ -371,7 +576,7 @@ void FlipSocialRun::drawUserInfoView(Canvas *canvas)
                     loading->stop();
                 }
                 loadingStarted = false;
-                currentView = SocialViewMenu;
+                currentView = SocialViewProfile;
                 return;
             }
             else
@@ -442,6 +647,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
     case SocialViewUserInfo:
         drawUserInfoView(canvas);
         break;
+    case SocialViewProfile:
+        drawProfileView(canvas);
+        break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
         break;
@@ -498,7 +706,16 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 shouldDebounce = true;
                 break;
             case SocialViewProfile:
-                currentView = SocialViewProfile;
+                if (userInfoStatus == UserInfoNotStarted || userInfoStatus == UserInfoRequestError)
+                {
+                    currentView = SocialViewUserInfo;
+                    userInfoStatus = UserInfoWaiting;
+                    userRequest(RequestTypeUserInfo);
+                }
+                else if (userInfoStatus == UserInfoSuccess)
+                {
+                    currentView = SocialViewProfile;
+                }
                 shouldDebounce = true;
                 break;
             default:
@@ -543,6 +760,22 @@ void FlipSocialRun::updateInput(InputEvent *event)
         case InputKeyBack:
             currentView = SocialViewMenu;
             shouldDebounce = true;
+            break;
+        case InputKeyLeft:
+        case InputKeyDown:
+            if (currentProfileElement > 0)
+            {
+                currentProfileElement--;
+                shouldDebounce = true;
+            }
+            break;
+        case InputKeyRight:
+        case InputKeyUp:
+            if (currentProfileElement < (ProfileElementMAX - 1))
+            {
+                currentProfileElement++;
+                shouldDebounce = true;
+            }
             break;
         default:
             break;

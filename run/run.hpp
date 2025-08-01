@@ -53,12 +53,21 @@ typedef enum
     RequestTypeMessages = 4,     // Request messages (fetch user messages)
 } RequestType;
 
+typedef enum
+{
+    ProfileElementBio,
+    ProfileElementFriends,
+    ProfileElementJoined,
+    ProfileElementMAX
+} ProfileElement;
+
 class FlipSocialApp;
 
 class FlipSocialRun
 {
     void *appContext;                      // reference to the app context
     SocialView currentMenuIndex;           // current menu index
+    uint8_t currentProfileElement;         // current profile element being viewed
     SocialView currentView;                // current view of the social run
     bool inputHeld;                        // flag to check if input is held
     InputKey lastInput;                    // last input key pressed
@@ -69,13 +78,15 @@ class FlipSocialRun
     bool shouldReturnToMenu;               // Flag to signal return to menu
     UserInfoStatus userInfoStatus;         // current user info status
     //
-    void debounceInput();                      // debounce input to prevent multiple triggers
-    void drawLoginView(Canvas *canvas);        // draw the login view
-    void drawMainMenuView(Canvas *canvas);     // draw the main menu view
-    void drawRegistrationView(Canvas *canvas); // draw the registration view
-    void drawUserInfoView(Canvas *canvas);     // draw the user info view
-    bool httpRequestIsFinished();              // check if the HTTP request is finished
-    void userRequest(RequestType requestType); // Send a user request to the server based on the request type
+    void debounceInput();                                                        // debounce input to prevent multiple triggers
+    void drawLoginView(Canvas *canvas);                                          // draw the login view
+    void drawMainMenuView(Canvas *canvas);                                       // draw the main menu view
+    void drawProfileView(Canvas *canvas);                                        // draw the profile view
+    void drawRegistrationView(Canvas *canvas);                                   // draw the registration view
+    void drawUserInfoView(Canvas *canvas);                                       // draw the user info view
+    void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y); // draw wrapped text on the canvas
+    bool httpRequestIsFinished();                                                // check if the HTTP request is finished
+    void userRequest(RequestType requestType);                                   // Send a user request to the server based on the request type
 public:
     FlipSocialRun(void *appContext);
     ~FlipSocialRun();
