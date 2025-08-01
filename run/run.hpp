@@ -2,6 +2,15 @@
 #include "easy_flipper/easy_flipper.h"
 #include "loading/loading.hpp"
 
+#define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
+#define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
+#define MAX_EXPLORE_USERS 50      // Maximum number of users to explore
+#define MAX_USER_LENGTH 32        // Maximum length of a username
+#define MAX_FRIENDS 50            // Maximum number of friends
+#define MAX_FEED_ITEMS 25         // Maximum number of feed items
+#define MAX_MESSAGE_USERS 40      // Maximum number of users to display in the submenu
+#define MAX_MESSAGES 20           // Maximum number of messages between each user
+
 typedef enum
 {
     SocialViewMenu = -1,        // main menu view
@@ -50,7 +59,9 @@ typedef enum
     RequestTypeRegistration = 1, // Request registration (register the user)
     RequestTypeUserInfo = 2,     // Request user info (fetch user info)
     RequestTypeFeed = 3,         // Request feed (fetch user feed)
-    RequestTypeMessages = 4,     // Request messages (fetch user messages)
+    RequestTypeFlipPost = 4,     // Request flip post (flip the current seelected post)
+    RequestTypeCommentFetch = 5, // Request comments (fetch comments for a post)
+    RequestTypeMessages = 5,     // Request messages (fetch user messages)
 } RequestType;
 
 typedef enum
@@ -61,6 +72,15 @@ typedef enum
     ProfileElementMAX
 } ProfileElement;
 
+typedef enum
+{
+    FeedNotStarted = 0,   // Feed not started
+    FeedWaiting = 1,      // Waiting for feed response
+    FeedSuccess = 2,      // Feed fetched successfully
+    FeedParseError = 3,   // Error parsing feed
+    FeedRequestError = 4, // Error in feed request
+} FeedStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
@@ -69,6 +89,10 @@ class FlipSocialRun
     SocialView currentMenuIndex;           // current menu index
     uint8_t currentProfileElement;         // current profile element being viewed
     SocialView currentView;                // current view of the social run
+    int feedItemID;                        // current feed item ID
+    uint8_t feedItemIndex;                 // current feed item index
+    uint8_t feedIteration;                 // current feed iteration
+    FeedStatus feedStatus;                 // current feed status
     bool inputHeld;                        // flag to check if input is held
     InputKey lastInput;                    // last input key pressed
     std::unique_ptr<Loading> loading;      // loading animation instance
@@ -78,15 +102,18 @@ class FlipSocialRun
     bool shouldReturnToMenu;               // Flag to signal return to menu
     UserInfoStatus userInfoStatus;         // current user info status
     //
-    void debounceInput();                                                        // debounce input to prevent multiple triggers
-    void drawLoginView(Canvas *canvas);                                          // draw the login view
-    void drawMainMenuView(Canvas *canvas);                                       // draw the main menu view
-    void drawProfileView(Canvas *canvas);                                        // draw the profile view
-    void drawRegistrationView(Canvas *canvas);                                   // draw the registration view
-    void drawUserInfoView(Canvas *canvas);                                       // draw the user info view
-    void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y); // draw wrapped text on the canvas
-    bool httpRequestIsFinished();                                                // check if the HTTP request is finished
-    void userRequest(RequestType requestType);                                   // Send a user request to the server based on the request type
+    void debounceInput();                                                                                             // debounce input to prevent multiple triggers
+    void drawFeedItem(Canvas *canvas, char *username, char *message, char *flipped, char *flips, char *date_created); // draw a single feed item
+    void drawFeedMessage(Canvas *canvas, const char *user_message, int x, int y);                                     // draw the feed message with wrapping
+    void drawFeedView(Canvas *canvas);                                                                                // draw the feed view
+    void drawLoginView(Canvas *canvas);                                                                               // draw the login view
+    void drawMainMenuView(Canvas *canvas);                                                                            // draw the main menu view
+    void drawProfileView(Canvas *canvas);                                                                             // draw the profile view
+    void drawRegistrationView(Canvas *canvas);                                                                        // draw the registration view
+    void drawUserInfoView(Canvas *canvas);                                                                            // draw the user info view
+    void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y);                                      // draw wrapped text on the canvas
+    bool httpRequestIsFinished();                                                                                     // check if the HTTP request is finished
+    void userRequest(RequestType requestType);                                                                        // Send a user request to the server based on the request type
 public:
     FlipSocialRun(void *appContext);
     ~FlipSocialRun();

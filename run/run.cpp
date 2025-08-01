@@ -3,7 +3,7 @@
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
-                                                 inputHeld(false), lastInput(InputKeyMAX),
+                                                 feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
                                                  loginStatus(LoginNotStarted), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
 {
@@ -47,6 +47,327 @@ void FlipSocialRun::debounceInput()
         debounceCounter = 0;
         shouldDebounce = false;
         inputHeld = false;
+    }
+}
+
+void FlipSocialRun::drawFeedItem(Canvas *canvas, char *username, char *message, char *flipped, char *flips, char *date_created)
+{
+    bool isFlipped = strcmp(flipped, "true") == 0;
+    auto flipCount = atoi(flips);
+    canvas_clear(canvas);
+    canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
+    canvas_draw_str(canvas, 0, 7, username);
+    canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
+    drawFeedMessage(canvas, message, 0, 12);
+    canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+    char flip_message[32];
+    snprintf(flip_message, sizeof(flip_message), "%u %s", flipCount, flipCount == 1 ? "flip" : "flips");
+    canvas_draw_str(canvas, 0, 60, flip_message);
+    char flip_status[16];
+    snprintf(flip_status, sizeof(flip_status), isFlipped ? "Unflip" : "Flip");
+    canvas_draw_str(canvas, 32, 60, flip_status);
+    canvas_draw_str(canvas, 64, 60, date_created);
+}
+
+void FlipSocialRun::drawFeedMessage(Canvas *canvas, const char *user_message, int x, int y)
+{
+    if (!user_message)
+    {
+        FURI_LOG_E(TAG, "User message is NULL.");
+        return;
+    }
+
+    // We will read through user_message and extract words manually
+    const char *p = user_message;
+
+    // Skip leading spaces
+    while (*p == ' ')
+        p++;
+
+    char line[128];
+    size_t line_len = 0;
+    line[0] = '\0';
+    int line_num = 0;
+
+    while (*p && line_num < 6)
+    {
+        // Find the end of the next word
+        const char *word_start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t word_len = p - word_start;
+
+        // Extract the word into a temporary buffer
+        char word[128];
+        if (word_len > 127)
+        {
+            word_len = 127; // Just to avoid overflow if extremely large
+        }
+        memcpy(word, word_start, word_len);
+        word[word_len] = '\0';
+
+        // Skip trailing spaces for the next iteration
+        while (*p == ' ')
+            p++;
+
+        if (word_len == 0)
+        {
+            // Empty word (consecutive spaces?), just continue
+            continue;
+        }
+
+        // Check how the word fits into the current line
+        char test_line[256];
+        if (line_len == 0)
+        {
+            // If line is empty, the line would just be this word
+            strncpy(test_line, word, sizeof(test_line) - 1);
+            test_line[sizeof(test_line) - 1] = '\0';
+        }
+        else
+        {
+            // If not empty, we add a space and then the word
+            snprintf(test_line, sizeof(test_line), "%s %s", line, word);
+        }
+
+        uint16_t width = canvas_string_width(canvas, test_line);
+        if (width <= 128)
+        {
+            // The word fits on this line
+            strcpy(line, test_line);
+            line_len = strlen(line);
+        }
+        else
+        {
+            // The word doesn't fit on this line
+            // First, draw the current line if it's not empty
+            if (line_len > 0)
+            {
+                canvas_draw_str_aligned(canvas, x, y + line_num * 8, AlignLeft, AlignTop, line);
+                line_num++;
+                if (line_num >= 6)
+                    break;
+            }
+
+            // Now we try to put the current word on a new line
+            // Check if the word itself fits on an empty line
+            width = canvas_string_width(canvas, word);
+            if (width <= 128)
+            {
+                // The whole word fits on a new line
+                strcpy(line, word);
+                line_len = word_len;
+            }
+            else
+            {
+                // The word alone doesn't fit. We must truncate it.
+                // We'll find the largest substring of the word that fits.
+                size_t truncate_len = word_len;
+                while (truncate_len > 0)
+                {
+                    char truncated[128];
+                    strncpy(truncated, word, truncate_len);
+                    truncated[truncate_len] = '\0';
+                    if (canvas_string_width(canvas, truncated) <= 128)
+                    {
+                        // Found a substring that fits
+                        strcpy(line, truncated);
+                        line_len = truncate_len;
+                        break;
+                    }
+                    truncate_len--;
+                }
+
+                if (line_len == 0)
+                {
+                    // Could not fit a single character. Skip this word.
+                }
+            }
+        }
+    }
+
+    // Draw any remaining text in the buffer if we have lines left
+    if (line_len > 0 && line_num < 6)
+    {
+        canvas_draw_str_aligned(canvas, x, y + line_num * 8, AlignLeft, AlignTop, line);
+    }
+}
+
+void FlipSocialRun::drawFeedView(Canvas *canvas)
+{
+    static bool loadingStarted = false;
+    switch (feedStatus)
+    {
+    case FeedWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Fetching...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app && app->getHttpState() == ISSUE)
+            {
+                feedStatus = FeedRequestError;
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                return;
+            }
+            char *response = (char *)malloc(4096);
+            char *feedSaveKey = (char *)malloc(16);
+            if (!response || !feedSaveKey)
+            {
+                feedStatus = FeedParseError;
+                if (response)
+                    free(response);
+                if (feedSaveKey)
+                    free(feedSaveKey);
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                return;
+            }
+            snprintf(feedSaveKey, 16, "feed_%d", feedIteration);
+            if (app && app->loadChar(feedSaveKey, response, 4096))
+            {
+                feedStatus = FeedSuccess;
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                free(response);
+                free(feedSaveKey);
+                return;
+            }
+            feedStatus = FeedRequestError;
+            free(response);
+            free(feedSaveKey);
+        }
+        break;
+    case FeedSuccess:
+    {
+        /* example response
+        {"feed":[{"username":"Marc0132","message":"updated second flipper =-)","flipped":false,"id":5446,"flip_count":0,"date_created":"1 hours ago"},{"username":"Marc013","message":"helping others its a great thing. maybe the best of thing=-) ","flipped":false,"id":5445,"flip_count":1,"date_created":"1 hours ago"},{"username":"KooTeR","message":"KJB Flipper Online 1st time","flipped":false,"id":5444,"flip_count":3,"date_created":"1 hours ago"},{"username":"belze743","message":"Scytale5;nc olieto","flipped":false,"id":5443,"flip_count":1,"date_created":"5 hours ago"},{"username":"Marc013","message":"i hope you all have a great hacking life i do LoL =-)","flipped":false,"id":5442,"flip_count":1,"date_created":"10 hours ago"},{"username":"JBlanked","message":"Morning all :D","flipped":false,"id":5441,"flip_count":1,"date_created":"11 hours ago"},{"username":"Marc013","message":"GREAT DAY TO ALL","flipped":false,"id":5440,"flip_count":0,"date_created":"14 hours ago"},{"username":"Turtle","message":"Cheese","flipped":false,"id":5439,"flip_count":1,"date_created":"18 hours ago"},{"username":"ShadowScout101","message":"Goodnight everyone!","flipped":false,"id":5438,"flip_count":1,"date_created":"22 hours ago"},{"username":"ShadowScout101","message":"@WildWill Customize your shortpresses and holds in the MNTM settings to make life easy.","flipped":false,"id":5437,"flip_count":1,"date_created":"Yesterday"},{"username":"Marc013","message":"my flipper have all 270apps and level29 9909/9999 =-) i like this world ","flipped":false,"id":5436,"flip_count":2,"date_created":"Yesterday"},{"username":"Marc013","message":"Great nigth to all =-)","flipped":false,"id":5435,"flip_count":3,"date_created":"Yesterday"}]}
+        */
+        char *response = (char *)malloc(4096);
+        char *feedSaveKey = (char *)malloc(16);
+        if (!response || !feedSaveKey)
+        {
+            feedStatus = FeedParseError;
+            if (response)
+            {
+                free(response);
+            }
+            if (feedSaveKey)
+            {
+                free(feedSaveKey);
+            }
+            canvas_draw_str(canvas, 0, 10, "Failed to load feed data.");
+            return;
+        }
+        snprintf(feedSaveKey, 16, "feed_%d", feedIteration);
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (app && app->loadChar(feedSaveKey, response, 4096))
+        {
+            // Successfully loaded feed data
+            // Parse and display feed data...
+            canvas_clear(canvas);
+            canvas_draw_str(canvas, 0, 10, "Feed Items:");
+
+            for (int i = 0; i < MAX_FEED_ITEMS; i++)
+            {
+                if (i != feedItemIndex)
+                {
+                    continue;
+                }
+                // only draw the current displayed feed item
+                char *feedItem = get_json_array_value("feed", i, response);
+                if (feedItem)
+                {
+                    char *username = get_json_value("username", feedItem);
+                    char *message = get_json_value("message", feedItem);
+                    char *flipped = get_json_value("flipped", feedItem);
+                    char *flips_str = get_json_value("flip_count", feedItem);
+                    char *date_created = get_json_value("date_created", feedItem);
+                    char *id_str = get_json_value("id", feedItem);
+                    if (!username || !message || !flipped || !flips_str || !date_created || !id_str)
+                    {
+                        if (username)
+                            free(username);
+                        if (message)
+                            free(message);
+                        if (flipped)
+                            free(flipped);
+                        if (flips_str)
+                            free(flips_str);
+                        if (date_created)
+                            free(date_created);
+                        if (id_str)
+                            free(id_str);
+                        free(feedItem);
+                        return;
+                    }
+                    feedItemID = atoi(id_str);
+                    drawFeedItem(canvas, username, message, flipped, flips_str, date_created);
+                    //
+                    free(username);
+                    free(message);
+                    free(flipped);
+                    free(flips_str);
+                    free(date_created);
+                    free(id_str);
+                    free(feedItem);
+                }
+            }
+        }
+        free(response);
+        free(feedSaveKey);
+        break;
+    }
+    case FeedRequestError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Feed request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case FeedParseError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Failed to parse feed!");
+        canvas_draw_str(canvas, 0, 20, "Try again...");
+        break;
+    case FeedNotStarted:
+        canvas_clear(canvas);
+        feedStatus = FeedWaiting;
+        userRequest(RequestTypeFeed);
+        break;
+    default:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Loading feed...");
+        break;
     }
 }
 
@@ -624,6 +945,7 @@ bool FlipSocialRun::httpRequestIsFinished()
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
     if (!app)
     {
+        FURI_LOG_E(TAG, "httpRequestIsFinished: App context is NULL");
         return true;
     }
     auto state = app->getHttpState();
@@ -649,6 +971,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
         break;
     case SocialViewProfile:
         drawProfileView(canvas);
+        break;
+    case SocialViewFeed:
+        drawFeedView(canvas);
         break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
@@ -735,6 +1060,47 @@ void FlipSocialRun::updateInput(InputEvent *event)
             currentView = SocialViewMenu;
             shouldDebounce = true;
             break;
+        case InputKeyLeft:
+        case InputKeyDown:
+            if (feedItemIndex > 0)
+            {
+                feedItemIndex--;
+                shouldDebounce = true;
+            }
+            else
+            {
+                // If at the start of the feed, show previous page
+                if (feedStatus == FeedSuccess && feedIteration > 1)
+                {
+                    feedIteration--;
+                    feedItemIndex = MAX_FEED_ITEMS - 1;
+                    // no need to load again since we already have the data
+                }
+            }
+            break;
+        case InputKeyRight:
+        case InputKeyUp:
+            if (feedItemIndex < (MAX_FEED_ITEMS - 1))
+            {
+                feedItemIndex++;
+                shouldDebounce = true;
+            }
+            else
+            {
+                // If at the end of the feed, request next page
+                if (feedStatus == FeedSuccess)
+                {
+                    feedIteration++;
+                    feedItemIndex = 0;
+                    feedStatus = FeedWaiting;
+                    userRequest(RequestTypeFeed);
+                }
+            }
+            break;
+        case InputKeyOk:
+            userRequest(RequestTypeFlipPost);
+            shouldDebounce = true;
+            break;
         default:
             break;
         };
@@ -806,6 +1172,23 @@ void FlipSocialRun::userRequest(RequestType requestType)
     if (!app)
     {
         FURI_LOG_E(TAG, "userRequest: App context is null");
+        switch (requestType)
+        {
+        case RequestTypeLogin:
+            loginStatus = LoginRequestError;
+            break;
+        case RequestTypeRegistration:
+            registrationStatus = RegistrationRequestError;
+            break;
+        case RequestTypeUserInfo:
+            userInfoStatus = UserInfoRequestError;
+            break;
+        case RequestTypeFeed:
+            feedStatus = FeedRequestError;
+            break;
+        default:
+            break;
+        }
         return;
     }
 
@@ -909,11 +1292,88 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(url);
         break;
     }
+    case RequestTypeFeed:
+    {
+        char *url = (char *)malloc(128);
+        char *feedSaveName = (char *)malloc(16);
+        if (!url || !feedSaveName)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url");
+            feedStatus = FeedRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (feedSaveName)
+                free(feedSaveName);
+            if (url)
+                free(url);
+            return;
+        }
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/feed/%d/%s/%d/max/series/", MAX_FEED_ITEMS, username, feedIteration);
+        snprintf(feedSaveName, 16, "feed_%d.txt", feedIteration);
+        if (!app->httpRequestAsync(feedSaveName, url, GET, "{\"Content-Type\":\"application/json\"}"))
+        {
+            feedStatus = FeedRequestError;
+        }
+        free(url);
+        free(feedSaveName);
+        break;
+    }
+    case RequestTypeFlipPost:
+    {
+        char *feedPostPayload = (char *)malloc(256);
+        if (!feedPostPayload)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for feedPostPayload");
+            feedStatus = FeedRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (feedPostPayload)
+                free(feedPostPayload);
+            return;
+        }
+        snprintf(feedPostPayload, 256, "{\"username\":\"%s\",\"post_id\":\"%u\"}", username, feedItemID);
+        if (!app->httpRequestAsync("flip_post.txt", "https://www.jblanked.com/flipper/api/feed/flip/", POST, "{\"Content-Type\":\"application/json\"}", feedPostPayload))
+        {
+            feedStatus = FeedRequestError;
+        }
+        free(feedPostPayload);
+        break;
+    }
+    case RequestTypeCommentFetch:
+    {
+        char *url = (char *)malloc(128);
+        char *feedSaveName = (char *)malloc(32);
+        if (!url || !feedSaveName)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url");
+            feedStatus = FeedRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (feedSaveName)
+                free(feedSaveName);
+            if (url)
+                free(url);
+            return;
+        }
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/feed/comments/%d/%s/%d/", MAX_FEED_ITEMS, username, feedItemID);
+        snprintf(feedSaveName, 32, "feed_%d_comments.txt", feedIteration);
+        if (!app->httpRequestAsync(feedSaveName, url, GET, "{\"Content-Type\":\"application/json\"}"))
+        {
+            feedStatus = FeedRequestError;
+        }
+        free(url);
+        free(feedSaveName);
+        break;
+    }
     default:
         FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
         loginStatus = LoginRequestError;
         registrationStatus = RegistrationRequestError;
         userInfoStatus = UserInfoRequestError;
+        feedStatus = FeedRequestError;
         free(username);
         free(password);
         free(payload);
