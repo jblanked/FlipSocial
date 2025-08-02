@@ -66,7 +66,8 @@ typedef enum
     RequestTypeCommentFetch = 5,     // Request comments (fetch comments for a post)
     RequestTypeMessagesUserList = 6, // Request messages (fetch list of users who sent messages)
     RequestTypeMessagesWithUser = 7, // Request messages with a specific user
-    RequestTypeExplore = 8,          // Request explore (fetch users to explore)
+    RequestTypeMessageSend = 8,      // Request to send a message to the current user
+    RequestTypeExplore = 9,          // Request explore (fetch users to explore)
 } RequestType;
 
 typedef enum
@@ -102,6 +103,8 @@ typedef enum
     MessagesSuccess = 2,      // Messages fetched successfully
     MessagesParseError = 3,   // Error parsing messages
     MessagesRequestError = 4, // Error in messages request
+    MessagesKeyboard = 5,     // Keyboard for messages view (sending messages)
+    MessagesSending = 6,      // Sending message
 } MessagesStatus;
 
 typedef enum

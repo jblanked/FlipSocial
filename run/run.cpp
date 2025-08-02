@@ -1,6 +1,7 @@
 #include "run/run.hpp"
 #include "app.hpp"
 #include <vector>
+#include <flip_social_icons.h>
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
@@ -855,9 +856,10 @@ void FlipSocialRun::drawMessagesView(Canvas *canvas)
                 }
             }
             snprintf(message_counter, sizeof(message_counter), "%d/%d", messagesIndex + 1, total_messages);
-            int counter_width = canvas_string_width(canvas, message_counter);
-            int counter_x = (128 - counter_width) / 2;
-            canvas_draw_str(canvas, counter_x, 60, message_counter);
+            canvas_draw_str(canvas, 112, 10, message_counter);
+
+            canvas_draw_icon(canvas, 52, 54, &I_ButtonOK_7x7);
+            canvas_draw_str(canvas, 60, 60, "Reply");
 
             free(sender);
             free(content);
@@ -880,6 +882,63 @@ void FlipSocialRun::drawMessagesView(Canvas *canvas)
     case MessagesNotStarted:
         messagesStatus = MessagesWaiting;
         userRequest(RequestTypeMessagesWithUser);
+        break;
+    case MessagesKeyboard:
+        if (!keyboard)
+        {
+            keyboard = std::make_unique<Keyboard>();
+        }
+        if (keyboard)
+        {
+            keyboard->draw(canvas, "Enter reply:");
+        }
+        break;
+    case MessagesSending:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Sending...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                messagesStatus = MessagesRequestError;
+                return;
+            }
+            char *response = (char *)malloc(64);
+            if (response && app->loadChar("messages_post", response, 64) && strstr(response, "[SUCCESS]") != NULL)
+            {
+                messagesStatus = MessagesNotStarted;
+                messagesIndex = 0;
+                free(response);
+                return;
+            }
+            else
+            {
+                messagesStatus = MessagesRequestError;
+            }
+        }
         break;
     default:
         canvas_draw_str(canvas, 0, 10, "Retrieving messages...");
@@ -1657,35 +1716,69 @@ void FlipSocialRun::updateInput(InputEvent *event)
     }
     case SocialViewMessages:
     {
-        switch (lastInput)
+        if (messagesStatus == MessagesKeyboard)
         {
-        case InputKeyBack:
-            currentView = SocialViewMessageUsers;
-            messagesStatus = MessagesNotStarted;
-            messagesIndex = 0;
-            shouldDebounce = true;
-            break;
-        case InputKeyLeft:
-        case InputKeyDown:
-            // Navigate to previous message
-            if (messagesIndex > 0)
+            if (keyboard)
             {
-                messagesIndex--;
-                shouldDebounce = true;
+                if (keyboard->handleInput(lastInput))
+                {
+                    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+                    app->saveChar("message_to_user", keyboard->getText());
+                    messagesStatus = MessagesSending;
+                    userRequest(RequestTypeMessageSend);
+                }
+                if (lastInput != InputKeyMAX)
+                {
+                    shouldDebounce = true;
+                }
             }
-            break;
-        case InputKeyRight:
-        case InputKeyUp:
-            // Navigate to next message
-            if (messagesIndex < (MAX_MESSAGES - 1))
+            if (lastInput == InputKeyBack)
             {
-                messagesIndex++;
+                messagesStatus = MessagesSuccess;
                 shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
             }
-            break;
-        default:
-            break;
-        };
+        }
+        else
+        {
+            switch (lastInput)
+            {
+            case InputKeyBack:
+                currentView = SocialViewMessageUsers;
+                messagesStatus = MessagesNotStarted;
+                messagesIndex = 0;
+                shouldDebounce = true;
+                break;
+            case InputKeyLeft:
+            case InputKeyDown:
+                // Navigate to previous message
+                if (messagesIndex > 0)
+                {
+                    messagesIndex--;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyRight:
+            case InputKeyUp:
+                // Navigate to next message
+                if (messagesIndex < (MAX_MESSAGES - 1))
+                {
+                    messagesIndex++;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyOk:
+                messagesStatus = MessagesKeyboard;
+                shouldDebounce = true;
+                return;
+            default:
+                break;
+            };
+        }
         break;
     }
     case SocialViewExplore:
@@ -2099,6 +2192,68 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(url);
         free(authHeader);
         free(messageUser);
+        break;
+    }
+    case RequestTypeMessageSend:
+    {
+        char *url = (char *)malloc(128);
+        char *authHeader = (char *)malloc(256);
+        char *message = (char *)malloc(128);
+        char *messageUser = (char *)malloc(64);
+        if (!url || !authHeader || !message || !messageUser)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url, authHeader, message or messageUser");
+            messagesStatus = MessagesRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (url)
+                free(url);
+            if (authHeader)
+                free(authHeader);
+            if (message)
+                free(message);
+            if (messageUser)
+                free(messageUser);
+            return;
+        }
+        // Get message from user input
+        if (!app->loadChar("message_to_user", message, 128) || strlen(message) == 0)
+        {
+            FURI_LOG_E(TAG, "Failed to load message to user");
+            messagesStatus = MessagesRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            free(url);
+            free(authHeader);
+            free(message);
+            return;
+        }
+        // Get the current message user
+        if (!getMessageUser(messageUserIndex, messageUser, 64))
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to get message user");
+            messagesStatus = MessagesParseError;
+            free(username);
+            free(password);
+            free(payload);
+            free(url);
+            free(authHeader);
+            free(message);
+            free(messageUser);
+            return;
+        }
+        snprintf(authHeader, 256, "{\"Content-Type\":\"application/json\",\"Username\":\"%s\",\"Password\":\"%s\"}", username, password);
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/messages/%s/post/", username);
+        snprintf(payload, 256, "{\"receiver\":\"%s\",\"content\":\"%s\"}", messageUser, message);
+        if (!app->httpRequestAsync("messages_post.txt", url, POST, authHeader, payload))
+        {
+            messagesStatus = MessagesRequestError;
+        }
+        free(url);
+        free(authHeader);
+        free(message);
         break;
     }
     case RequestTypeExplore:
