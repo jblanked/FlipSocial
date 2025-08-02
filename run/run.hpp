@@ -109,12 +109,14 @@ typedef enum
 
 typedef enum
 {
-    ExploreNotStarted = 0,   // Explore not started (here after keyboard)
-    ExploreWaiting = 1,      // Waiting for explore response
-    ExploreSuccess = 2,      // Explore fetched successfully
-    ExploreParseError = 3,   // Error parsing explore data
-    ExploreRequestError = 4, // Error in explore request
-    ExploreKeyboard = 5,     // Keyboard for explore view (we'll start here)
+    ExploreNotStarted = 0,      // Explore not started (here after keyboard)
+    ExploreWaiting = 1,         // Waiting for explore response
+    ExploreSuccess = 2,         // Explore fetched successfully
+    ExploreParseError = 3,      // Error parsing explore data
+    ExploreRequestError = 4,    // Error in explore request
+    ExploreKeyboardUsers = 5,   // Keyboard for explore view (we'll start here)
+    ExploreKeyboardMessage = 6, // Keyboard for explore view (sending messages)
+    ExploreSending = 7,         // Sending message in explore view
 } ExploreStatus;
 
 class FlipSocialApp;
@@ -158,7 +160,7 @@ class FlipSocialRun
     void drawRegistrationView(Canvas *canvas);                                                                        // draw the registration view
     void drawUserInfoView(Canvas *canvas);                                                                            // draw the user info view
     void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y);                                      // draw wrapped text on the canvas
-    bool getMessageUser(uint8_t index, char *buffer, size_t buffer_size);                                             // get the message user at the specified messageUserIndex
+    bool getMessageUser(char *buffer, size_t buffer_size);                                                            // get the message user at the specified messageUserIndex
     bool httpRequestIsFinished();                                                                                     // check if the HTTP request is finished
     void userRequest(RequestType requestType);                                                                        // Send a user request to the server based on the request type
 public:

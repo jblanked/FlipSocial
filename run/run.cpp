@@ -5,7 +5,7 @@
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
-                                                 exploreIndex(0), exploreStatus(ExploreKeyboard),
+                                                 exploreIndex(0), exploreStatus(ExploreKeyboardUsers),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
                                                  loginStatus(LoginNotStarted), messagesStatus(MessagesNotStarted), messageUsersStatus(MessageUsersNotStarted), messageUserIndex(0), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
@@ -173,7 +173,7 @@ void FlipSocialRun::drawExploreView(Canvas *canvas)
         exploreStatus = ExploreWaiting;
         userRequest(RequestTypeExplore);
         break;
-    case ExploreKeyboard:
+    case ExploreKeyboardUsers:
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
@@ -181,6 +181,66 @@ void FlipSocialRun::drawExploreView(Canvas *canvas)
         if (keyboard)
         {
             keyboard->draw(canvas, "Enter text:");
+        }
+        break;
+    case ExploreKeyboardMessage:
+        if (!keyboard)
+        {
+            keyboard = std::make_unique<Keyboard>();
+        }
+        if (keyboard)
+        {
+            keyboard->draw(canvas, "Enter message:");
+        }
+        break;
+    case ExploreSending:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Sending...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                exploreStatus = ExploreRequestError;
+                return;
+            }
+            char *response = (char *)malloc(64);
+            if (response && app->loadChar("messages_post", response, 64) && strstr(response, "[SUCCESS]") != NULL)
+            {
+                currentView = SocialViewMessageUsers;
+                currentMenuIndex = SocialViewMessageUsers;
+                messageUsersStatus = MessageUsersNotStarted;
+                exploreStatus = ExploreKeyboardUsers;
+                exploreIndex = 0;
+                free(response);
+                return;
+            }
+            else
+            {
+                exploreStatus = ExploreRequestError;
+            }
         }
         break;
     default:
@@ -1463,13 +1523,14 @@ void FlipSocialRun::drawUserInfoView(Canvas *canvas)
     }
 }
 
-bool FlipSocialRun::getMessageUser(uint8_t index, char *buffer, size_t buffer_size)
+bool FlipSocialRun::getMessageUser(char *buffer, size_t buffer_size)
 {
     char *messagesUserList = (char *)malloc(1024);
+    uint8_t index = currentMenuIndex == SocialViewExplore ? exploreIndex : messageUserIndex;
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
-    if (!app || !messagesUserList || !app->loadChar("messages_user_list", messagesUserList, 1024))
+    if (!app || !messagesUserList || !app->loadChar(currentMenuIndex == SocialViewExplore ? "explore" : "messages_user_list", messagesUserList, 1024))
     {
-        FURI_LOG_E(TAG, "drawMessageUsersView: Failed to load messages user list from storage");
+        FURI_LOG_E(TAG, "getMessageUser: Failed to load messages user list from storage");
         free(messagesUserList);
         return false;
     }
@@ -1783,7 +1844,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
     }
     case SocialViewExplore:
     {
-        if (exploreStatus == ExploreKeyboard)
+        if (exploreStatus == ExploreKeyboardUsers)
         {
             if (keyboard)
             {
@@ -1803,8 +1864,35 @@ void FlipSocialRun::updateInput(InputEvent *event)
             if (lastInput == InputKeyBack)
             {
                 currentView = SocialViewMenu;
-                exploreStatus = ExploreKeyboard;
+                exploreStatus = ExploreKeyboardUsers;
                 exploreIndex = 0;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+            }
+        }
+        else if (exploreStatus == ExploreKeyboardMessage)
+        {
+            if (keyboard)
+            {
+                if (keyboard->handleInput(lastInput))
+                {
+                    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+                    app->saveChar("message_to_user", keyboard->getText());
+                    exploreStatus = ExploreSending;
+                    userRequest(RequestTypeMessageSend);
+                }
+                if (lastInput != InputKeyMAX)
+                {
+                    shouldDebounce = true;
+                }
+            }
+            if (lastInput == InputKeyBack)
+            {
+                exploreStatus = ExploreSuccess;
                 shouldDebounce = true;
                 if (keyboard)
                 {
@@ -1819,7 +1907,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
             case InputKeyBack:
                 currentView = SocialViewMenu;
-                exploreStatus = ExploreKeyboard;
+                exploreStatus = ExploreKeyboardUsers;
                 exploreIndex = 0;
                 shouldDebounce = true;
                 if (keyboard)
@@ -1845,9 +1933,14 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 }
                 break;
             case InputKeyOk:
-                // later we'll add/remove the selected user when clicked
-                // in the old version, we showed the clicked on user's profile first
-                break;
+                exploreStatus = ExploreKeyboardMessage;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+                return;
             default:
                 break;
             };
@@ -2171,7 +2264,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
                 free(messageUser);
             return;
         }
-        if (!getMessageUser(messageUserIndex, messageUser, 64))
+        if (!getMessageUser(messageUser, 64))
         {
             FURI_LOG_E(TAG, "userRequest: Failed to get message user");
             messagesStatus = MessagesParseError;
@@ -2231,7 +2324,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
             return;
         }
         // Get the current message user
-        if (!getMessageUser(messageUserIndex, messageUser, 64))
+        if (!getMessageUser(messageUser, 64))
         {
             FURI_LOG_E(TAG, "userRequest: Failed to get message user");
             messagesStatus = MessagesParseError;
