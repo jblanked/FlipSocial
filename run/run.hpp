@@ -1,6 +1,7 @@
 #pragma once
 #include "easy_flipper/easy_flipper.h"
 #include "loading/loading.hpp"
+#include "run/keyboard.hpp"
 
 #define MAX_PRE_SAVED_MESSAGES 20 // Maximum number of pre-saved messages
 #define MAX_MESSAGE_LENGTH 100    // Maximum length of a message in the feed
@@ -16,11 +17,12 @@ typedef enum
     SocialViewMenu = -1,        // main menu view
     SocialViewFeed = 0,         // feed view
     SocialViewMessageUsers = 1, // (initial) messages view
-    SocialViewProfile = 2,      // profile view
-    SocialViewLogin = 3,        // login view
-    SocialViewRegistration = 4, // registration view
-    SocialViewUserInfo = 5,     // user info view
-    SocialViewMessages = 6      // messages view
+    SocialViewExplore = 2,      // explore view
+    SocialViewProfile = 3,      // profile view
+    SocialViewLogin = 4,        // login view
+    SocialViewRegistration = 5, // registration view
+    SocialViewUserInfo = 6,     // user info view
+    SocialViewMessages = 7,     // messages view
 } SocialView;
 
 typedef enum
@@ -64,6 +66,7 @@ typedef enum
     RequestTypeCommentFetch = 5,     // Request comments (fetch comments for a post)
     RequestTypeMessagesUserList = 6, // Request messages (fetch list of users who sent messages)
     RequestTypeMessagesWithUser = 7, // Request messages with a specific user
+    RequestTypeExplore = 8,          // Request explore (fetch users to explore)
 } RequestType;
 
 typedef enum
@@ -101,6 +104,16 @@ typedef enum
     MessagesRequestError = 4, // Error in messages request
 } MessagesStatus;
 
+typedef enum
+{
+    ExploreNotStarted = 0,   // Explore not started (here after keyboard)
+    ExploreWaiting = 1,      // Waiting for explore response
+    ExploreSuccess = 2,      // Explore fetched successfully
+    ExploreParseError = 3,   // Error parsing explore data
+    ExploreRequestError = 4, // Error in explore request
+    ExploreKeyboard = 5,     // Keyboard for explore view (we'll start here)
+} ExploreStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
@@ -109,12 +122,15 @@ class FlipSocialRun
     SocialView currentMenuIndex;           // current menu index
     uint8_t currentProfileElement;         // current profile element being viewed
     SocialView currentView;                // current view of the social run
+    uint8_t exploreIndex;                  // current explore menu index
+    ExploreStatus exploreStatus;           // current explore status
     uint16_t feedItemID;                   // current feed item ID
     uint8_t feedItemIndex;                 // current feed item index
     uint8_t feedIteration;                 // current feed iteration
     FeedStatus feedStatus;                 // current feed status
     bool inputHeld;                        // flag to check if input is held
     InputKey lastInput;                    // last input key pressed
+    std::unique_ptr<Keyboard> keyboard;    // keyboard instance for input handling
     std::unique_ptr<Loading> loading;      // loading animation instance
     LoginStatus loginStatus;               // current login status
     MessagesStatus messagesStatus;         // current messages status
@@ -127,6 +143,7 @@ class FlipSocialRun
     UserInfoStatus userInfoStatus;         // current user info status
     //
     void debounceInput();                                                                                             // debounce input to prevent multiple triggers
+    void drawExploreView(Canvas *canvas);                                                                             // draw the explore view
     void drawFeedItem(Canvas *canvas, char *username, char *message, char *flipped, char *flips, char *date_created); // draw a single feed item
     void drawFeedMessage(Canvas *canvas, const char *user_message, int x, int y);                                     // draw the feed message with wrapping
     void drawFeedView(Canvas *canvas);                                                                                // draw the feed view

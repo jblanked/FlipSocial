@@ -4,6 +4,7 @@
 
 FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
+                                                 exploreIndex(0), exploreStatus(ExploreKeyboard),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
                                                  loginStatus(LoginNotStarted), messagesStatus(MessagesNotStarted), messageUsersStatus(MessageUsersNotStarted), messageUserIndex(0), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
@@ -48,6 +49,142 @@ void FlipSocialRun::debounceInput()
         debounceCounter = 0;
         shouldDebounce = false;
         inputHeld = false;
+    }
+}
+
+void FlipSocialRun::drawExploreView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+    canvas_set_font(canvas, FontPrimary);
+    static bool loadingStarted = false;
+    switch (exploreStatus)
+    {
+    case ExploreWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Searching...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                exploreStatus = ExploreRequestError;
+                return;
+            }
+            char *response = (char *)malloc(1024);
+            if (response && app->loadChar("explore", response, 1024) && strstr(response, "users") != NULL)
+            {
+                exploreStatus = ExploreSuccess;
+                free(response);
+                return;
+            }
+            else
+            {
+                exploreStatus = ExploreRequestError;
+            }
+        }
+        break;
+    case ExploreSuccess:
+    {
+        canvas_draw_str(canvas, 0, 10, "Explore success!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        char *messagesUserList = (char *)malloc(1024);
+        if (!messagesUserList)
+        {
+            FURI_LOG_E(TAG, "drawExploreView: Failed to allocate memory for messagesUserList");
+            exploreStatus = ExploreParseError;
+            return;
+        }
+
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (!app || !app->loadChar("explore", messagesUserList, 1024))
+        {
+            FURI_LOG_E(TAG, "drawExploreView: Failed to load explore data from storage");
+            canvas_draw_str(canvas, 0, 30, "Failed to load explore data.");
+            free(messagesUserList);
+            return;
+        }
+
+        // store users
+        std::vector<std::string> usersList;
+        for (int i = 0; i < MAX_EXPLORE_USERS; i++)
+        {
+            char *user = get_json_array_value("users", i, messagesUserList);
+            if (!user)
+            {
+                break; // No more users in the list
+            }
+            usersList.push_back(user);
+            free(user);
+        }
+
+        if (usersList.empty())
+        {
+            canvas_draw_str(canvas, 0, 30, "No users found.");
+        }
+        else
+        {
+            // std::vector<std::string> to const char** for drawMenu
+            std::vector<const char *> userPtrs;
+            userPtrs.reserve(usersList.size());
+            for (const auto &user : usersList)
+            {
+                userPtrs.push_back(user.c_str());
+            }
+            drawMenu(canvas, exploreIndex, userPtrs.data(), userPtrs.size());
+        }
+
+        free(messagesUserList);
+        break;
+    }
+    case ExploreRequestError:
+        canvas_draw_str(canvas, 0, 10, "Messages request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case ExploreParseError:
+        canvas_draw_str(canvas, 0, 10, "Error parsing messages!");
+        canvas_draw_str(canvas, 0, 20, "Please set your username");
+        canvas_draw_str(canvas, 0, 30, "and password in the app.");
+        break;
+    case ExploreNotStarted:
+        exploreStatus = ExploreWaiting;
+        userRequest(RequestTypeExplore);
+        break;
+    case ExploreKeyboard:
+        if (!keyboard)
+        {
+            keyboard = std::make_unique<Keyboard>();
+        }
+        if (keyboard)
+        {
+            keyboard->draw(canvas, "Enter text:");
+        }
+        break;
+    default:
+        canvas_draw_str(canvas, 0, 10, "Retrieving messages...");
+        break;
     }
 }
 
@@ -268,9 +405,6 @@ void FlipSocialRun::drawFeedView(Canvas *canvas)
         break;
     case FeedSuccess:
     {
-        /* example response
-        {"feed":[{"username":"Marc0132","message":"updated second flipper =-)","flipped":false,"id":5446,"flip_count":0,"date_created":"1 hours ago"},{"username":"Marc013","message":"helping others its a great thing. maybe the best of thing=-) ","flipped":false,"id":5445,"flip_count":1,"date_created":"1 hours ago"},{"username":"KooTeR","message":"KJB Flipper Online 1st time","flipped":false,"id":5444,"flip_count":3,"date_created":"1 hours ago"},{"username":"belze743","message":"Scytale5;nc olieto","flipped":false,"id":5443,"flip_count":1,"date_created":"5 hours ago"},{"username":"Marc013","message":"i hope you all have a great hacking life i do LoL =-)","flipped":false,"id":5442,"flip_count":1,"date_created":"10 hours ago"},{"username":"JBlanked","message":"Morning all :D","flipped":false,"id":5441,"flip_count":1,"date_created":"11 hours ago"},{"username":"Marc013","message":"GREAT DAY TO ALL","flipped":false,"id":5440,"flip_count":0,"date_created":"14 hours ago"},{"username":"Turtle","message":"Cheese","flipped":false,"id":5439,"flip_count":1,"date_created":"18 hours ago"},{"username":"ShadowScout101","message":"Goodnight everyone!","flipped":false,"id":5438,"flip_count":1,"date_created":"22 hours ago"},{"username":"ShadowScout101","message":"@WildWill Customize your shortpresses and holds in the MNTM settings to make life easy.","flipped":false,"id":5437,"flip_count":1,"date_created":"Yesterday"},{"username":"Marc013","message":"my flipper have all 270apps and level29 9909/9999 =-) i like this world ","flipped":false,"id":5436,"flip_count":2,"date_created":"Yesterday"},{"username":"Marc013","message":"Great nigth to all =-)","flipped":false,"id":5435,"flip_count":3,"date_created":"Yesterday"}]}
-        */
         char *response = (char *)malloc(4096);
         char *feedSaveKey = (char *)malloc(16);
         if (!response || !feedSaveKey)
@@ -477,10 +611,9 @@ void FlipSocialRun::drawLoginView(Canvas *canvas)
 
 void FlipSocialRun::drawMainMenuView(Canvas *canvas)
 {
-    const char *menuItems[] = {"Feed", "Messages", "Profile"};
-    drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 3);
+    const char *menuItems[] = {"Feed", "Messages", "Explore", "Profile"};
+    drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 4);
 }
-
 void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char **menuItems, uint8_t menuCount)
 {
     canvas_clear(canvas);
@@ -489,7 +622,7 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     canvas_set_font_custom(canvas, FONT_SIZE_LARGE);
     const char *title = "FlipSocial";
     int title_width = canvas_string_width(canvas, title);
-    int title_x = (128 - title_width) / 2; // Center the title
+    int title_x = (128 - title_width) / 2;
     canvas_draw_str(canvas, title_x, 12, title);
 
     // Draw underline for title
@@ -501,16 +634,14 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
         canvas_draw_dot(canvas, i, 18);
     }
 
-    // Menu items - horizontal scrolling, show one at a time
+    // Menu items
     canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
-
-    // Display current menu item centered
     const char *currentItem = menuItems[selectedIndex];
     int text_width = canvas_string_width(canvas, currentItem);
     int text_x = (128 - text_width) / 2;
-    int menu_y = 40; // Centered vertically
+    int menu_y = 40;
 
-    // Draw main selection box for current item
+    // Draw main selection box
     canvas_draw_rbox(canvas, 10, menu_y - 8, 108, 16, 4);
     canvas_set_color(canvas, ColorWhite);
     canvas_draw_str(canvas, text_x, menu_y + 4, currentItem);
@@ -526,20 +657,45 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
         canvas_draw_str(canvas, 122, menu_y + 4, ">");
     }
 
-    // Draw page indicator dots
-    int dots_spacing = 6;
-    int dots_start_x = (128 - (menuCount * dots_spacing)) / 2; // Center dots with spacing
-    for (int i = 0; i < menuCount; i++)
+    // Smart indicator system
+    const int MAX_DOTS = 15; // Maximum dots that fit on screen
+    const int dots_spacing = 6;
+    const int indicator_y = 52; // Position above bottom pattern
+
+    if (menuCount <= MAX_DOTS)
     {
-        int dot_x = dots_start_x + (i * dots_spacing);
-        if (i == selectedIndex)
+        // Show all dots if they fit
+        int dots_start_x = (128 - (menuCount * dots_spacing)) / 2;
+        for (int i = 0; i < menuCount; i++)
         {
-            canvas_draw_box(canvas, dot_x, menu_y + 12, 4, 4); // Filled dot for current
+            int dot_x = dots_start_x + (i * dots_spacing);
+            if (i == selectedIndex)
+            {
+                canvas_draw_box(canvas, dot_x, indicator_y, 4, 4);
+            }
+            else
+            {
+                canvas_draw_frame(canvas, dot_x, indicator_y, 4, 4);
+            }
         }
-        else
-        {
-            canvas_draw_frame(canvas, dot_x, menu_y + 12, 4, 4); // Empty dot for others
-        }
+    }
+    else
+    {
+        // Show condensed indicator with current position
+        canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+        char position_text[16];
+        snprintf(position_text, sizeof(position_text), "%d/%d", selectedIndex + 1, menuCount);
+        int pos_width = canvas_string_width(canvas, position_text);
+        int pos_x = (128 - pos_width) / 2;
+        canvas_draw_str(canvas, pos_x, indicator_y + 3, position_text);
+
+        // Optional: Add a progress bar
+        int bar_width = 60;
+        int bar_x = (128 - bar_width) / 2;
+        int bar_y = indicator_y - 6;
+        canvas_draw_frame(canvas, bar_x, bar_y, bar_width, 3);
+        int progress_width = (selectedIndex * (bar_width - 2)) / (menuCount - 1);
+        canvas_draw_box(canvas, bar_x + 1, bar_y + 1, progress_width, 1);
     }
 
     // Draw decorative bottom pattern
@@ -1318,6 +1474,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
     case SocialViewMessages:
         drawMessagesView(canvas);
         break;
+    case SocialViewExplore:
+        drawExploreView(canvas);
+        break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
         break;
@@ -1344,9 +1503,14 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 currentMenuIndex = SocialViewFeed;
             }
-            else if (currentMenuIndex == SocialViewProfile)
+            else if (currentMenuIndex == SocialViewExplore)
             {
                 currentMenuIndex = SocialViewMessageUsers;
+                shouldDebounce = true;
+            }
+            else if (currentMenuIndex == SocialViewProfile)
+            {
+                currentMenuIndex = SocialViewExplore;
                 shouldDebounce = true;
             }
             break;
@@ -1358,6 +1522,11 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 shouldDebounce = true;
             }
             else if (currentMenuIndex == SocialViewMessageUsers)
+            {
+                currentMenuIndex = SocialViewExplore;
+                shouldDebounce = true;
+            }
+            else if (currentMenuIndex == SocialViewExplore)
             {
                 currentMenuIndex = SocialViewProfile;
             }
@@ -1371,6 +1540,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 break;
             case SocialViewMessageUsers:
                 currentView = SocialViewMessageUsers;
+                shouldDebounce = true;
+                break;
+            case SocialViewExplore:
+                currentView = SocialViewExplore;
                 shouldDebounce = true;
                 break;
             case SocialViewProfile:
@@ -1513,6 +1686,79 @@ void FlipSocialRun::updateInput(InputEvent *event)
         default:
             break;
         };
+        break;
+    }
+    case SocialViewExplore:
+    {
+        if (exploreStatus == ExploreKeyboard)
+        {
+            if (keyboard)
+            {
+                if (keyboard->handleInput(lastInput))
+                {
+                    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+                    app->saveChar("explore_keyword", keyboard->getText());
+                    exploreStatus = ExploreWaiting;
+                    exploreIndex = 0;
+                    userRequest(RequestTypeExplore);
+                }
+                if (lastInput != InputKeyMAX)
+                {
+                    shouldDebounce = true;
+                }
+            }
+            if (lastInput == InputKeyBack)
+            {
+                currentView = SocialViewMenu;
+                exploreStatus = ExploreKeyboard;
+                exploreIndex = 0;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+            }
+        }
+        else
+        {
+            switch (lastInput)
+            {
+            case InputKeyBack:
+                currentView = SocialViewMenu;
+                exploreStatus = ExploreKeyboard;
+                exploreIndex = 0;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+                break;
+            case InputKeyLeft:
+            case InputKeyDown:
+                if (exploreIndex > 0)
+                {
+                    exploreIndex--;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyRight:
+            case InputKeyUp:
+                if (exploreIndex < (MAX_EXPLORE_USERS - 1))
+                {
+                    exploreIndex++;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyOk:
+                // later we'll add/remove the selected user when clicked
+                // in the old version, we showed the clicked on user's profile first
+                break;
+            default:
+                break;
+            };
+        }
         break;
     }
     case SocialViewProfile:
@@ -1853,6 +2099,50 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(url);
         free(authHeader);
         free(messageUser);
+        break;
+    }
+    case RequestTypeExplore:
+    {
+        char *url = (char *)malloc(128);
+        char *authHeader = (char *)malloc(256);
+        char *keyword = (char *)malloc(64);
+        if (!url || !authHeader || !keyword)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url, authHeader or keyword");
+            exploreStatus = ExploreRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            if (url)
+                free(url);
+            if (authHeader)
+                free(authHeader);
+            if (keyword)
+                free(keyword);
+            return;
+        }
+        // Get keyword from user input
+        if (!app->loadChar("explore_keyword", keyword, 64) || strlen(keyword) == 0)
+        {
+            FURI_LOG_E(TAG, "Failed to load explore keyword");
+            exploreStatus = ExploreRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            free(url);
+            free(authHeader);
+            free(keyword);
+            return;
+        }
+        snprintf(authHeader, 256, "{\"Content-Type\":\"application/json\",\"Username\":\"%s\",\"Password\":\"%s\"}", username, password);
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/user/explore/%s/%d/", keyword, MAX_EXPLORE_USERS);
+        if (!app->httpRequestAsync("explore.txt", url, GET, authHeader))
+        {
+            exploreStatus = ExploreRequestError;
+        }
+        free(url);
+        free(authHeader);
+        free(keyword);
         break;
     }
     default:
