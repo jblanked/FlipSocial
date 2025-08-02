@@ -677,6 +677,7 @@ void FlipSocialRun::drawMainMenuView(Canvas *canvas)
     const char *menuItems[] = {"Feed", "Post", "Messages", "Explore", "Profile"};
     drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 5);
 }
+
 void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char **menuItems, uint8_t menuCount)
 {
     canvas_clear(canvas);
@@ -697,17 +698,121 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
         canvas_draw_dot(canvas, i, 18);
     }
 
-    // Menu items
+    // Menu items with word wrapping
     canvas_set_font_custom(canvas, FONT_SIZE_MEDIUM);
     const char *currentItem = menuItems[selectedIndex];
-    int text_width = canvas_string_width(canvas, currentItem);
-    int text_x = (128 - text_width) / 2;
+
+    const int box_padding = 10;
+    const int box_width = 108;
+    const int usable_width = box_width - (box_padding * 2); // Text area inside box
+    const int line_height = 8;                              // Typical line height for medium font
+    const int max_lines = 2;                                // Maximum lines to prevent overflow
+
     int menu_y = 40;
 
+    // Calculate word wrapping
+    char lines[max_lines][64];
+    int line_count = 0;
+
+    // word wrap
+    const char *text = currentItem;
+    int text_len = strlen(text);
+    int current_pos = 0;
+
+    while (current_pos < text_len && line_count < max_lines)
+    {
+        int line_start = current_pos;
+        int last_space = -1;
+        int current_width = 0;
+        int char_pos = 0;
+
+        // Find how much text fits on this line
+        while (current_pos < text_len && char_pos < 63) // Leave room for null terminator
+        {
+            if (text[current_pos] == ' ')
+            {
+                last_space = char_pos;
+            }
+
+            lines[line_count][char_pos] = text[current_pos];
+            char_pos++;
+
+            // Check if adding this character exceeds width
+            lines[line_count][char_pos] = '\0'; // Temporary null terminator
+            current_width = canvas_string_width(canvas, lines[line_count]);
+
+            if (current_width > usable_width)
+            {
+                // Text is too wide, need to break
+                if (last_space > 0)
+                {
+                    // Break at last space
+                    lines[line_count][last_space] = '\0';
+                    current_pos = line_start + last_space + 1; // Skip the space
+                }
+                else
+                {
+                    // No space found, break at previous character
+                    char_pos--;
+                    lines[line_count][char_pos] = '\0';
+                    current_pos = line_start + char_pos;
+                }
+                break;
+            }
+
+            current_pos++;
+        }
+
+        // If we reached end of text
+        if (current_pos >= text_len)
+        {
+            lines[line_count][char_pos] = '\0';
+        }
+
+        line_count++;
+    }
+
+    // If there's still more text and we're at max lines, add ellipsis
+    if (current_pos < text_len && line_count == max_lines)
+    {
+        int last_line = line_count - 1;
+        int line_len = strlen(lines[last_line]);
+        if (line_len > 3)
+        {
+            strcpy(&lines[last_line][line_len - 3], "...");
+        }
+    }
+
+    // Calculate box height based on number of lines, but keep minimum height
+    int box_height = (line_count * line_height) + 8;
+    if (box_height < 16)
+        box_height = 16;
+
+    // Dynamic box positioning based on content height
+    int box_y_offset;
+    if (line_count > 1)
+    {
+        box_y_offset = -22;
+    }
+    else
+    {
+        box_y_offset = -12;
+    }
+
     // Draw main selection box
-    canvas_draw_rbox(canvas, 10, menu_y - 8, 108, 16, 4);
+    canvas_draw_rbox(canvas, 10, menu_y + box_y_offset, box_width, box_height, 4);
     canvas_set_color(canvas, ColorWhite);
-    canvas_draw_str(canvas, text_x, menu_y + 4, currentItem);
+
+    // Draw each line of text centered
+    for (int i = 0; i < line_count; i++)
+    {
+        int line_width = canvas_string_width(canvas, lines[i]);
+        int line_x = (128 - line_width) / 2;
+        int text_y_offset = (line_count > 1) ? -18 : -4;
+        int line_y = menu_y + (i * line_height) + 4 + text_y_offset;
+        canvas_draw_str(canvas, line_x, line_y, lines[i]);
+    }
+
     canvas_set_color(canvas, ColorBlack);
 
     // Draw navigation arrows
@@ -720,10 +825,9 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
         canvas_draw_str(canvas, 122, menu_y + 4, ">");
     }
 
-    // Smart indicator system
-    const int MAX_DOTS = 15; // Maximum dots that fit on screen
+    const int MAX_DOTS = 15;
     const int dots_spacing = 6;
-    const int indicator_y = 52; // Position above bottom pattern
+    int indicator_y = 52;
 
     if (menuCount <= MAX_DOTS)
     {
@@ -744,7 +848,7 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     }
     else
     {
-        // Show condensed indicator with current position
+        // condensed indicator with current position
         canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
         char position_text[16];
         snprintf(position_text, sizeof(position_text), "%d/%d", selectedIndex + 1, menuCount);
@@ -752,7 +856,7 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
         int pos_x = (128 - pos_width) / 2;
         canvas_draw_str(canvas, pos_x, indicator_y + 3, position_text);
 
-        // Optional: Add a progress bar
+        // progress bar
         int bar_width = 60;
         int bar_x = (128 - bar_width) / 2;
         int bar_y = indicator_y - 6;
@@ -2649,7 +2753,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
             return;
         }
         // Get message from user input
-        if (!app->loadChar("message_to_user", message, 128) || strlen(message) == 0)
+        if (!app->loadChar("message_to_user", message, 128) || strlen(message) == 0 || strlen(message) > MAX_MESSAGE_LENGTH)
         {
             FURI_LOG_E(TAG, "Failed to load message to user");
             messagesStatus = MessagesRequestError;
@@ -2708,7 +2812,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
             return;
         }
         // Get keyword from user input
-        if (!app->loadChar("explore_keyword", keyword, 64) || strlen(keyword) == 0)
+        if (!app->loadChar("explore_keyword", keyword, 64) || strlen(keyword) == 0 || strlen(keyword) > MAX_MESSAGE_LENGTH)
         {
             FURI_LOG_E(TAG, "Failed to load explore keyword");
             exploreStatus = ExploreRequestError;
@@ -2753,7 +2857,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
                 free(feedPost);
             return;
         }
-        if (!app->loadChar("new_feed_post", userMessage, 128) || strlen(userMessage) == 0)
+        if (!app->loadChar("new_feed_post", userMessage, 128) || strlen(userMessage) == 0 || strlen(userMessage) > MAX_MESSAGE_LENGTH)
         {
             FURI_LOG_E(TAG, "Failed to load new feed post");
             postStatus = PostRequestError;
