@@ -1,6 +1,4 @@
 #pragma once
-#include <stdint.h>
-#include <stddef.h>
 #include <gui/gui.h>
 
 enum KeyboardMode
@@ -22,59 +20,41 @@ enum FunctionKey
 class Keyboard
 {
 private:
-    // Keyboard layouts
-    static const char keyboard_lowercase[3][11];
-    static const char keyboard_uppercase[3][11];
-    static const char keyboard_numbers[3][11];
-
-    // Cursor position
-    uint8_t cursor_x;
-    uint8_t cursor_y;
-
-    // Keyboard state
-    KeyboardMode mode;
-    bool caps_lock;
-
-    // Internal text buffer
-    static const size_t MAX_TEXT_SIZE = 256;
-    char text_buffer[MAX_TEXT_SIZE];
-
-    // Helper methods
-    const char (*getCurrentKeyboard())[11];
-    const char *getModeName();
-    void clampCursorToValidPosition();
-    size_t getStringLength(const char *str, size_t max_size);
+    bool caps_lock;                              // Caps lock state
+    uint8_t cursor_x;                            // Current cursor position in the keyboard grid
+    uint8_t cursor_y;                            // Current cursor position in the keyboard grid
+    static const char keyboard_lowercase[3][11]; // keyboard layout for lowercase letters
+    static const char keyboard_uppercase[3][11]; // keyboard layout for uppercase letters
+    static const char keyboard_numbers[3][11];   // keyboard layout for numbers
+    static const size_t MAX_TEXT_SIZE = 256;     // Maximum size of text input buffer
+    KeyboardMode mode;                           // Current keyboard mode
+    char text_buffer[MAX_TEXT_SIZE];             // internal buffer for text input
+    //
+    void clampCursorToValidPosition();                        // Ensure cursor is within valid bounds of the current keyboard layout
+    const char (*getCurrentKeyboard())[11];                   // Get the current keyboard layout based on mode
+    const char *getModeName();                                // Get the name of the current mode (e.g., "ABC", "123", "CAPS")
+    size_t getStringLength(const char *str, size_t max_size); // Get the length of a string, respecting max size
 
 public:
     Keyboard();
     ~Keyboard();
-
-    // Initialize/reset keyboard state
-    void reset();
-    void resetText();
-
-    // Input handling
-    bool handleInput(uint8_t key);
-    bool handleInput(uint8_t key, char *target_buffer, size_t target_size);
-
-    // Text management
-    const char *getText() const;
-    void setText(const char *text);
-    void clearText();
-    size_t getTextLength() const;
-
-    // Drawing
-    void draw(Canvas *canvas, const char *title);
-    void draw(Canvas *canvas, const char *title, const char *current_text);
-
-    // State getters
-    uint8_t getCursorX() const { return cursor_x; }
-    uint8_t getCursorY() const { return cursor_y; }
-    KeyboardMode getMode() const { return mode; }
-    bool getCapsLock() const { return caps_lock; }
-
-    // Constants
+    //
     static const int KEYBOARD_ROWS = 3;
     static const int KEYBOARD_COLS = 10;
     static const int FUNCTION_ROW = 3;
+    //
+    void clearText();                                                       // clear text
+    void draw(Canvas *canvas, const char *title);                           // draw keyboard with title
+    void draw(Canvas *canvas, const char *title, const char *current_text); // draw keyboard with title and current text
+    bool getCapsLock() const { return caps_lock; }                          // check if caps lock is enabled
+    uint8_t getCursorX() const { return cursor_x; }                         // get current cursor X position
+    uint8_t getCursorY() const { return cursor_y; }                         // get current cursor Y position
+    KeyboardMode getMode() const { return mode; }                           // get current keyboard mode
+    const char *getText() const;                                            // get current text input
+    size_t getTextLength() const;                                           // get length of current text input
+    bool handleInput(uint8_t key);                                          // handle input from the user (pass input key here)
+    bool handleInput(uint8_t key, char *target_buffer, size_t target_size); // handle input and store result in target buffer
+    void reset();                                                           // reset keyboard state
+    void resetText();                                                       // reset text input buffer
+    void setText(const char *text);                                         // set text input buffer to a specific string
 };
