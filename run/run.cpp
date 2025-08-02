@@ -7,7 +7,8 @@ FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
                                                  exploreIndex(0), exploreStatus(ExploreKeyboardUsers),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
-                                                 loginStatus(LoginNotStarted), messagesStatus(MessagesNotStarted), messageUsersStatus(MessageUsersNotStarted), messageUserIndex(0), registrationStatus(RegistrationNotStarted),
+                                                 loginStatus(LoginNotStarted), messagesStatus(MessagesNotStarted), messageUsersStatus(MessageUsersNotStarted), messageUserIndex(0),
+                                                 postStatus(PostChoose), registrationStatus(RegistrationNotStarted),
                                                  shouldDebounce(false), shouldReturnToMenu(false), userInfoStatus(UserInfoNotStarted)
 {
     char *loginStatusStr = (char *)malloc(64);
@@ -522,6 +523,7 @@ void FlipSocialRun::drawFeedView(Canvas *canvas)
                         if (id_str)
                             free(id_str);
                         free(feedItem);
+                        feedStatus = FeedParseError;
                         return;
                     }
                     feedItemID = atoi(id_str);
@@ -1131,6 +1133,168 @@ void FlipSocialRun::drawMessageUsersView(Canvas *canvas)
     }
 }
 
+void FlipSocialRun::drawPostView(Canvas *canvas)
+{
+    canvas_clear(canvas);
+    canvas_set_font(canvas, FontPrimary);
+    static bool loadingStarted = false;
+    switch (postStatus)
+    {
+    case PostWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Posting...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                postStatus = PostRequestError;
+                return;
+            }
+            char *response = (char *)malloc(128);
+            if (response && app->loadChar("post", response, 128) && strstr(response, "[SUCCESS]") != NULL)
+            {
+                postStatus = PostSuccess;
+                currentView = SocialViewFeed;
+                currentMenuIndex = SocialViewFeed;
+                feedStatus = FeedNotStarted;
+                feedIteration = 1;
+                feedItemIndex = 0;
+                free(response);
+                return;
+            }
+            else
+            {
+                postStatus = PostRequestError;
+            }
+        }
+        break;
+    case PostSuccess:
+        // unlike other "views", we shouldnt hit here
+        // since after posting, users will be redirected to feed
+        canvas_draw_str(canvas, 0, 10, "Posted successfully!");
+        canvas_draw_str(canvas, 0, 20, "Press OK to continue.");
+        break;
+    case PostRequestError:
+        canvas_draw_str(canvas, 0, 10, "Post request failed!");
+        canvas_draw_str(canvas, 0, 20, "Ensure your message");
+        canvas_draw_str(canvas, 0, 30, "follows the rules.");
+        break;
+    case PostParseError:
+        canvas_draw_str(canvas, 0, 10, "Error parsing post!");
+        canvas_draw_str(canvas, 0, 20, "Ensure your message");
+        canvas_draw_str(canvas, 0, 30, "follows the rules.");
+        break;
+    case PostKeyboard:
+        if (!keyboard)
+        {
+            keyboard = std::make_unique<Keyboard>();
+        }
+        if (keyboard)
+        {
+            keyboard->draw(canvas, "Enter post:");
+        }
+        break;
+    case PostChoose:
+    {
+        char *preSavedLocation = (char *)malloc(128);
+        char *preSavedMessages = (char *)malloc(1024);
+        if (!preSavedLocation || !preSavedMessages)
+        {
+            FURI_LOG_E(TAG, "drawPostView: Failed to allocate memory for preSavedLocation or preSavedMessages");
+            postStatus = PostParseError;
+            return;
+        }
+        snprintf(preSavedLocation, 128, "%s/apps_data/flip_social/pre_saved_messages.txt", STORAGE_EXT_PATH_PREFIX);
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (!app || !app->loadFileChunk(preSavedLocation, preSavedMessages, 1024, 0))
+        {
+            FURI_LOG_E(TAG, "drawPostView: Failed to load pre-saved messages from file");
+            canvas_draw_str(canvas, 0, 10, "Failed to load pre-saved messages.");
+            free(preSavedLocation);
+            free(preSavedMessages);
+            return;
+        }
+
+        // Parse pre-saved messages (each line is a message)
+        std::vector<std::string> preSavedList;
+        char *start = preSavedMessages;
+        char *end = preSavedMessages;
+        int preSavedCount = 0;
+        while (*end != '\0' && preSavedCount < MAX_PRE_SAVED_MESSAGES)
+        {
+            if (*end == '\n')
+            {
+                if (end > start)
+                {
+                    preSavedList.push_back(std::string(start, end - start));
+                    preSavedCount++;
+                }
+                end++;
+                start = end;
+            }
+            else
+            {
+                end++;
+            }
+        }
+        // Add the last line if not empty and not ending with a newline, and if limit not reached
+        if (end > start && preSavedCount < MAX_PRE_SAVED_MESSAGES)
+        {
+            preSavedList.push_back(std::string(start, end - start));
+        }
+
+        // Insert "[New Post]" as the first item, then add user's pre-saved messages
+        std::vector<std::string> menuItems;
+        menuItems.push_back("[New Post]");
+        for (const auto &msg : preSavedList)
+        {
+            menuItems.push_back(msg);
+        }
+
+        // Convert std::vector<std::string> to const char** for drawMenu
+        std::vector<const char *> preSavedPtrs;
+        preSavedPtrs.reserve(menuItems.size());
+        for (const auto &msg : menuItems)
+        {
+            preSavedPtrs.push_back(msg.c_str());
+        }
+
+        // Draw the menu with [New Post] and pre-saved messages
+        drawMenu(canvas, postIndex, preSavedPtrs.data(), preSavedPtrs.size());
+
+        free(preSavedLocation);
+        free(preSavedMessages);
+        break;
+    }
+    default:
+        canvas_draw_str(canvas, 0, 10, "Awaiting...");
+        break;
+    }
+}
+
 void FlipSocialRun::drawProfileView(Canvas *canvas)
 {
     canvas_clear(canvas);
@@ -1553,6 +1717,67 @@ bool FlipSocialRun::getMessageUser(char *buffer, size_t buffer_size)
     return false;
 }
 
+bool FlipSocialRun::getSelectedPost(char *buffer, size_t buffer_size)
+{
+    if (postIndex == 0)
+    {
+        // If postIndex is 0, we are in the "New Post" mode
+        snprintf(buffer, buffer_size, "[New Post]");
+        return true;
+    }
+    char *preSavedLocation = (char *)malloc(128);
+    char *preSavedMessages = (char *)malloc(1024);
+    if (!preSavedLocation || !preSavedMessages)
+    {
+        FURI_LOG_E(TAG, "getSelectedPost: Failed to allocate memory for preSavedLocation or preSavedMessages");
+        return false;
+    }
+    snprintf(preSavedLocation, 128, "%s/apps_data/flip_social/pre_saved_messages.txt", STORAGE_EXT_PATH_PREFIX);
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app || !app->loadFileChunk(preSavedLocation, preSavedMessages, 1024, 0))
+    {
+        FURI_LOG_E(TAG, "getSelectedPost: Failed to load pre-saved messages from file");
+        free(preSavedLocation);
+        free(preSavedMessages);
+        return false;
+    }
+
+    // grab only the selected post
+    char *start = preSavedMessages;
+    char *end = preSavedMessages;
+    int postCount = 0;
+    while (*end != '\0')
+    {
+        if (*end == '\n')
+        {
+            if (postCount == postIndex - 1)
+            {
+                // Found the selected post
+                size_t length = end - start;
+                if (length < buffer_size)
+                {
+                    snprintf(buffer, buffer_size, "%.*s", (int)length, start);
+                    free(preSavedLocation);
+                    free(preSavedMessages);
+                    return true;
+                }
+                else
+                {
+                    FURI_LOG_E(TAG, "getSelectedPost: Buffer size is too small for the post");
+                    free(preSavedLocation);
+                    free(preSavedMessages);
+                    return false;
+                }
+            }
+            postCount++;
+            start = end + 1; // Move to the next line
+        }
+        end++;
+    }
+
+    return false; // Post not found
+}
+
 bool FlipSocialRun::httpRequestIsFinished()
 {
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
@@ -1596,6 +1821,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
         break;
     case SocialViewExplore:
         drawExploreView(canvas);
+        break;
+    case SocialViewPost:
+        drawPostView(canvas);
         break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
@@ -1758,15 +1986,98 @@ void FlipSocialRun::updateInput(InputEvent *event)
     }
     case SocialViewPost:
     {
-        switch (lastInput)
+        if (postStatus == PostKeyboard)
         {
-        case InputKeyBack:
-            currentView = SocialViewMenu;
-            shouldDebounce = true;
-            break;
-        default:
-            break;
-        };
+            if (keyboard)
+            {
+                if (keyboard->handleInput(lastInput))
+                {
+                    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+                    app->saveChar("new_feed_post", keyboard->getText());
+                    postStatus = PostWaiting;
+                    userRequest(RequestTypePost);
+                }
+                if (lastInput != InputKeyMAX)
+                {
+                    shouldDebounce = true;
+                }
+            }
+            if (lastInput == InputKeyBack)
+            {
+                postStatus = PostChoose;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+            }
+        }
+        else
+        {
+            switch (lastInput)
+            {
+            case InputKeyBack:
+                currentView = SocialViewMenu;
+                shouldDebounce = true;
+                break;
+            case InputKeyLeft:
+            case InputKeyDown:
+                if (postIndex > 0)
+                {
+                    postIndex--;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyRight:
+            case InputKeyUp:
+                if (postIndex < (MAX_PRE_SAVED_MESSAGES - 1))
+                {
+                    postIndex++;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyOk:
+                if (postIndex == 0) // New Post
+                {
+                    postStatus = PostKeyboard;
+                    shouldDebounce = true;
+                    if (keyboard)
+                    {
+                        keyboard->clearText();
+                        keyboard.reset();
+                    }
+                }
+                else
+                {
+                    char *selectedPost = (char *)malloc(128);
+                    if (!selectedPost)
+                    {
+                        FURI_LOG_E(TAG, "updateInput: Failed to allocate memory for selectedPost");
+                        postStatus = PostParseError;
+                        shouldDebounce = true;
+                        return;
+                    }
+                    if (getSelectedPost(selectedPost, 128))
+                    {
+                        if (!keyboard)
+                        {
+                            keyboard = std::make_unique<Keyboard>();
+                        }
+                        if (keyboard)
+                        {
+                            keyboard->setText(selectedPost);
+                            postStatus = PostKeyboard;
+                            shouldDebounce = true;
+                        }
+                    }
+                    free(selectedPost);
+                }
+                break;
+            default:
+                break;
+            };
+        }
         break;
     }
     case SocialViewMessageUsers:
@@ -2418,6 +2729,53 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(url);
         free(authHeader);
         free(keyword);
+        break;
+    }
+    case RequestTypePost:
+    {
+        char *url = (char *)malloc(128);
+        char *authHeader = (char *)malloc(256);
+        char *userMessage = (char *)malloc(128);
+        char *feedPost = (char *)malloc(256);
+        if (!url || !authHeader || !userMessage || !feedPost)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url, authHeader, userMessage or feedPost");
+            postStatus = PostRequestError;
+            free(username);
+            free(password);
+            if (url)
+                free(url);
+            if (authHeader)
+                free(authHeader);
+            if (userMessage)
+                free(userMessage);
+            if (feedPost)
+                free(feedPost);
+            return;
+        }
+        if (!app->loadChar("new_feed_post", userMessage, 128) || strlen(userMessage) == 0)
+        {
+            FURI_LOG_E(TAG, "Failed to load new feed post");
+            postStatus = PostRequestError;
+            free(username);
+            free(password);
+            free(url);
+            free(authHeader);
+            free(userMessage);
+            free(feedPost);
+            return;
+        }
+        snprintf(authHeader, 256, "{\"Content-Type\":\"application/json\",\"Username\":\"%s\",\"Password\":\"%s\"}", username, password);
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/feed/post/");
+        snprintf(feedPost, 256, "{\"username\":\"%s\",\"content\":\"%s\"}", username, userMessage);
+        if (!app->httpRequestAsync("post.txt", url, POST, authHeader, feedPost))
+        {
+            postStatus = PostRequestError;
+        }
+        free(url);
+        free(authHeader);
+        free(userMessage);
+        free(feedPost);
         break;
     }
     default:

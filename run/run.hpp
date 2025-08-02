@@ -69,6 +69,7 @@ typedef enum
     RequestTypeMessagesWithUser = 7, // Request messages with a specific user
     RequestTypeMessageSend = 8,      // Request to send a message to the current user
     RequestTypeExplore = 9,          // Request explore (fetch users to explore)
+    RequestTypePost = 10,            // Request post (send a post to the feed)
 } RequestType;
 
 typedef enum
@@ -120,6 +121,17 @@ typedef enum
     ExploreSending = 7,         // Sending message in explore view
 } ExploreStatus;
 
+typedef enum
+{
+    PostNotStarted = 0,   // Post not started
+    PostWaiting = 1,      // while message is sending, we're waiting
+    PostSuccess = 2,      // Post sent successfully
+    PostParseError = 3,   // Error parsing post data
+    PostRequestError = 4, // Error in post request
+    PostKeyboard = 5,     // Keyboard for post view (to create a new pre-saved post only)
+    PostChoose = 6,       // Choosing a pre-saved post to send
+} PostStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
@@ -143,6 +155,8 @@ class FlipSocialRun
     MessageUsersStatus messageUsersStatus; // current messages status
     uint8_t messagesIndex;                 // index of the message in the messages submenu
     uint8_t messageUserIndex;              // index of the user in the Message Users submenu
+    uint8_t postIndex;                     // index of the post in the Post submenu
+    PostStatus postStatus;                 // current post status
     RegistrationStatus registrationStatus; // current registration status
     bool shouldDebounce;                   // flag to debounce input
     bool shouldReturnToMenu;               // Flag to signal return to menu
@@ -157,11 +171,13 @@ class FlipSocialRun
     void drawMainMenuView(Canvas *canvas);                                                                            // draw the main menu view
     void drawMessagesView(Canvas *canvas);                                                                            // draw the messages view
     void drawMessageUsersView(Canvas *canvas);                                                                        // draw the message users view
+    void drawPostView(Canvas *canvas);                                                                                // draw the post view
     void drawProfileView(Canvas *canvas);                                                                             // draw the profile view
     void drawRegistrationView(Canvas *canvas);                                                                        // draw the registration view
     void drawUserInfoView(Canvas *canvas);                                                                            // draw the user info view
     void drawWrappedBio(Canvas *canvas, const char *text, uint8_t x, uint8_t y);                                      // draw wrapped text on the canvas
     bool getMessageUser(char *buffer, size_t buffer_size);                                                            // get the message user at the specified messageUserIndex
+    bool getSelectedPost(char *buffer, size_t buffer_size);                                                           // get the selected post at the specified postIndex
     bool httpRequestIsFinished();                                                                                     // check if the HTTP request is finished
     void userRequest(RequestType requestType);                                                                        // Send a user request to the server based on the request type
 public:
