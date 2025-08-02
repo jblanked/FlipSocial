@@ -672,8 +672,8 @@ void FlipSocialRun::drawLoginView(Canvas *canvas)
 
 void FlipSocialRun::drawMainMenuView(Canvas *canvas)
 {
-    const char *menuItems[] = {"Feed", "Messages", "Explore", "Profile"};
-    drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 4);
+    const char *menuItems[] = {"Feed", "Post", "Messages", "Explore", "Profile"};
+    drawMenu(canvas, (uint8_t)currentMenuIndex, menuItems, 5);
 }
 void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char **menuItems, uint8_t menuCount)
 {
@@ -1619,9 +1619,14 @@ void FlipSocialRun::updateInput(InputEvent *event)
             break;
         case InputKeyDown:
         case InputKeyLeft:
-            if (currentMenuIndex == SocialViewMessageUsers)
+            if (currentMenuIndex == SocialViewPost)
             {
                 currentMenuIndex = SocialViewFeed;
+            }
+            else if (currentMenuIndex == SocialViewMessageUsers)
+            {
+                currentMenuIndex = SocialViewPost;
+                shouldDebounce = true;
             }
             else if (currentMenuIndex == SocialViewExplore)
             {
@@ -1637,6 +1642,11 @@ void FlipSocialRun::updateInput(InputEvent *event)
         case InputKeyUp:
         case InputKeyRight:
             if (currentMenuIndex == SocialViewFeed)
+            {
+                currentMenuIndex = SocialViewPost;
+                shouldDebounce = true;
+            }
+            else if (currentMenuIndex == SocialViewPost)
             {
                 currentMenuIndex = SocialViewMessageUsers;
                 shouldDebounce = true;
@@ -1656,6 +1666,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
             case SocialViewFeed:
                 currentView = SocialViewFeed;
+                shouldDebounce = true;
+                break;
+            case SocialViewPost:
+                currentView = SocialViewPost;
                 shouldDebounce = true;
                 break;
             case SocialViewMessageUsers:
@@ -1735,6 +1749,19 @@ void FlipSocialRun::updateInput(InputEvent *event)
             break;
         case InputKeyOk:
             userRequest(RequestTypeFlipPost);
+            shouldDebounce = true;
+            break;
+        default:
+            break;
+        };
+        break;
+    }
+    case SocialViewPost:
+    {
+        switch (lastInput)
+        {
+        case InputKeyBack:
+            currentView = SocialViewMenu;
             shouldDebounce = true;
             break;
         default:

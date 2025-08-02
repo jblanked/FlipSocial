@@ -16,13 +16,14 @@ typedef enum
 {
     SocialViewMenu = -1,        // main menu view
     SocialViewFeed = 0,         // feed view
-    SocialViewMessageUsers = 1, // (initial) messages view
-    SocialViewExplore = 2,      // explore view
-    SocialViewProfile = 3,      // profile view
-    SocialViewLogin = 4,        // login view
-    SocialViewRegistration = 5, // registration view
-    SocialViewUserInfo = 6,     // user info view
-    SocialViewMessages = 7,     // messages view
+    SocialViewPost = 1,         // post view
+    SocialViewMessageUsers = 2, // (initial) messages view
+    SocialViewExplore = 3,      // explore view
+    SocialViewProfile = 4,      // profile view
+    SocialViewLogin = 5,        // login view
+    SocialViewRegistration = 6, // registration view
+    SocialViewUserInfo = 7,     // user info view
+    SocialViewMessages = 8,     // messages view
 } SocialView;
 
 typedef enum
