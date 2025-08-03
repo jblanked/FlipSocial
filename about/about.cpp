@@ -2,7 +2,7 @@
 
 FlipSocialAbout::FlipSocialAbout(ViewDispatcher **viewDispatcher) : widget(nullptr), viewDispatcherRef(viewDispatcher)
 {
-    easy_flipper_set_widget(&widget, FlipSocialViewAbout, "Simple C++ Flipper app\n\n\n\n\nwww.github.com/jblanked", callbackToSubmenu, viewDispatcherRef);
+    easy_flipper_set_widget(&widget, FlipSocialViewAbout, "Welcome to FlipSocial\n---\nThe social media app for\nFlipper Zero, created by\nJBlanked\n\nwww.github.com/jblanked\n---\nPress BACK to return.", callbackToSubmenu, viewDispatcherRef);
 }
 
 FlipSocialAbout::~FlipSocialAbout()
