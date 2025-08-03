@@ -3,7 +3,7 @@
 #include <vector>
 #include <flip_social_icons.h>
 
-FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext),
+FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), commentsIndex(0), commentIsValid(false), commentItemID(0), commentsStatus(CommentsNotStarted),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
                                                  exploreIndex(0), exploreStatus(ExploreKeyboardUsers),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
@@ -51,6 +51,292 @@ void FlipSocialRun::debounceInput()
         debounceCounter = 0;
         shouldDebounce = false;
         inputHeld = false;
+    }
+}
+
+void FlipSocialRun::drawCommentsView(Canvas *canvas)
+{
+    static bool loadingStarted = false;
+    switch (commentsStatus)
+    {
+    case CommentsWaiting:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Fetching...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app && app->getHttpState() == ISSUE)
+            {
+                commentsStatus = CommentsRequestError;
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                return;
+            }
+            char *response = (char *)malloc(4096);
+            char *feedSaveKey = (char *)malloc(32);
+            if (!response || !feedSaveKey)
+            {
+                feedStatus = FeedParseError;
+                if (response)
+                    free(response);
+                if (feedSaveKey)
+                    free(feedSaveKey);
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                return;
+            }
+            snprintf(feedSaveKey, 32, "feed_%d_comments", feedIteration);
+            if (app && app->loadChar(feedSaveKey, response, 4096))
+            {
+                commentsStatus = CommentsSuccess;
+                if (loading)
+                {
+                    loading->stop();
+                }
+                loadingStarted = false;
+                free(response);
+                free(feedSaveKey);
+                return;
+            }
+            feedStatus = FeedRequestError;
+            free(response);
+            free(feedSaveKey);
+        }
+        break;
+    case CommentsSuccess:
+    {
+        char *response = (char *)malloc(4096);
+        char *feedSaveKey = (char *)malloc(32);
+        if (!response || !feedSaveKey)
+        {
+            feedStatus = FeedParseError;
+            if (response)
+            {
+                free(response);
+            }
+            if (feedSaveKey)
+            {
+                free(feedSaveKey);
+            }
+            canvas_draw_str(canvas, 0, 10, "Failed to load comments data.");
+            return;
+        }
+        snprintf(feedSaveKey, 32, "feed_%d_comments", feedIteration);
+        FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+        if (app && app->loadChar(feedSaveKey, response, 4096))
+        {
+            if (strstr(response, "\"comments\":[{") != NULL)
+            {
+                commentIsValid = true;
+                // Count total comments first
+                int total_comments = 0;
+                for (int j = 0; j < MAX_COMMENTS; j++)
+                {
+                    char *tempComment = get_json_array_value("comments", j, response);
+                    if (tempComment)
+                    {
+                        total_comments++;
+                        free(tempComment);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                // Parse the comments array and display the current comment at commentsIndex
+                for (int i = 0; i < MAX_COMMENTS; i++)
+                {
+                    if (i != commentsIndex)
+                    {
+                        continue; // only draw the current displayed comment
+                    }
+                    // Get the specific comment at the current index
+                    char *commentItem = get_json_array_value("comments", i, response);
+                    if (commentItem)
+                    {
+                        char *username = get_json_value("username", commentItem);
+                        char *message = get_json_value("message", commentItem);
+                        char *flipped = get_json_value("flipped", commentItem);
+                        char *flips_str = get_json_value("flip_count", commentItem);
+                        char *date_created = get_json_value("date_created", commentItem);
+                        char *id_str = get_json_value("id", commentItem);
+                        if (!username || !message || !flipped || !flips_str || !date_created || !id_str)
+                        {
+                            if (username)
+                                free(username);
+                            if (message)
+                                free(message);
+                            if (flipped)
+                                free(flipped);
+                            if (flips_str)
+                                free(flips_str);
+                            if (date_created)
+                                free(date_created);
+                            if (id_str)
+                                free(id_str);
+                            free(commentItem);
+                            commentsStatus = CommentsParseError;
+                            return;
+                        }
+                        commentItemID = atoi(id_str);
+                        drawFeedItem(canvas, username, message, flipped, flips_str, date_created);
+
+                        // Draw navigation arrows if there are multiple comments
+                        canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+                        if (commentsIndex > 0)
+                        {
+                            canvas_draw_str(canvas, 2, 60, "< Prev");
+                        }
+                        if (commentsIndex < (total_comments - 1))
+                        {
+                            canvas_draw_str(canvas, 96, 60, "Next >");
+                        }
+
+                        // Draw comment counter
+                        char comment_counter[32];
+                        snprintf(comment_counter, sizeof(comment_counter), "%d/%d", commentsIndex + 1, total_comments);
+                        canvas_draw_str(canvas, 112, 10, comment_counter);
+
+                        free(username);
+                        free(message);
+                        free(flipped);
+                        free(flips_str);
+                        free(date_created);
+                        free(id_str);
+                        free(commentItem);
+                        break; // Exit the loop after drawing the current comment
+                    }
+                    else
+                    {
+                        // If current comment index doesn't exist, go back to previous
+                        if (commentsIndex > 0)
+                        {
+                            commentsIndex--;
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                canvas_set_font_custom(canvas, FONT_SIZE_SMALL);
+                canvas_draw_str(canvas, 0, 10, "No comments found for this post.");
+                canvas_draw_str(canvas, 0, 60, "Be the first, click DOWN");
+            }
+        }
+
+        free(response);
+        free(feedSaveKey);
+        break;
+    }
+    case CommentsRequestError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Comments request failed!");
+        canvas_draw_str(canvas, 0, 20, "Check your network and");
+        canvas_draw_str(canvas, 0, 30, "try again later.");
+        break;
+    case CommentsParseError:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Failed to parse comments!");
+        canvas_draw_str(canvas, 0, 20, "Try again...");
+        break;
+    case CommentsNotStarted:
+        canvas_clear(canvas);
+        commentsStatus = CommentsWaiting;
+        userRequest(RequestTypeCommentFetch);
+        break;
+    case CommentsKeyboard:
+        if (!keyboard)
+        {
+            keyboard = std::make_unique<Keyboard>();
+        }
+        if (keyboard)
+        {
+            keyboard->draw(canvas, "Comment:");
+        }
+        break;
+    case CommentsSending:
+        if (!loadingStarted)
+        {
+            if (!loading)
+            {
+                loading = std::make_unique<Loading>(canvas);
+            }
+            loadingStarted = true;
+            if (loading)
+            {
+                loading->setText("Sending...");
+            }
+        }
+        if (!this->httpRequestIsFinished())
+        {
+            if (loading)
+            {
+                loading->animate();
+            }
+        }
+        else
+        {
+            if (loading)
+            {
+                loading->stop();
+            }
+            loadingStarted = false;
+            FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+            if (app->getHttpState() == ISSUE)
+            {
+                commentsStatus = CommentsRequestError;
+                return;
+            }
+            char *response = (char *)malloc(64);
+            if (response && app->loadChar("comment_post", response, 64) && strstr(response, "[SUCCESS]") != NULL)
+            {
+                currentView = SocialViewFeed;
+                currentMenuIndex = SocialViewFeed;
+                commentsStatus = CommentsNotStarted;
+                feedStatus = FeedNotStarted;
+                feedItemIndex = 0;
+                feedIteration = 1;
+                free(response);
+                return;
+            }
+            else
+            {
+                commentsStatus = CommentsRequestError;
+            }
+        }
+        break;
+    default:
+        canvas_clear(canvas);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 0, 10, "Loading comments...");
+        break;
     }
 }
 
@@ -263,10 +549,18 @@ void FlipSocialRun::drawFeedItem(Canvas *canvas, char *username, char *message, 
     char flip_message[32];
     snprintf(flip_message, sizeof(flip_message), "%u %s", flipCount, flipCount == 1 ? "flip" : "flips");
     canvas_draw_str(canvas, 0, 60, flip_message);
+    canvas_draw_icon(canvas, 35, 54, &I_ButtonOK_7x7);
     char flip_status[16];
     snprintf(flip_status, sizeof(flip_status), isFlipped ? "Unflip" : "Flip");
-    canvas_draw_str(canvas, 32, 60, flip_status);
-    canvas_draw_str(canvas, 64, 60, date_created);
+    canvas_draw_str(canvas, isFlipped ? 44 : 46, 60, flip_status);
+    if (strstr(date_created, "minutes ago") == NULL)
+    {
+        canvas_draw_str(canvas, 76, 60, date_created);
+    }
+    else
+    {
+        canvas_draw_str(canvas, 72, 60, date_created);
+    }
 }
 
 void FlipSocialRun::drawFeedMessage(Canvas *canvas, const char *user_message, int x, int y)
@@ -487,10 +781,6 @@ void FlipSocialRun::drawFeedView(Canvas *canvas)
         FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
         if (app && app->loadChar(feedSaveKey, response, 4096))
         {
-            // Successfully loaded feed data
-            // Parse and display feed data...
-            canvas_clear(canvas);
-            canvas_draw_str(canvas, 0, 10, "Feed Items:");
 
             for (int i = 0; i < MAX_FEED_ITEMS; i++)
             {
@@ -1929,6 +2219,9 @@ void FlipSocialRun::updateDraw(Canvas *canvas)
     case SocialViewPost:
         drawPostView(canvas);
         break;
+    case SocialViewComments:
+        drawCommentsView(canvas);
+        break;
     default:
         canvas_draw_str(canvas, 0, 10, "View not implemented yet.");
         break;
@@ -2042,8 +2335,14 @@ void FlipSocialRun::updateInput(InputEvent *event)
             currentView = SocialViewMenu;
             shouldDebounce = true;
             break;
-        case InputKeyLeft:
         case InputKeyDown:
+            // Switch to comments view for current feed item
+            currentView = SocialViewComments;
+            commentsStatus = CommentsNotStarted;
+            commentsIndex = 0;
+            shouldDebounce = true;
+            break;
+        case InputKeyLeft:
             if (feedItemIndex > 0)
             {
                 feedItemIndex--;
@@ -2061,7 +2360,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
             }
             break;
         case InputKeyRight:
-        case InputKeyUp:
             if (feedItemIndex < (MAX_FEED_ITEMS - 1))
             {
                 feedItemIndex++;
@@ -2418,6 +2716,86 @@ void FlipSocialRun::updateInput(InputEvent *event)
         };
         break;
     }
+    case SocialViewComments:
+    {
+        if (commentsStatus == CommentsKeyboard)
+        {
+            if (keyboard)
+            {
+                if (keyboard->handleInput(lastInput))
+                {
+                    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+                    app->saveChar("new_comment", keyboard->getText());
+                    commentsStatus = CommentsSending;
+                    userRequest(RequestTypeCommentPost);
+                }
+                if (lastInput != InputKeyMAX)
+                {
+                    shouldDebounce = true;
+                }
+            }
+            if (lastInput == InputKeyBack)
+            {
+                commentsStatus = CommentsSuccess;
+                shouldDebounce = true;
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard.reset();
+                }
+            }
+        }
+        else
+        {
+            switch (lastInput)
+            {
+            case InputKeyBack:
+                currentView = SocialViewFeed;
+                commentIsValid = false;
+                shouldDebounce = true;
+                break;
+            case InputKeyLeft:
+                if (commentsIndex > 0)
+                {
+                    commentsIndex--;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyRight:
+                if (commentsIndex < (MAX_COMMENTS - 1))
+                {
+                    commentsIndex++;
+                    shouldDebounce = true;
+                }
+                break;
+            case InputKeyDown:
+                // Start reply to comment
+                commentsStatus = CommentsKeyboard;
+                if (!keyboard)
+                {
+                    keyboard = std::make_unique<Keyboard>();
+                }
+                if (keyboard)
+                {
+                    keyboard->clearText();
+                    keyboard->setText(""); // Start with empty text for reply
+                }
+                shouldDebounce = true;
+                break;
+            case InputKeyOk:
+                // Flip the current comment
+                if (commentIsValid)
+                {
+                    userRequest(RequestTypeCommentFlip);
+                }
+                shouldDebounce = true;
+                break;
+            default:
+                break;
+            }
+        }
+        break;
+    }
     case SocialViewLogin:
     case SocialViewRegistration:
     case SocialViewUserInfo:
@@ -2456,6 +2834,8 @@ void FlipSocialRun::userRequest(RequestType requestType)
         case RequestTypeFeed:
         case RequestTypeFlipPost:
         case RequestTypeCommentFetch:
+        case RequestTypeCommentFlip:
+        case RequestTypeCommentPost:
             feedStatus = FeedRequestError;
             break;
         case RequestTypeMessagesUserList:
@@ -2512,6 +2892,8 @@ void FlipSocialRun::userRequest(RequestType requestType)
         case RequestTypeFeed:
         case RequestTypeFlipPost:
         case RequestTypeCommentFetch:
+        case RequestTypeCommentFlip:
+        case RequestTypeCommentPost:
             feedStatus = FeedRequestError;
             break;
         case RequestTypeMessagesUserList:
@@ -2634,6 +3016,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
     }
     case RequestTypeCommentFetch:
     {
+        commentIsValid = false;
         char *url = (char *)malloc(128);
         char *feedSaveName = (char *)malloc(32);
         if (!url || !feedSaveName)
@@ -2657,6 +3040,26 @@ void FlipSocialRun::userRequest(RequestType requestType)
         }
         free(url);
         free(feedSaveName);
+        break;
+    }
+    case RequestTypeCommentFlip:
+    {
+        char *commentFlipPayload = (char *)malloc(256);
+        if (!commentFlipPayload)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for commentFlipPayload");
+            feedStatus = FeedRequestError;
+            free(username);
+            free(password);
+            free(payload);
+            return;
+        }
+        snprintf(commentFlipPayload, 256, "{\"username\":\"%s\",\"post_id\":\"%u\"}", username, commentItemID);
+        if (!app->httpRequestAsync("flip_comment.txt", "https://www.jblanked.com/flipper/api/feed/flip/", POST, "{\"Content-Type\":\"application/json\"}", commentFlipPayload))
+        {
+            feedStatus = FeedRequestError;
+        }
+        free(commentFlipPayload);
         break;
     }
     case RequestTypeMessagesUserList:
@@ -2882,6 +3285,53 @@ void FlipSocialRun::userRequest(RequestType requestType)
         free(feedPost);
         break;
     }
+    case RequestTypeCommentPost:
+    {
+        char *url = (char *)malloc(128);
+        char *authHeader = (char *)malloc(256);
+        char *userComment = (char *)malloc(128);
+        char *commentPost = (char *)malloc(256);
+        if (!url || !authHeader || !userComment || !commentPost)
+        {
+            FURI_LOG_E(TAG, "userRequest: Failed to allocate memory for url, authHeader, userComment or commentPost");
+            commentsStatus = CommentsRequestError;
+            free(username);
+            free(password);
+            if (url)
+                free(url);
+            if (authHeader)
+                free(authHeader);
+            if (userComment)
+                free(userComment);
+            if (commentPost)
+                free(commentPost);
+            return;
+        }
+        if (!app->loadChar("new_comment", userComment, 128) || strlen(userComment) == 0 || strlen(userComment) > MAX_MESSAGE_LENGTH)
+        {
+            FURI_LOG_E(TAG, "Failed to load new comment");
+            commentsStatus = CommentsRequestError;
+            free(username);
+            free(password);
+            free(url);
+            free(authHeader);
+            free(userComment);
+            free(commentPost);
+            return;
+        }
+        snprintf(authHeader, 256, "{\"Content-Type\":\"application/json\",\"Username\":\"%s\",\"Password\":\"%s\"}", username, password);
+        snprintf(url, 128, "https://www.jblanked.com/flipper/api/feed/comment/");
+        snprintf(commentPost, 256, "{\"username\":\"%s\",\"content\":\"%s\",\"post_id\":\"%u\"}", username, userComment, feedItemID);
+        if (!app->httpRequestAsync("comment_post.txt", url, POST, authHeader, commentPost))
+        {
+            commentsStatus = CommentsRequestError;
+        }
+        free(url);
+        free(authHeader);
+        free(userComment);
+        free(commentPost);
+        break;
+    }
     default:
         FURI_LOG_E(TAG, "Unknown request type: %d", requestType);
         loginStatus = LoginRequestError;
@@ -2890,6 +3340,7 @@ void FlipSocialRun::userRequest(RequestType requestType)
         feedStatus = FeedRequestError;
         messageUsersStatus = MessageUsersRequestError;
         messagesStatus = MessagesRequestError;
+        commentsStatus = CommentsRequestError;
         free(username);
         free(password);
         free(payload);

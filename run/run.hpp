@@ -11,6 +11,7 @@
 #define MAX_FEED_ITEMS 25         // Maximum number of feed items
 #define MAX_MESSAGE_USERS 40      // Maximum number of users to display in the submenu
 #define MAX_MESSAGES 20           // Maximum number of messages between each user
+#define MAX_COMMENTS 20           // Maximum number of comments per feed item
 
 typedef enum
 {
@@ -24,6 +25,7 @@ typedef enum
     SocialViewRegistration = 6, // registration view
     SocialViewUserInfo = 7,     // user info view
     SocialViewMessages = 8,     // messages view
+    SocialViewComments = 9,     // comments view
 } SocialView;
 
 typedef enum
@@ -65,11 +67,13 @@ typedef enum
     RequestTypeFeed = 3,             // Request feed (fetch user feed)
     RequestTypeFlipPost = 4,         // Request flip post (flip the current seelected post)
     RequestTypeCommentFetch = 5,     // Request comments (fetch comments for a post)
-    RequestTypeMessagesUserList = 6, // Request messages (fetch list of users who sent messages)
-    RequestTypeMessagesWithUser = 7, // Request messages with a specific user
-    RequestTypeMessageSend = 8,      // Request to send a message to the current user
-    RequestTypeExplore = 9,          // Request explore (fetch users to explore)
-    RequestTypePost = 10,            // Request post (send a post to the feed)
+    RequestTypeCommentPost = 6,      // Request comment post (post a comment on a post)
+    RequestTypeCommentFlip = 7,      // Request comment flip (flip a comment)
+    RequestTypeMessagesUserList = 8, // Request messages (fetch list of users who sent messages)
+    RequestTypeMessagesWithUser = 9, // Request messages with a specific user
+    RequestTypeMessageSend = 10,     // Request to send a message to the current user
+    RequestTypeExplore = 11,         // Request explore (fetch users to explore)
+    RequestTypePost = 12,            // Request post (send a post to the feed)
 } RequestType;
 
 typedef enum
@@ -132,11 +136,26 @@ typedef enum
     PostChoose = 6,       // Choosing a pre-saved post to send
 } PostStatus;
 
+typedef enum
+{
+    CommentsNotStarted = 0,   // Comment not started (send request to fetch comments) - start here
+    CommentsWaiting = 1,      // Wait for fetch comments request to finish
+    CommentsSuccess = 2,      // Comments fetched successfully
+    CommentsParseError = 3,   // Error parsing fetched comments
+    CommentsRequestError = 4, // Error in comment request
+    CommentsKeyboard = 5,     // Keyboard for comment view (to create a new comment)
+    CommentsSending = 6,      // Sending comment
+} CommentsStatus;
+
 class FlipSocialApp;
 
 class FlipSocialRun
 {
     void *appContext;                      // reference to the app context
+    uint8_t commentsIndex;                 // current comment index
+    bool commentIsValid;                   // flag to check if the comment is valid
+    uint16_t commentItemID;                // current comment item ID
+    CommentsStatus commentsStatus;         // current comment status
     SocialView currentMenuIndex;           // current menu index
     uint8_t currentProfileElement;         // current profile element being viewed
     SocialView currentView;                // current view of the social run
@@ -163,6 +182,7 @@ class FlipSocialRun
     UserInfoStatus userInfoStatus;         // current user info status
     //
     void debounceInput();                                                                                             // debounce input to prevent multiple triggers
+    void drawCommentsView(Canvas *canvas);                                                                            // draw the comments view
     void drawExploreView(Canvas *canvas);                                                                             // draw the explore view
     void drawFeedItem(Canvas *canvas, char *username, char *message, char *flipped, char *flips, char *date_created); // draw a single feed item
     void drawFeedMessage(Canvas *canvas, const char *user_message, int x, int y);                                     // draw the feed message with wrapping
