@@ -37,24 +37,20 @@ extern "C"
 /* Implementation in jsmn_furi.c */
 #endif /* JSMN_HEADER */
 
-#ifdef __cplusplus
-}
-#endif
-
 #endif /* JSMN_FURI_H */
 
 #ifndef JB_JSMN_FURI_EDIT
 #define JB_JSMN_FURI_EDIT
 
-// Helper function to create a JSON object
-FuriString *get_json_furi(const FuriString *key, const FuriString *value);
+    // Helper function to create a JSON object
+    FuriString *get_json_furi(const FuriString *key, const FuriString *value);
 
-// Updated signatures to accept const char* key
-FuriString *get_json_value_furi(const char *key, const FuriString *json_data);
-FuriString *get_json_array_value_furi(const char *key, uint32_t index, const FuriString *json_data);
-FuriString **get_json_array_values_furi(const char *key, const FuriString *json_data, int *num_values);
+    // Updated signatures to accept const char* key
+    FuriString *get_json_value_furi(const char *key, const FuriString *json_data);
+    FuriString *get_json_array_value_furi(const char *key, uint32_t index, const FuriString *json_data);
+    FuriString **get_json_array_values_furi(const char *key, const FuriString *json_data, int *num_values);
 
-uint32_t json_token_count_furi(const FuriString *json);
+    uint32_t json_token_count_furi(const FuriString *json);
 /* Example usage:
 char *json = "{\"key1\":\"value1\",\"key2\":\"value2\"}";
 FuriString *json_data = char_to_furi_string(json);
@@ -72,3 +68,7 @@ if (value)
 furi_string_free(json_data);
 */
 #endif /* JB_JSMN_EDIT */
+
+#ifdef __cplusplus
+}
+#endif

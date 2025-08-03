@@ -13,9 +13,6 @@
  * [License text continues...]
  */
 
-#ifndef JSMN_H
-#define JSMN_H
-
 #include <stddef.h>
 #include <jsmn/jsmn_h.h>
 
@@ -23,6 +20,9 @@
 extern "C"
 {
 #endif
+
+#ifndef JSMN_H
+#define JSMN_H
 
 #ifdef JSMN_STATIC
 #define JSMN_API static
@@ -45,30 +45,30 @@ extern "C"
 /* Implementation has been moved to jsmn.c */
 #endif /* JSMN_HEADER */
 
-#ifdef __cplusplus
-}
-#endif
-
 #endif /* JSMN_H */
 
 /* Custom Helper Functions */
 #ifndef JB_JSMN_EDIT
 #define JB_JSMN_EDIT
-/* Added in by JBlanked on 2024-10-16 for use in Flipper Zero SDK*/
+    /* Added in by JBlanked on 2024-10-16 for use in Flipper Zero SDK*/
 
-// Helper function to create a JSON object
-char *get_json(const char *key, const char *value);
-// Helper function to compare JSON keys
-int jsoneq(const char *json, jsmntok_t *tok, const char *s);
+    // Helper function to create a JSON object
+    char *get_json(const char *key, const char *value);
+    // Helper function to compare JSON keys
+    int jsoneq(const char *json, jsmntok_t *tok, const char *s);
 
-// Return the value of the key in the JSON data
-char *get_json_value(char *key, const char *json_data);
+    // Return the value of the key in the JSON data
+    char *get_json_value(const char *key, const char *json_data);
 
-// Revised get_json_array_value function
-char *get_json_array_value(char *key, uint32_t index, const char *json_data);
+    // Revised get_json_array_value function
+    char *get_json_array_value(const char *key, uint32_t index, const char *json_data);
 
-// Revised get_json_array_values function with correct token skipping
-char **get_json_array_values(char *key, char *json_data, int *num_values);
+    // Revised get_json_array_values function with correct token skipping
+    char **get_json_array_values(const char *key, const char *json_data, int *num_values);
 
-int json_token_count(const char *json);
+    int json_token_count(const char *json);
 #endif /* JB_JSMN_EDIT */
+
+#ifdef __cplusplus
+}
+#endif

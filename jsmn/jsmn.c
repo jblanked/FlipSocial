@@ -446,7 +446,7 @@ int jsoneq(const char *json, jsmntok_t *tok, const char *s)
 }
 
 // Return the value of the key in the JSON data
-char *get_json_value(char *key, const char *json_data)
+char *get_json_value(const char *key, const char *json_data)
 {
     // Parse the JSON feed
     if (json_data != NULL)
@@ -567,7 +567,7 @@ static int skip_token(const jsmntok_t *tokens, int start, int total)
 }
 
 // Revised get_json_array_value
-char *get_json_array_value(char *key, uint32_t index, const char *json_data)
+char *get_json_array_value(const char *key, uint32_t index, const char *json_data)
 {
     // Always extract the full array each time from the original json_data
     char *array_str = get_json_value(key, json_data);
@@ -655,7 +655,7 @@ char *get_json_array_value(char *key, uint32_t index, const char *json_data)
 }
 
 // Revised get_json_array_values function with correct token skipping
-char **get_json_array_values(char *key, char *json_data, int *num_values)
+char **get_json_array_values(const char *key, const char *json_data, int *num_values)
 {
     // Retrieve the array string for the given key
     char *array_str = get_json_value(key, json_data);
