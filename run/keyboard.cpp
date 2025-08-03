@@ -83,13 +83,6 @@ void Keyboard::draw(Canvas *canvas, const char *title, const char *current_text)
     // Draw the visible portion of the text
     canvas_draw_str(canvas, text_start_x, 8, display_text);
 
-    // Draw cursor at the end of the visible text
-    size_t visible_text_len = strlen(display_text);
-    int cursor_x_pos = text_start_x + visible_text_len * char_width;
-
-    // Always draw cursor at the end of the text (it represents the insertion point)
-    canvas_draw_str(canvas, cursor_x_pos, 8, "_");
-
     // Draw compact 3x10 virtual keyboard
     for (int row = 0; row < KEYBOARD_ROWS; row++)
     {
