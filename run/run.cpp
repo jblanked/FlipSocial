@@ -1626,10 +1626,11 @@ void FlipSocialRun::drawPostView(Canvas *canvas)
         if (!app || !app->loadFileChunk(preSavedLocation, preSavedMessages, 1024, 0))
         {
             FURI_LOG_E(TAG, "drawPostView: Failed to load pre-saved messages from file");
-            canvas_draw_str(canvas, 0, 10, "Failed to load pre-saved messages.");
-            free(preSavedLocation);
-            free(preSavedMessages);
-            return;
+            // canvas_draw_str(canvas, 0, 10, "Failed to load pre-saved messages.");
+            // free(preSavedLocation);
+            // free(preSavedMessages);
+            // return;
+            // we should create one instead and then return if failed to create
         }
 
         // Parse pre-saved messages (each line is a message)
@@ -2169,6 +2170,8 @@ bool FlipSocialRun::getSelectedPost(char *buffer, size_t buffer_size)
         end++;
     }
 
+    free(preSavedLocation);
+    free(preSavedMessages);
     return false; // Post not found
 }
 
