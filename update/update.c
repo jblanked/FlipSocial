@@ -471,7 +471,7 @@ static bool update_update_app(FlipperHTTP *fhttp, DateTime *time_current, bool u
     furi_timer_stop(fhttp->get_timeout_timer);
     if (update_parse_last_app_update(fhttp, time_current, use_flipper_api))
     {
-        if (!update_get_fap_file(fhttp, false))
+        if (!update_get_fap_file(fhttp, use_flipper_api))
         {
             FURI_LOG_E(TAG, "Failed to fetch fap file 1");
             return false;
