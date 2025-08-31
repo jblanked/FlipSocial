@@ -1623,13 +1623,20 @@ void FlipSocialRun::drawPostView(Canvas *canvas)
         }
         snprintf(preSavedLocation, 128, "%s/apps_data/flip_social/pre_saved_messages.txt", STORAGE_EXT_PATH_PREFIX);
         FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
-        if (!app || !app->loadFileChunk(preSavedLocation, preSavedMessages, 1024, 0))
+        furi_check(app);
+        if (!app->loadFileChunk(preSavedLocation, preSavedMessages, 1024, 0))
         {
-            FURI_LOG_E(TAG, "drawPostView: Failed to load pre-saved messages from file");
-            canvas_draw_str(canvas, 0, 10, "Failed to load pre-saved messages.");
-            free(preSavedLocation);
-            free(preSavedMessages);
-            return;
+            // we should create one instead and then return if failed to create
+            Storage *storage = static_cast<Storage *>(furi_record_open(RECORD_STORAGE));
+            File *file = storage_file_alloc(storage);
+            char file_path[256];
+            snprintf(file_path, sizeof(file_path), STORAGE_EXT_PATH_PREFIX "/apps_data/flip_social/pre_saved_messages.txt");
+            storage_file_open(file, file_path, FSAM_WRITE, FSOM_CREATE_ALWAYS);
+            size_t data_size = strlen("Hello\n") + 1; // Include null terminator
+            storage_file_write(file, "Hello\n", data_size);
+            storage_file_close(file);
+            storage_file_free(file);
+            furi_record_close(RECORD_STORAGE);
         }
 
         // Parse pre-saved messages (each line is a message)
@@ -2169,6 +2176,8 @@ bool FlipSocialRun::getSelectedPost(char *buffer, size_t buffer_size)
         end++;
     }
 
+    free(preSavedLocation);
+    free(preSavedMessages);
     return false; // Post not found
 }
 

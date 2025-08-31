@@ -539,6 +539,8 @@ extern "C"
         // Create the app
         FlipSocialApp app;
 
+        app.saveChar("app_version", VERSION);
+
         // check if update is available from lab.flipper.net
         app.updateApp();
 
