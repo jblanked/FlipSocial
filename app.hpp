@@ -39,7 +39,7 @@ private:
     //
     static uint32_t callbackExitApp(void *context);                    // Callback to exit the app
     void callbackSubmenuChoices(uint32_t index);                       // Callback for submenu choices
-    void createAppDataPath();                                          // Create the app data path in storage
+    void createAppDataPath(const char *appId = APP_ID);                // Create the app data path in storage
     void settingsItemSelected(uint32_t index);                         // Handle settings item selection
     static void submenuChoicesCallback(void *context, uint32_t index); // Callback for submenu choices
     static void timerCallback(void *context);                          // Timer callback for run updates
@@ -69,10 +69,10 @@ public:
         const char *headers = "{\"Content-Type\": \"application/json\"}",                              // Headers to include in the request
         const char *payload = nullptr);                                                                // Payload to send with the request (for POST, PUT, etc.)
     bool isBoardConnected();                                                                           // check if the board is connected
-    bool loadChar(const char *path_name, char *value, size_t value_size);                              // load a string from storage
+    bool loadChar(const char *path_name, char *value, size_t value_size, const char *appId = APP_ID);  // load a string from storage
     bool loadFileChunk(const char *filePath, char *buffer, size_t sizeOfChunk, uint8_t iteration);     // Load a file chunk from storage
     void runDispatcher();                                                                              // run the app's view dispatcher to handle views and events
-    bool saveChar(const char *path_name, const char *value);                                           // save a string to storage
+    bool saveChar(const char *path_name, const char *value, const char *appId = APP_ID);               // save a string to storage
     bool setHttpState(HTTPState state = IDLE) noexcept;                                                // set the HTTP state
     bool sendWiFiCredentials(const char *ssid, const char *password);                                  // send WiFi credentials to the board
     void updateApp();                                                                                  // update the app (used in the main function)
