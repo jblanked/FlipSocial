@@ -1,3 +1,11 @@
+## 2.0.2
+- Updated the save/load functions to use a specific folder ("flipper_http") for storing Wi-Fi and user credentials. This enhances organization and security of stored data.
+
+## 2.0.1
+- Fixed the auto-updating to use the official Flipper Catalog API as intended
+- Fixed a memory leak
+- Updated the Post view to create the pre_saved_messages.txt file if not yet created
+
 ## 2.0
 - Switched to C++ for better performance and maintainability.
 - Added support for comments on feed posts (press DOWN to view comments on the current post).
