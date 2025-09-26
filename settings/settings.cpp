@@ -18,7 +18,7 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
     char loaded_ssid[64];
     char loaded_pass[64];
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
-    if (app->loadChar("wifi_ssid", loaded_ssid, sizeof(loaded_ssid)))
+    if (app->loadChar("wifi_ssid", loaded_ssid, sizeof(loaded_ssid), "flipper_http"))
     {
         variable_item_set_current_value_text(variable_item_wifi_ssid, loaded_ssid);
     }
@@ -26,7 +26,7 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
     {
         variable_item_set_current_value_text(variable_item_wifi_ssid, "");
     }
-    if (app->loadChar("wifi_pass", loaded_pass, sizeof(loaded_pass)))
+    if (app->loadChar("wifi_pass", loaded_pass, sizeof(loaded_pass), "flipper_http"))
     {
         variable_item_set_current_value_text(variable_item_wifi_pass, "*****");
     }
@@ -35,7 +35,7 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
         variable_item_set_current_value_text(variable_item_wifi_pass, "");
     }
     variable_item_set_current_value_text(variable_item_connect, "");
-    if (app->loadChar("user_name", loaded_ssid, sizeof(loaded_ssid)))
+    if (app->loadChar("user_name", loaded_ssid, sizeof(loaded_ssid), "flipper_http"))
     {
         variable_item_set_current_value_text(variable_item_user_name, loaded_ssid);
     }
@@ -43,7 +43,7 @@ FlipSocialSettings::FlipSocialSettings(ViewDispatcher **view_dispatcher, void *a
     {
         variable_item_set_current_value_text(variable_item_user_name, "");
     }
-    if (app->loadChar("user_pass", loaded_pass, sizeof(loaded_pass)))
+    if (app->loadChar("user_pass", loaded_pass, sizeof(loaded_pass), "flipper_http"))
     {
         variable_item_set_current_value_text(variable_item_user_pass, "*****");
     }
