@@ -7,7 +7,7 @@
 #include "about/about.hpp"
 
 #define TAG "FlipSocial"
-#define VERSION "2.0.2"
+#define VERSION "2.0.3"
 #define VERSION_TAG TAG " " VERSION
 #define APP_ID "flip_social"
 
