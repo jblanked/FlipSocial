@@ -1,3 +1,7 @@
+## 2.0.3
+- Fixed an issue with loading credentials from the "flipper_http" folder, ensuring that Wi-Fi and user credentials are correctly retrieved.
+- Updated the feed to change to "Flip" and "UnFlip" after flipping or unflipping a post, respectively, to reflect the current state.
+
 ## 2.0.2
 - Updated the save/load functions to use a specific folder ("flipper_http") for storing Wi-Fi and user credentials. This enhances organization and security of stored data.
 
