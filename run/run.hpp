@@ -151,35 +151,37 @@ class FlipSocialApp;
 
 class FlipSocialRun
 {
-    void *appContext;                      // reference to the app context
-    uint8_t commentsIndex;                 // current comment index
-    bool commentIsValid;                   // flag to check if the comment is valid
-    uint16_t commentItemID;                // current comment item ID
-    CommentsStatus commentsStatus;         // current comment status
-    SocialView currentMenuIndex;           // current menu index
-    uint8_t currentProfileElement;         // current profile element being viewed
-    SocialView currentView;                // current view of the social run
-    uint8_t exploreIndex;                  // current explore menu index
-    ExploreStatus exploreStatus;           // current explore status
-    uint16_t feedItemID;                   // current feed item ID
-    uint8_t feedItemIndex;                 // current feed item index
-    uint8_t feedIteration;                 // current feed iteration
-    FeedStatus feedStatus;                 // current feed status
-    bool inputHeld;                        // flag to check if input is held
-    InputKey lastInput;                    // last input key pressed
-    std::unique_ptr<Keyboard> keyboard;    // keyboard instance for input handling
-    std::unique_ptr<Loading> loading;      // loading animation instance
-    LoginStatus loginStatus;               // current login status
-    MessagesStatus messagesStatus;         // current messages status
-    MessageUsersStatus messageUsersStatus; // current messages status
-    uint8_t messagesIndex;                 // index of the message in the messages submenu
-    uint8_t messageUserIndex;              // index of the user in the Message Users submenu
-    uint8_t postIndex;                     // index of the post in the Post submenu
-    PostStatus postStatus;                 // current post status
-    RegistrationStatus registrationStatus; // current registration status
-    bool shouldDebounce;                   // flag to debounce input
-    bool shouldReturnToMenu;               // Flag to signal return to menu
-    UserInfoStatus userInfoStatus;         // current user info status
+    void *appContext;                                // reference to the app context
+    uint8_t commentsIndex;                           // current comment index
+    bool commentIsValid;                             // flag to check if the comment is valid
+    uint16_t commentItemID;                          // current comment item ID
+    CommentsStatus commentsStatus;                   // current comment status
+    SocialView currentMenuIndex;                     // current menu index
+    uint8_t currentProfileElement;                   // current profile element being viewed
+    SocialView currentView;                          // current view of the social run
+    uint8_t exploreIndex;                            // current explore menu index
+    ExploreStatus exploreStatus;                     // current explore status
+    uint16_t feedItemID;                             // current feed item ID
+    uint8_t feedItemIndex;                           // current feed item index
+    uint8_t feedIteration;                           // current feed iteration
+    FeedStatus feedStatus;                           // current feed status
+    bool feedItemFlipOverride[MAX_FEED_ITEMS];       // local override for flip status to show immediate feedback
+    bool feedItemFlipOverrideActive[MAX_FEED_ITEMS]; // track which items have local overrides
+    bool inputHeld;                                  // flag to check if input is held
+    InputKey lastInput;                              // last input key pressed
+    std::unique_ptr<Keyboard> keyboard;              // keyboard instance for input handling
+    std::unique_ptr<Loading> loading;                // loading animation instance
+    LoginStatus loginStatus;                         // current login status
+    MessagesStatus messagesStatus;                   // current messages status
+    MessageUsersStatus messageUsersStatus;           // current messages status
+    uint8_t messagesIndex;                           // index of the message in the messages submenu
+    uint8_t messageUserIndex;                        // index of the user in the Message Users submenu
+    uint8_t postIndex;                               // index of the post in the Post submenu
+    PostStatus postStatus;                           // current post status
+    RegistrationStatus registrationStatus;           // current registration status
+    bool shouldDebounce;                             // flag to debounce input
+    bool shouldReturnToMenu;                         // Flag to signal return to menu
+    UserInfoStatus userInfoStatus;                   // current user info status
     //
     void debounceInput();                                                                                             // debounce input to prevent multiple triggers
     void drawCommentsView(Canvas *canvas);                                                                            // draw the comments view
@@ -199,6 +201,7 @@ class FlipSocialRun
     bool getMessageUser(char *buffer, size_t buffer_size);                                                            // get the message user at the specified messageUserIndex
     bool getSelectedPost(char *buffer, size_t buffer_size);                                                           // get the selected post at the specified postIndex
     bool httpRequestIsFinished();                                                                                     // check if the HTTP request is finished
+    void updateFeedItemFlipStatus();                                                                                  // update the flip status of the current feed item in cached data
     void userRequest(RequestType requestType);                                                                        // Send a user request to the server based on the request type
 public:
     FlipSocialRun(void *appContext);

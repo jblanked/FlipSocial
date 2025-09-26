@@ -30,6 +30,13 @@ FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), comment
         }
         free(loginStatusStr);
     }
+
+    // Initialize flip override arrays
+    for (int i = 0; i < MAX_FEED_ITEMS; i++)
+    {
+        feedItemFlipOverride[i] = false;
+        feedItemFlipOverrideActive[i] = false;
+    }
 }
 
 FlipSocialRun::~FlipSocialRun()
@@ -199,8 +206,12 @@ void FlipSocialRun::drawCommentsView(Canvas *canvas)
                             if (id_str)
                                 free(id_str);
                             free(commentItem);
-                            commentsStatus = CommentsParseError;
-                            return;
+                            commentsIndex++;
+                            if (commentsIndex >= total_comments)
+                            {
+                                commentsIndex = total_comments - 1;
+                            }
+                            continue;
                         }
                         commentItemID = atoi(id_str);
                         drawFeedItem(canvas, username, message, flipped, flips_str, date_created);
@@ -265,6 +276,7 @@ void FlipSocialRun::drawCommentsView(Canvas *canvas)
         canvas_set_font(canvas, FontPrimary);
         canvas_draw_str(canvas, 0, 10, "Failed to parse comments!");
         canvas_draw_str(canvas, 0, 20, "Try again...");
+
         break;
     case CommentsNotStarted:
         canvas_clear(canvas);
@@ -813,11 +825,47 @@ void FlipSocialRun::drawFeedView(Canvas *canvas)
                         if (id_str)
                             free(id_str);
                         free(feedItem);
-                        feedStatus = FeedParseError;
-                        return;
+                        feedItemIndex++;
+                        continue;
                     }
                     feedItemID = atoi(id_str);
-                    drawFeedItem(canvas, username, message, flipped, flips_str, date_created);
+
+                    // Apply local flip override if active
+                    char *finalFlipped = flipped;
+                    char *finalFlipsStr = flips_str;
+                    char overrideFlippedStr[8];
+                    char overrideFlipsStr[16];
+
+                    if (feedItemFlipOverrideActive[i])
+                    {
+                        // Use override flip status
+                        snprintf(overrideFlippedStr, sizeof(overrideFlippedStr), "%s",
+                                 feedItemFlipOverride[i] ? "true" : "false");
+                        finalFlipped = overrideFlippedStr;
+
+                        // Calculate override flip count
+                        bool originalFlipped = (strcmp(flipped, "true") == 0);
+                        int originalCount = atoi(flips_str);
+                        int newCount;
+
+                        if (feedItemFlipOverride[i] != originalFlipped)
+                        {
+                            // Flip status changed
+                            newCount = feedItemFlipOverride[i] ? originalCount + 1 : originalCount - 1;
+                            if (newCount < 0)
+                                newCount = 0;
+                        }
+                        else
+                        {
+                            // No change
+                            newCount = originalCount;
+                        }
+
+                        snprintf(overrideFlipsStr, sizeof(overrideFlipsStr), "%d", newCount);
+                        finalFlipsStr = overrideFlipsStr;
+                    }
+
+                    drawFeedItem(canvas, username, message, finalFlipped, finalFlipsStr, date_created);
                     //
                     free(username);
                     free(message);
@@ -849,6 +897,11 @@ void FlipSocialRun::drawFeedView(Canvas *canvas)
     case FeedNotStarted:
         canvas_clear(canvas);
         feedStatus = FeedWaiting;
+        // Clear flip overrides when starting a new feed request
+        for (int i = 0; i < MAX_FEED_ITEMS; i++)
+        {
+            feedItemFlipOverrideActive[i] = false;
+        }
         userRequest(RequestTypeFeed);
         break;
     default:
@@ -2193,6 +2246,101 @@ bool FlipSocialRun::httpRequestIsFinished()
     return state == IDLE || state == ISSUE || state == INACTIVE;
 }
 
+void FlipSocialRun::updateFeedItemFlipStatus()
+{
+    FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
+    if (!app)
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: App context is NULL");
+        return;
+    }
+
+    // Bounds check
+    if (feedItemIndex >= MAX_FEED_ITEMS)
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: feedItemIndex out of bounds");
+        return;
+    }
+
+    char *response = (char *)malloc(4096);
+    char *feedSaveKey = (char *)malloc(16);
+    if (!response || !feedSaveKey)
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: Failed to allocate memory");
+        if (response)
+            free(response);
+        if (feedSaveKey)
+            free(feedSaveKey);
+        return;
+    }
+
+    snprintf(feedSaveKey, 16, "feed_%d", feedIteration);
+    if (!app->loadChar(feedSaveKey, response, 4096))
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: Failed to load feed data");
+        free(response);
+        free(feedSaveKey);
+        return;
+    }
+
+    // Parse the current feed item to get its original flip status
+    char *feedItem = get_json_array_value("feed", feedItemIndex, response);
+    if (!feedItem)
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: Failed to get feed item at index %d", feedItemIndex);
+        free(response);
+        free(feedSaveKey);
+        return;
+    }
+
+    // Get original flip status from JSON
+    char *flipped = get_json_value("flipped", feedItem);
+    if (!flipped)
+    {
+        FURI_LOG_E(TAG, "updateFeedItemFlipStatus: Failed to parse flip data");
+        free(feedItem);
+        free(response);
+        free(feedSaveKey);
+        return;
+    }
+
+    bool originalFlipped = (strcmp(flipped, "true") == 0);
+
+    // Determine current displayed state (either original or overridden)
+    bool currentDisplayedState;
+    if (feedItemFlipOverrideActive[feedItemIndex])
+    {
+        // Currently showing overridden state, so toggle from that
+        currentDisplayedState = feedItemFlipOverride[feedItemIndex];
+    }
+    else
+    {
+        // Currently showing original state
+        currentDisplayedState = originalFlipped;
+    }
+
+    // Toggle the current state
+    bool newState = !currentDisplayedState;
+
+    // Check if new state matches original - if so, disable override
+    if (newState == originalFlipped)
+    {
+        feedItemFlipOverrideActive[feedItemIndex] = false;
+    }
+    else
+    {
+        // Set override to new state
+        feedItemFlipOverride[feedItemIndex] = newState;
+        feedItemFlipOverrideActive[feedItemIndex] = true;
+    }
+
+    // Clean up
+    free(flipped);
+    free(feedItem);
+    free(response);
+    free(feedSaveKey);
+}
+
 void FlipSocialRun::updateDraw(Canvas *canvas)
 {
     canvas_clear(canvas);
@@ -2343,6 +2491,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
         case InputKeyBack:
             currentView = SocialViewMenu;
             shouldDebounce = true;
+            feedItemIndex = 0;
             break;
         case InputKeyDown:
             // Switch to comments view for current feed item
@@ -2364,6 +2513,11 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     feedIteration--;
                     feedItemIndex = MAX_FEED_ITEMS - 1;
+                    // Clear flip overrides when changing pages
+                    for (int i = 0; i < MAX_FEED_ITEMS; i++)
+                    {
+                        feedItemFlipOverrideActive[i] = false;
+                    }
                     // no need to load again since we already have the data
                 }
             }
@@ -2382,12 +2536,19 @@ void FlipSocialRun::updateInput(InputEvent *event)
                     feedIteration++;
                     feedItemIndex = 0;
                     feedStatus = FeedWaiting;
+                    // Clear flip overrides when requesting new page
+                    for (int i = 0; i < MAX_FEED_ITEMS; i++)
+                    {
+                        feedItemFlipOverrideActive[i] = false;
+                    }
                     userRequest(RequestTypeFeed);
                 }
             }
             break;
         case InputKeyOk:
             userRequest(RequestTypeFlipPost);
+            // Immediately update the cached feed data to reflect the flip
+            updateFeedItemFlipStatus();
             shouldDebounce = true;
             break;
         default:
