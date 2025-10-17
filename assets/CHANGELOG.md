@@ -1,3 +1,6 @@
+## 2.0.4
+- Updated to use the flipper_http folder as intended
+
 ## 2.0.3
 - Fixed an issue with loading credentials from the "flipper_http" folder, ensuring that Wi-Fi and user credentials are correctly retrieved.
 - Updated the feed to change to "Flip" and "UnFlip" after flipping or unflipping a post, respectively, to reflect the current state.
