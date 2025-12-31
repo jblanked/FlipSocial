@@ -186,11 +186,9 @@ class FlipSocialRun
     uint8_t postIndex;                               // index of the post in the Post submenu
     PostStatus postStatus;                           // current post status
     RegistrationStatus registrationStatus;           // current registration status
-    bool shouldDebounce;                             // flag to debounce input
     bool shouldReturnToMenu;                         // Flag to signal return to menu
     UserInfoStatus userInfoStatus;                   // current user info status
     //
-    void debounceInput();                                                                                                                                     // debounce input to prevent multiple triggers
     void drawCommentsView(Canvas *canvas);                                                                                                                    // draw the comments view
     void drawExploreView(Canvas *canvas);                                                                                                                     // draw the explore view
     void drawFeedItem(Canvas *canvas, char *username, char *message, char *flipped, char *flips, char *date_created, char *comments, bool isComment = false); // draw a single feed item
