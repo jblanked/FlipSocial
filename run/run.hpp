@@ -206,6 +206,7 @@ class FlipSocialRun
     bool getMessageUser(char *buffer, size_t buffer_size);                                                                                                    // get the message user at the specified messageUserIndex
     bool getSelectedPost(char *buffer, size_t buffer_size);                                                                                                   // get the selected post at the specified postIndex
     bool httpRequestIsFinished();                                                                                                                             // check if the HTTP request is finished
+    void loadKeyboardSuggestions();                                                                                                                           // load suggestions into the keyboard autocomplete
     void updateFeedItemFlipStatus();                                                                                                                          // update the flip status of the current feed item in cached data
     void userRequest(RequestType requestType);                                                                                                                // Send a user request to the server based on the request type
 public:

@@ -37,6 +37,10 @@ FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), comment
         feedItemFlipOverride[i] = false;
         feedItemFlipOverrideActive[i] = false;
     }
+
+    // init keyboard so we can add our suggestions
+    keyboard = std::make_unique<Keyboard>();
+    this->loadKeyboardSuggestions();
 }
 
 FlipSocialRun::~FlipSocialRun()
@@ -260,6 +264,7 @@ void FlipSocialRun::drawCommentsView(Canvas *canvas)
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
+            this->loadKeyboardSuggestions();
         }
         if (keyboard)
         {
@@ -449,6 +454,7 @@ void FlipSocialRun::drawExploreView(Canvas *canvas)
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
+            this->loadKeyboardSuggestions();
         }
         if (keyboard)
         {
@@ -459,6 +465,7 @@ void FlipSocialRun::drawExploreView(Canvas *canvas)
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
+            this->loadKeyboardSuggestions();
         }
         if (keyboard)
         {
@@ -1392,6 +1399,7 @@ void FlipSocialRun::drawMessagesView(Canvas *canvas)
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
+            this->loadKeyboardSuggestions();
         }
         if (keyboard)
         {
@@ -1654,6 +1662,7 @@ void FlipSocialRun::drawPostView(Canvas *canvas)
         if (!keyboard)
         {
             keyboard = std::make_unique<Keyboard>();
+            this->loadKeyboardSuggestions();
         }
         if (keyboard)
         {
@@ -2304,6 +2313,36 @@ bool FlipSocialRun::httpRequestIsFinished()
     return state == IDLE || state == ISSUE || state == INACTIVE;
 }
 
+void FlipSocialRun::loadKeyboardSuggestions()
+{
+    // Standard words for autocomplete
+    if (keyboard)
+    {
+        keyboard->addSuggestion("the");
+        keyboard->addSuggestion("that");
+        keyboard->addSuggestion("hi");
+        keyboard->addSuggestion("hey");
+        keyboard->addSuggestion("help");
+        keyboard->addSuggestion("hello");
+        keyboard->addSuggestion("how");
+        keyboard->addSuggestion("hack");
+        keyboard->addSuggestion("what");
+        keyboard->addSuggestion("JBlanked");
+        keyboard->addSuggestion("flip");
+        keyboard->addSuggestion("flipper");
+        keyboard->addSuggestion("yooo");
+        keyboard->addSuggestion("everyone");
+        keyboard->addSuggestion("anyone");
+        keyboard->addSuggestion("good");
+        keyboard->addSuggestion("great");
+        keyboard->addSuggestion("morning");
+        keyboard->addSuggestion("night");
+        keyboard->addSuggestion("message");
+        keyboard->addSuggestion("awesome");
+        keyboard->addSuggestion("FlipperHTTP");
+    }
+}
+
 void FlipSocialRun::updateFeedItemFlipStatus()
 {
     FlipSocialApp *app = static_cast<FlipSocialApp *>(appContext);
@@ -2681,6 +2720,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                         if (!keyboard)
                         {
                             keyboard = std::make_unique<Keyboard>();
+                            this->loadKeyboardSuggestions();
                         }
                         if (keyboard)
                         {
@@ -2975,6 +3015,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 if (!keyboard)
                 {
                     keyboard = std::make_unique<Keyboard>();
+                    this->loadKeyboardSuggestions();
                 }
                 if (keyboard)
                 {
