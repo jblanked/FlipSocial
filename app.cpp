@@ -521,6 +521,10 @@ void FlipSocialApp::viewPortDraw(Canvas *canvas, void *context)
 
 void FlipSocialApp::viewPortInput(InputEvent *event, void *context)
 {
+    if (event->type != InputTypeShort && event->type != InputTypeLong)
+    {
+        return;
+    }
     FlipSocialApp *app = static_cast<FlipSocialApp *>(context);
     furi_check(app);
     auto run = app->run.get();
