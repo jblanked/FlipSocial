@@ -1,3 +1,9 @@
+## 2.0.6
+- Updated the keyboard input handling to support long presses for capitalization.
+- Updated the keyboard input to show a blinking text cursor
+- Updated the keyboard input to allow users to change the text cursor position (scroll up until you reach the text box, then use left/right buttons to move the cursor)
+- Added auto-complete functionality to the keyboard input.
+
 ## 2.0.5
 - Updated the display of feed posts to show the comment count for each post.
 - Added more detailed handling for registration errors to provide better feedback to users during the sign-up process.
