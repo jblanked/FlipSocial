@@ -10,11 +10,27 @@ Keyboard::Keyboard()
     reset();
     resetText();
     text_edit_mode = false;
+    last_word[0] = '\0';
+
+    if (!auto_complete_init(&autoComplete))
+    {
+        FURI_LOG_E("Keyboard", "Failed to initialize autocomplete");
+    }
 }
 
 Keyboard::~Keyboard()
 {
-    // Destructor - text buffer is automatically cleaned up
+    auto_complete_free(&autoComplete);
+}
+
+bool Keyboard::addSuggestion(const char *word)
+{
+    if (!auto_complete_add_word(&autoComplete, word))
+    {
+        FURI_LOG_E("Keyboard", "Failed to add word to autocomplete: %s", word);
+        return false;
+    }
+    return true;
 }
 
 void Keyboard::clampCursorToValidPosition()
@@ -69,13 +85,11 @@ void Keyboard::draw(Canvas *canvas, const char *title, const char *current_text)
     char display_text[MAX_TEXT_SIZE];
     if (scroll_offset > 0)
     {
-        strncpy(display_text, current_text + scroll_offset, MAX_TEXT_SIZE - 1);
-        display_text[MAX_TEXT_SIZE - 1] = '\0';
+        snprintf(display_text, MAX_TEXT_SIZE, "%s", current_text + scroll_offset);
     }
     else
     {
-        strncpy(display_text, current_text, MAX_TEXT_SIZE - 1);
-        display_text[MAX_TEXT_SIZE - 1] = '\0';
+        snprintf(display_text, MAX_TEXT_SIZE, "%s", current_text);
     }
 
     // Show scroll indicator if text is scrolled (draw first, before text)
@@ -89,6 +103,20 @@ void Keyboard::draw(Canvas *canvas, const char *title, const char *current_text)
     // Draw the visible portion of the text
     canvas_draw_str(canvas, text_start_x, 8, display_text);
 
+    // Show autocomplete suggestion on the right side
+    if (autoComplete.suggestion_count > 0)
+    {
+        const char *suggestion = autoComplete.suggestions[0];
+        canvas_set_color(canvas, ColorBlack);
+
+        // Calculate position to right-align the suggestion
+        uint16_t suggestion_width = canvas_string_width(canvas, suggestion);
+        int suggestion_x = display_width - suggestion_width - 2; // 2 pixel padding from right edge
+
+        // Draw suggestion on the right side of the text line
+        canvas_draw_str(canvas, suggestion_x, 8, suggestion);
+    }
+
     // Draw blinking text cursor
     uint32_t tick = furi_get_tick();
     bool cursor_visible = (tick / BLINK_INTERVAL_MS) % 2 == 0; // Blink every BLINK_INTERVAL_MS
@@ -99,8 +127,7 @@ void Keyboard::draw(Canvas *canvas, const char *title, const char *current_text)
         if (cursor_display_pos >= 0 && cursor_display_pos <= max_visible_chars)
         {
             char text_before_cursor[MAX_TEXT_SIZE];
-            strncpy(text_before_cursor, display_text, cursor_display_pos);
-            text_before_cursor[cursor_display_pos] = '\0';
+            snprintf(text_before_cursor, MAX_TEXT_SIZE, "%.*s", cursor_display_pos, display_text);
             uint16_t text_width = canvas_string_width(canvas, text_before_cursor);
             int cursor_x = text_start_x + text_width;
             canvas_draw_box(canvas, cursor_x, 1, 1, 8);
@@ -248,6 +275,44 @@ const char (*Keyboard::getCurrentKeyboard())[11]
     }
 }
 
+const char *Keyboard::getCurrentWord()
+{
+    // Find the start of the current word
+    int pos = text_cursor - 1;
+    while (pos >= 0 && text_buffer[pos] != ' ')
+    {
+        pos--;
+    }
+    return &text_buffer[pos + 1];
+}
+
+void Keyboard::updateAutoComplete()
+{
+    const char *current_word = getCurrentWord();
+
+    // Extract only the current word
+    char word_buffer[MAX_TEXT_SIZE];
+    size_t word_len = 0;
+    while (current_word[word_len] != '\0' && current_word[word_len] != ' ' && word_len < MAX_TEXT_SIZE - 1)
+    {
+        word_buffer[word_len] = current_word[word_len];
+        word_len++;
+    }
+    word_buffer[word_len] = '\0';
+
+    // Only update if the current word has changed
+    if (strcmp(word_buffer, last_word) != 0)
+    {
+        snprintf(last_word, MAX_TEXT_SIZE, "%s", word_buffer);
+
+        // Update autocomplete suggestions if word is not empty
+        if (word_len > 0)
+        {
+            auto_complete_search(&autoComplete, word_buffer);
+        }
+    }
+}
+
 const char *Keyboard::getModeName()
 {
     switch (mode)
@@ -281,6 +346,15 @@ size_t Keyboard::getTextLength() const
     return strlen(text_buffer);
 }
 
+const char *Keyboard::getSuggestion(uint8_t index)
+{
+    if (autoComplete.suggestion_count > 0 && index < autoComplete.suggestion_count)
+    {
+        return autoComplete.suggestions[index];
+    }
+    return nullptr;
+}
+
 const char Keyboard::keyboard_lowercase[3][11] = {
     {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '\0'},
     {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '-', '\0'},
@@ -298,6 +372,10 @@ const char Keyboard::keyboard_numbers[3][11] = {
 
 bool Keyboard::handleInput(InputEvent *event)
 {
+    if (event->type != InputTypeShort && event->type != InputTypeLong)
+    {
+        return false;
+    }
     return handleInput(event, text_buffer, MAX_TEXT_SIZE);
 }
 
@@ -309,6 +387,64 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
     // Handle text edit mode
     if (text_edit_mode)
     {
+        if (event->type == InputTypeLong && key == InputKeyOk)
+        {
+            // Add the suggested word on long press OK in text edit mode
+            if (autoComplete.suggestion_count > 0)
+            {
+                const char *suggestion = autoComplete.suggestions[0];
+
+                // Find the start of the current word
+                int word_start = text_cursor - 1;
+                while (word_start >= 0 && target_buffer[word_start] != ' ')
+                {
+                    word_start--;
+                }
+                word_start++;
+
+                // Calculate current word length
+                int current_word_len = text_cursor - word_start;
+                size_t suggestion_len = strlen(suggestion);
+                size_t text_len = getStringLength(target_buffer, target_size);
+
+                // Check if we have enough space
+                if (text_len - current_word_len + suggestion_len < target_size - 1)
+                {
+                    // Shift text after cursor to make room
+                    int shift_amount = suggestion_len - current_word_len;
+                    if (shift_amount > 0)
+                    {
+                        // Need to make room
+                        for (int i = text_len; i >= text_cursor; i--)
+                        {
+                            target_buffer[i + shift_amount] = target_buffer[i];
+                        }
+                    }
+                    else if (shift_amount < 0)
+                    {
+                        // Need to close gap
+                        for (size_t i = text_cursor; i <= text_len; i++)
+                        {
+                            target_buffer[i + shift_amount] = target_buffer[i];
+                        }
+                    }
+
+                    // Copy suggestion to replace current word
+                    for (size_t i = 0; i < suggestion_len; i++)
+                    {
+                        target_buffer[word_start + i] = suggestion[i];
+                    }
+
+                    // Update cursor position
+                    text_cursor = word_start + suggestion_len;
+
+                    // Clear suggestions after inserting
+                    last_word[0] = '\0';
+                    autoComplete.suggestion_count = 0;
+                }
+            }
+            return false;
+        }
         size_t text_len = getStringLength(target_buffer, target_size);
 
         switch (key)
@@ -420,6 +556,28 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
     case InputKeyUp:
         if (cursor_y > 0)
         {
+            // Map function keys to bottom row keys when moving up
+            if (cursor_y == FUNCTION_ROW)
+            {
+                switch (cursor_x)
+                {
+                case FUNC_KEY_SPACE:
+                    cursor_x = 1; // → x (middle of z,x,c)
+                    break;
+                case FUNC_KEY_BACKSPACE:
+                    cursor_x = 3; // → v
+                    break;
+                case FUNC_KEY_MODE_SWITCH:
+                    cursor_x = 5; // → n (middle of b,n)
+                    break;
+                case FUNC_KEY_CAPS_LOCK:
+                    cursor_x = 6; // → m (middle of m,.)
+                    break;
+                case FUNC_KEY_DONE:
+                    cursor_x = 8; // → _ (middle of _,/)
+                    break;
+                }
+            }
             cursor_y--;
             if (cursor_y < KEYBOARD_ROWS)
             { // Moving to main keyboard
@@ -430,6 +588,7 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
         {
             // Enter text edit mode when pressing up from top keyboard row
             text_edit_mode = true;
+            updateAutoComplete();
         }
         break;
 
@@ -444,8 +603,27 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
             else
             { // Move to function keys
                 cursor_y = FUNCTION_ROW;
-                if (cursor_x > 4)
-                    cursor_x = 4;
+                // Map bottom row keys to corresponding function keys
+                if (cursor_x <= 2)
+                { // z, x, c → SPACE
+                    cursor_x = FUNC_KEY_SPACE;
+                }
+                else if (cursor_x == 3)
+                { // v → DEL
+                    cursor_x = FUNC_KEY_BACKSPACE;
+                }
+                else if (cursor_x <= 5)
+                { // b, n → 123
+                    cursor_x = FUNC_KEY_MODE_SWITCH;
+                }
+                else if (cursor_x <= 7)
+                { // m, . → CAPS
+                    cursor_x = FUNC_KEY_CAPS_LOCK;
+                }
+                else
+                { // _, / → DONE
+                    cursor_x = FUNC_KEY_DONE;
+                }
             }
         }
         else
@@ -476,6 +654,9 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
                     target_buffer[text_cursor] = ' ';
                     target_buffer[len + 1] = '\0';
                     text_cursor++;
+                    // Clear autocomplete after space
+                    last_word[0] = '\0';
+                    autoComplete.suggestion_count = 0;
                 }
                 break;
             }
@@ -494,6 +675,8 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
                             target_buffer[i] = target_buffer[i + 1];
                         }
                         text_cursor--;
+                        // Update autocomplete after backspace
+                        updateAutoComplete();
                     }
                 }
                 break;
@@ -541,6 +724,9 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
                     target_buffer[len + 1] = '\0';
                     text_cursor++;
 
+                    // Update autocomplete after character insertion
+                    updateAutoComplete();
+
                     // Auto-switch to lowercase after typing a letter in caps mode (not caps lock)
                     if (mode == KEYBOARD_UPPERCASE && !caps_lock &&
                         ((ch >= 'A' && ch <= 'Z')))
@@ -566,6 +752,7 @@ void Keyboard::reset()
     mode = KEYBOARD_LOWERCASE;
     caps_lock = false;
     text_edit_mode = false;
+    auto_complete_remove_suggestions(&autoComplete);
 }
 
 void Keyboard::resetText()
@@ -579,8 +766,7 @@ void Keyboard::setText(const char *text)
 {
     if (text != nullptr)
     {
-        strncpy(text_buffer, text, MAX_TEXT_SIZE - 1);
-        text_buffer[MAX_TEXT_SIZE - 1] = '\0';
+        snprintf(text_buffer, MAX_TEXT_SIZE, "%s", text);
         text_cursor = strlen(text_buffer);
     }
     else
