@@ -3,7 +3,7 @@
 #include <vector>
 #include <flip_social_icons.h>
 
-FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), commentsIndex(0), commentIsValid(false), commentItemID(0), commentsStatus(CommentsNotStarted),
+FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), commentsIndex(0), commentIsValid(false), commentItemID(0), commentsStatus(CommentsNotStarted), currentCount(0),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
                                                  exploreIndex(0), exploreStatus(ExploreKeyboardUsers),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
@@ -1216,6 +1216,8 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     {
         canvas_draw_dot(canvas, i, 58);
     }
+
+    currentCount = menuCount;
 }
 
 void FlipSocialRun::drawMessagesView(Canvas *canvas)
@@ -2513,6 +2515,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 currentMenuIndex = SocialViewExplore;
             }
+            else if (currentMenuIndex == SocialViewFeed)
+            {
+                currentMenuIndex = SocialViewProfile;
+            }
             break;
         case InputKeyUp:
         case InputKeyRight:
@@ -2531,6 +2537,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
             else if (currentMenuIndex == SocialViewExplore)
             {
                 currentMenuIndex = SocialViewProfile;
+            }
+            else if (currentMenuIndex == SocialViewProfile)
+            {
+                currentMenuIndex = SocialViewFeed;
             }
             break;
         case InputKeyOk:
@@ -2580,7 +2590,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
         {
         case InputKeyBack:
             currentView = SocialViewMenu;
-
             feedItemIndex = 0;
             break;
         case InputKeyDown:
@@ -2661,7 +2670,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                 }
             }
-            if (lastInput == InputKeyBack)
+            if (lastInput == InputKeyBack && event->type == InputTypeLong)
             {
                 postStatus = PostChoose;
 
@@ -2678,7 +2687,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
             case InputKeyBack:
                 currentView = SocialViewMenu;
-
                 break;
             case InputKeyLeft:
             case InputKeyDown:
@@ -2686,12 +2694,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     postIndex--;
                 }
+                else
+                {
+                    postIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
-                if (postIndex < (MAX_PRE_SAVED_MESSAGES - 1))
+                if (postIndex < (currentCount - 1))
                 {
                     postIndex++;
+                }
+                else
+                {
+                    postIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2743,7 +2759,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
         {
         case InputKeyBack:
             currentView = SocialViewMenu;
-
             break;
         case InputKeyLeft:
         case InputKeyDown:
@@ -2751,12 +2766,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 messageUserIndex--;
             }
+            else
+            {
+                messageUserIndex = currentCount - 1;
+            }
             break;
         case InputKeyRight:
         case InputKeyUp:
-            if (messageUserIndex < (MAX_MESSAGE_USERS - 1))
+            if (messageUserIndex < (currentCount - 1))
             {
                 messageUserIndex++;
+            }
+            else
+            {
+                messageUserIndex = 0;
             }
             break;
         case InputKeyOk:
@@ -2785,7 +2808,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                 }
             }
-            if (lastInput == InputKeyBack)
+            if (lastInput == InputKeyBack && event->type == InputTypeLong)
             {
                 messagesStatus = MessagesSuccess;
 
@@ -2804,7 +2827,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 currentView = SocialViewMessageUsers;
                 messagesStatus = MessagesNotStarted;
                 messagesIndex = 0;
-
                 break;
             case InputKeyLeft:
             case InputKeyDown:
@@ -2813,13 +2835,21 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     messagesIndex--;
                 }
+                else
+                {
+                    messagesIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
                 // Navigate to next message
-                if (messagesIndex < (MAX_MESSAGES - 1))
+                if (messagesIndex < (currentCount - 1))
                 {
                     messagesIndex++;
+                }
+                else
+                {
+                    messagesIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2850,7 +2880,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                 }
             }
-            if (lastInput == InputKeyBack)
+            if (lastInput == InputKeyBack && event->type == InputTypeLong)
             {
                 currentView = SocialViewMenu;
                 exploreStatus = ExploreKeyboardUsers;
@@ -2878,7 +2908,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                 }
             }
-            if (lastInput == InputKeyBack)
+            if (lastInput == InputKeyBack && event->type == InputTypeLong)
             {
                 exploreStatus = ExploreSuccess;
 
@@ -2910,12 +2940,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     exploreIndex--;
                 }
+                else
+                {
+                    exploreIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
-                if (exploreIndex < (MAX_EXPLORE_USERS - 1))
+                if (exploreIndex < (currentCount - 1))
                 {
                     exploreIndex++;
+                }
+                else
+                {
+                    exploreIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2939,7 +2977,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
         {
         case InputKeyBack:
             currentView = SocialViewMenu;
-
             break;
         case InputKeyLeft:
         case InputKeyDown:
@@ -2947,12 +2984,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 currentProfileElement--;
             }
+            else
+            {
+                currentProfileElement = ProfileElementMAX - 1;
+            }
             break;
         case InputKeyRight:
         case InputKeyUp:
             if (currentProfileElement < (ProfileElementMAX - 1))
             {
                 currentProfileElement++;
+            }
+            else
+            {
+                currentProfileElement = 0;
             }
             break;
         default:
@@ -2977,7 +3022,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                 }
             }
-            if (lastInput == InputKeyBack)
+            if (lastInput == InputKeyBack && event->type == InputTypeLong)
             {
                 commentsStatus = CommentsSuccess;
 
@@ -2995,7 +3040,6 @@ void FlipSocialRun::updateInput(InputEvent *event)
             case InputKeyBack:
                 currentView = SocialViewFeed;
                 commentIsValid = false;
-
                 break;
             case InputKeyLeft:
                 if (commentsIndex > 0)
@@ -3004,7 +3048,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 }
                 break;
             case InputKeyRight:
-                if (commentsIndex < (MAX_COMMENTS - 1))
+                if (commentsIndex < (currentCount - 1))
                 {
                     commentsIndex++;
                 }
