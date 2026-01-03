@@ -3,7 +3,7 @@
 #include <vector>
 #include <flip_social_icons.h>
 
-FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), commentsIndex(0), commentIsValid(false), commentItemID(0), commentsStatus(CommentsNotStarted),
+FlipSocialRun::FlipSocialRun(void *appContext) : appContext(appContext), commentsIndex(0), commentIsValid(false), commentItemID(0), commentsStatus(CommentsNotStarted), currentCount(0),
                                                  currentMenuIndex(SocialViewFeed), currentProfileElement(ProfileElementBio), currentView(SocialViewLogin),
                                                  exploreIndex(0), exploreStatus(ExploreKeyboardUsers),
                                                  feedItemID(0), feedItemIndex(0), feedIteration(1), feedStatus(FeedNotStarted), inputHeld(false), lastInput(InputKeyMAX),
@@ -1216,6 +1216,8 @@ void FlipSocialRun::drawMenu(Canvas *canvas, uint8_t selectedIndex, const char *
     {
         canvas_draw_dot(canvas, i, 58);
     }
+
+    currentCount = menuCount;
 }
 
 void FlipSocialRun::drawMessagesView(Canvas *canvas)
@@ -2689,7 +2691,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 break;
             case InputKeyRight:
             case InputKeyUp:
-                if (postIndex < (MAX_PRE_SAVED_MESSAGES - 1))
+                if (postIndex < (currentCount - 1))
                 {
                     postIndex++;
                 }
@@ -2754,7 +2756,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
             break;
         case InputKeyRight:
         case InputKeyUp:
-            if (messageUserIndex < (MAX_MESSAGE_USERS - 1))
+            if (messageUserIndex < (currentCount - 1))
             {
                 messageUserIndex++;
             }
@@ -2817,7 +2819,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
             case InputKeyRight:
             case InputKeyUp:
                 // Navigate to next message
-                if (messagesIndex < (MAX_MESSAGES - 1))
+                if (messagesIndex < (currentCount - 1))
                 {
                     messagesIndex++;
                 }
@@ -2913,7 +2915,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 break;
             case InputKeyRight:
             case InputKeyUp:
-                if (exploreIndex < (MAX_EXPLORE_USERS - 1))
+                if (exploreIndex < (currentCount - 1))
                 {
                     exploreIndex++;
                 }
@@ -3004,7 +3006,7 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 }
                 break;
             case InputKeyRight:
-                if (commentsIndex < (MAX_COMMENTS - 1))
+                if (commentsIndex < (currentCount - 1))
                 {
                     commentsIndex++;
                 }
