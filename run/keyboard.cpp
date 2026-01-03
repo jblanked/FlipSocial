@@ -753,6 +753,7 @@ void Keyboard::reset()
     caps_lock = false;
     text_edit_mode = false;
     auto_complete_remove_suggestions(&autoComplete);
+    auto_complete_remove_words(&autoComplete);
 }
 
 void Keyboard::resetText()
