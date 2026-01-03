@@ -163,6 +163,7 @@ class FlipSocialRun
     bool commentIsValid;                             // flag to check if the comment is valid
     uint16_t commentItemID;                          // current comment item ID
     CommentsStatus commentsStatus;                   // current comment status
+    uint8_t currentCount;                            // current count of items in the current view
     SocialView currentMenuIndex;                     // current menu index
     uint8_t currentProfileElement;                   // current profile element being viewed
     SocialView currentView;                          // current view of the social run
