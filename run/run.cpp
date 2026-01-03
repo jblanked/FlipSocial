@@ -2515,6 +2515,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 currentMenuIndex = SocialViewExplore;
             }
+            else if (currentMenuIndex == SocialViewFeed)
+            {
+                currentMenuIndex = SocialViewProfile;
+            }
             break;
         case InputKeyUp:
         case InputKeyRight:
@@ -2533,6 +2537,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
             else if (currentMenuIndex == SocialViewExplore)
             {
                 currentMenuIndex = SocialViewProfile;
+            }
+            else if (currentMenuIndex == SocialViewProfile)
+            {
+                currentMenuIndex = SocialViewFeed;
             }
             break;
         case InputKeyOk:
@@ -2688,12 +2696,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     postIndex--;
                 }
+                else
+                {
+                    postIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
                 if (postIndex < (currentCount - 1))
                 {
                     postIndex++;
+                }
+                else
+                {
+                    postIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2753,12 +2769,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 messageUserIndex--;
             }
+            else
+            {
+                messageUserIndex = currentCount - 1;
+            }
             break;
         case InputKeyRight:
         case InputKeyUp:
             if (messageUserIndex < (currentCount - 1))
             {
                 messageUserIndex++;
+            }
+            else
+            {
+                messageUserIndex = 0;
             }
             break;
         case InputKeyOk:
@@ -2815,6 +2839,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     messagesIndex--;
                 }
+                else
+                {
+                    messagesIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
@@ -2822,6 +2850,10 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 if (messagesIndex < (currentCount - 1))
                 {
                     messagesIndex++;
+                }
+                else
+                {
+                    messagesIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2912,12 +2944,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
                 {
                     exploreIndex--;
                 }
+                else
+                {
+                    exploreIndex = currentCount - 1;
+                }
                 break;
             case InputKeyRight:
             case InputKeyUp:
                 if (exploreIndex < (currentCount - 1))
                 {
                     exploreIndex++;
+                }
+                else
+                {
+                    exploreIndex = 0;
                 }
                 break;
             case InputKeyOk:
@@ -2949,12 +2989,20 @@ void FlipSocialRun::updateInput(InputEvent *event)
             {
                 currentProfileElement--;
             }
+            else
+            {
+                currentProfileElement = ProfileElementMAX - 1;
+            }
             break;
         case InputKeyRight:
         case InputKeyUp:
             if (currentProfileElement < (ProfileElementMAX - 1))
             {
                 currentProfileElement++;
+            }
+            else
+            {
+                currentProfileElement = 0;
             }
             break;
         default:
