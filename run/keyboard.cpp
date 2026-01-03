@@ -422,6 +422,21 @@ bool Keyboard::handleInput(InputEvent *event, char *target_buffer, size_t target
     const char (*keyboard)[11] = getCurrentKeyboard();
     const uint8_t key = event->key;
 
+    if (key == InputKeyBack && event->type == InputTypeShort)
+    {
+        // delete last character
+        size_t text_len = getStringLength(target_buffer, target_size);
+        if (text_len > 0)
+        {
+            target_buffer[text_len - 1] = '\0';
+            if (text_cursor > text_len - 1)
+            {
+                text_cursor = text_len - 1;
+            }
+        }
+        return false; // keyboard not done yet
+    }
+
     // Handle text edit mode
     if (text_edit_mode)
     {
