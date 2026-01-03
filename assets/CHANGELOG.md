@@ -1,3 +1,7 @@
+## 2.0.7
+- Fixed crashes that occurred in menu navigation when trying to access an item that was out of bounds.
+- Updated the keyboard input: pressing BACK now deletes the current character instead of exiting the keyboard (hold BACK to exit the keyboard).
+
 ## 2.0.6
 - Updated the keyboard input handling to support long presses for capitalization.
 - Updated the keyboard input to show a blinking text cursor
