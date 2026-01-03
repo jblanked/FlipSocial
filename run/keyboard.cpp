@@ -250,14 +250,52 @@ char Keyboard::getCurrentChar(bool long_press)
     */
     if (long_press)
     {
-        if (mode == KEYBOARD_LOWERCASE && ch >= 'a' && ch <= 'z')
+        switch (mode)
         {
-            ch = ch - ('a' - 'A');
-        }
-        else if (mode == KEYBOARD_UPPERCASE && ch >= 'A' && ch <= 'Z')
-        {
-            ch = ch + ('a' - 'A');
-        }
+        case KEYBOARD_NUMBERS:
+            // No change in number mode
+            return ch;
+        case KEYBOARD_LOWERCASE:
+            if (ch >= 'a' && ch <= 'z')
+            {
+                return ch - ('a' - 'A');
+            }
+            switch (ch)
+            {
+            case '.':
+                return ',';
+            case '_':
+                return '-';
+            case '/':
+                return '\\';
+            case ':':
+                return ';';
+            default:
+                break;
+            };
+            break;
+        case KEYBOARD_UPPERCASE:
+            if (ch >= 'A' && ch <= 'Z')
+            {
+                return ch + ('a' - 'A');
+            }
+            switch (ch)
+            {
+            case ',':
+                return '.';
+            case '-':
+                return '_';
+            case '\\':
+                return '/';
+            case ';':
+                return ':';
+            default:
+                break;
+            };
+            break;
+        default:
+            break;
+        };
     }
     return ch;
 }
@@ -357,18 +395,18 @@ const char *Keyboard::getSuggestion(uint8_t index)
 
 const char Keyboard::keyboard_lowercase[3][11] = {
     {'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '\0'},
-    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '-', '\0'},
+    {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ':', '\0'},
     {'z', 'x', 'c', 'v', 'b', 'n', 'm', '.', '_', '/', '\0'}};
 
 const char Keyboard::keyboard_uppercase[3][11] = {
     {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '\0'},
-    {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '-', '\0'},
-    {'Z', 'X', 'C', 'V', 'B', 'N', 'M', '.', '_', '/', '\0'}};
+    {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', '\0'},
+    {'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '-', '\\', '\0'}};
 
 const char Keyboard::keyboard_numbers[3][11] = {
     {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '\0'},
     {'@', '#', '$', '%', '&', '*', '+', '=', '?', '!', '\0'},
-    {'(', ')', '[', ']', '{', '}', '<', '>', '|', '\\', '\0'}};
+    {'(', ')', '[', ']', '{', '}', '<', '>', '|', '~', '\0'}};
 
 bool Keyboard::handleInput(InputEvent *event)
 {
